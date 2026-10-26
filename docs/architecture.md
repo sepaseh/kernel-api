@@ -64,6 +64,12 @@ compensating cleanup and preservation of the original metadata failure even if
 cleanup also fails. User tests verify transaction-port policy against the state
 read inside the callback; they do not prove database isolation or rollback.
 
+Uploads reject oversized declared sizes before reading, then validate the actual
+read bytes before any object write. Metadata and upload diagnostics use the
+actual byte length. File event callbacks are best-effort synchronous diagnostics:
+their exceptions cannot fail a committed upload, prevent cleanup or replace the
+original storage/metadata error.
+
 Before runnable publication, add concrete HTTP/auth/persistence/storage adapters,
 manual composition and full HTTP contract, permission, session/cookie,
 translation, transaction/concurrency, OTP and storage integration tests using

@@ -11,6 +11,14 @@ import type { ObjectStorage } from "./ports/object-storage.ts";
 const safeObjectName = (name: string) =>
   name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
 
+const observe = (notify: () => void) => {
+  try {
+    notify();
+  } catch {
+    // Diagnostic observers must not change storage effects or mask domain failures.
+  }
+};
+
 type FilesDependencies = {
   newId(): string;
   now(): Date;
@@ -35,7 +43,7 @@ export const createFilesService = ({
     try {
       return await run();
     } catch (error) {
-      events?.storageFailed?.({ fileId, operation });
+      observe(() => events?.storageFailed?.({ fileId, operation }));
       throw error;
     }
   };
@@ -60,7 +68,7 @@ export const createFilesService = ({
       { actor, source, visibility }: FileUploadInput,
       events?: FileEvents,
     ): Promise<UploadedFile> => {
-      events?.stage?.("validation");
+      observe(() => events?.stage?.("validation"));
       if (!source) {
         throw new ApplicationError("invalid", "fieldRequired", {
           field: "file",
@@ -83,16 +91,21 @@ export const createFilesService = ({
       const id = newId();
       const objectKey = `${id}/${safeObjectName(source.name || "upload")}`;
       const contentType = source.type || "application/octet-stream";
-      events?.stage?.("read");
+      observe(() => events?.stage?.("read"));
       const data = await source.read();
-      events?.stage?.("storage");
+      const size = data.byteLength;
+      if (!size) throw new ApplicationError("invalid", "fileEmpty");
+      if (size > uploadLimitBytes) {
+        throw new ApplicationError("too-large", "fileTooLarge");
+      }
+      observe(() => events?.stage?.("storage"));
       const stored = await storageOperation(
         "put",
         () => storage.put({ contentType, data, objectKey, visibility }),
         events,
         id,
       );
-      events?.stage?.("metadata");
+      observe(() => events?.stage?.("metadata"));
       try {
         await repository.insert({
           bucket: stored.bucket,
@@ -102,7 +115,7 @@ export const createFilesService = ({
           id,
           objectKey: stored.objectKey,
           originalName: source.name || "upload",
-          size: source.size,
+          size,
           visibility,
         });
       } catch (error) {
@@ -114,18 +127,22 @@ export const createFilesService = ({
             id,
           );
         } catch (cleanupError) {
-          events?.cleanupFailed?.({ error: cleanupError, fileId: id });
+          observe(() =>
+            events?.cleanupFailed?.({ error: cleanupError, fileId: id }),
+          );
         }
         throw error;
       }
-      events?.stage?.("response");
+      observe(() => events?.stage?.("response"));
       const url = storage.url(stored.bucket, stored.objectKey, visibility);
-      events?.uploaded?.({
-        contentType,
-        fileId: id,
-        sizeBytes: source.size,
-        visibility,
-      });
+      observe(() =>
+        events?.uploaded?.({
+          contentType,
+          fileId: id,
+          sizeBytes: size,
+          visibility,
+        }),
+      );
       return { contentType, id, ...(url && { url }), visibility };
     },
   };
