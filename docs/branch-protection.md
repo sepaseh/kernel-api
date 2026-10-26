@@ -8,15 +8,22 @@ and resolved conversations. Protection applies to administrators, dismisses stal
 approvals, requires an up-to-date branch and linear history, and prohibits force
 pushes and deletion.
 
-The foundation phase requires **check** from the main CI workflow and
+The non-runnable application-services phase requires **check** and
+**PR file limit** from GitHub Actions and
 **SonarQube Cloud analysis** from GitHub Actions, plus **SonarCloud Code Analysis**
 from the SonarQube Cloud app. The native **CodeRabbit** status is also required.
-Replace the earlier bootstrap CI requirement only when the actual foundation check
-has passed; never remove a required check just to merge incomplete work.
+Keep the existing required contexts and their provider identities unchanged;
+never remove a required check just to merge incomplete work.
 
 A CodeRabbit progress status can be successful for a skipped review. Inspect the
-actual review and resolve actionable findings; request a manual review when
-automatic review skips, and respect quotas. CodeRabbit's configured automatic
+actual review and resolve actionable findings. Before any manual request or
+re-review, complete the [CodeRabbit preflight](sonarqube.md#before-requesting-coderabbit):
+all required non-CodeRabbit checks, scanner and actual Sonar quality gate must pass
+for the current head, with zero open/unresolved Sonar issues at all severities,
+including existing issues. Missing/skipped/pending evidence blocks requests;
+new commits invalidate it. Respect quotas and one in-flight request per head;
+do not weaken requirements or use automatic triggers to bypass this order.
+CodeRabbit's configured automatic
 approval can supply the required approving review after its review completes.
 A generic GitHub approval requirement accepts other eligible reviewers too; this
 ordinary policy does not claim to require a particular bot's identity.

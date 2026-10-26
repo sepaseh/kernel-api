@@ -38,11 +38,31 @@ const isFoundationSource = (file) =>
   foundationCore.has(file) ||
   /^src\/(?:contracts|application\/ports)\/[\w-]+\.ts$/.test(file) ||
   ["src/foundation.test.ts", "src/validation.test.ts"].includes(file);
+const serviceFiles = [
+  "account",
+  "auth",
+  "calendar",
+  "files",
+  "roles",
+  "settings",
+  "users",
+].map((name) => `src/application/${name}.ts`);
+const serviceTests = ["account", "auth", "files", "management", "users"].map(
+  (name) => `src/${name}-application.test.ts`,
+);
+const applicationServicesFiles = [...serviceFiles, ...serviceTests];
+const isPublishedSource = (file, phase) =>
+  phase !== "governance" &&
+  (isFoundationSource(file) ||
+    (phase === "application-services" &&
+      applicationServicesFiles.includes(file)));
 
 export const validateBootstrapPolicy = (policy) => {
   if (
     policy?.schemaVersion !== 1 ||
-    !["governance", "foundation"].includes(policy.phase) ||
+    !["governance", "foundation", "application-services"].includes(
+      policy.phase,
+    ) ||
     policy.applicationReady !== false ||
     policy.maximumChangedFiles !== 100 ||
     !Array.isArray(policy.allowedFiles) ||
@@ -61,8 +81,7 @@ export const validateBootstrapPolicy = (policy) => {
         file,
       ) ||
       file === "drizzle.config.ts" ||
-      (file.startsWith("src/") &&
-        (policy.phase !== "foundation" || !isFoundationSource(file))) ||
+      (file.startsWith("src/") && !isPublishedSource(file, policy.phase)) ||
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||
       /(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/.test(file) ||
@@ -76,9 +95,12 @@ export const validateBootstrapPolicy = (policy) => {
   }
   const requiredFiles = [
     ...coreFiles,
-    ...(policy.phase === "foundation"
-      ? foundationFiles
-      : [".github/workflows/bootstrap.yml"]),
+    ...(policy.phase === "governance"
+      ? [".github/workflows/bootstrap.yml"]
+      : foundationFiles),
+    ...(policy.phase === "application-services"
+      ? applicationServicesFiles
+      : []),
   ];
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(
@@ -115,7 +137,7 @@ export const inspectBootstrap = async (root) => {
         const relative = directory ? `${directory}/${entry.name}` : entry.name;
         if (relative === ".git") return;
         if (
-          policy.phase === "foundation" &&
+          policy.phase !== "governance" &&
           ["node_modules", "coverage"].includes(relative)
         ) {
           if (entry.isSymbolicLink() || !entry.isDirectory())
@@ -168,9 +190,11 @@ export const inspectBootstrap = async (root) => {
     files: found.size,
     phase: policy.phase,
     scope:
-      policy.phase === "foundation"
-        ? "Published contracts, core and ports only; HTTP, database and concrete adapters are not published or validated."
-        : "Published governance files only; API runtime is not published or validated.",
+      policy.phase === "application-services"
+        ? "Published contracts, core, ports and application services; HTTP, database and concrete adapters are not published or validated."
+        : policy.phase === "foundation"
+          ? "Published contracts, core and ports only; HTTP, database and concrete adapters are not published or validated."
+          : "Published governance files only; API runtime is not published or validated.",
   };
 };
 
