@@ -27,7 +27,26 @@ const policy = (overrides = {}) => ({
   ...overrides,
 });
 
-const fixture = async (context) => {
+const foundationFiles = [
+  ...coreFiles.filter((file) => file !== ".github/workflows/bootstrap.yml"),
+  ".agents/validation.json",
+  ".github/workflows/ci.yml",
+  "package.json",
+  "package-lock.json",
+  "scripts/validate.mjs",
+  "scripts/validate.test.mjs",
+  "src/foundation.test.ts",
+  "src/validation.test.ts",
+  "tsconfig.json",
+];
+const foundationPolicy = (overrides = {}) =>
+  policy({
+    allowedFiles: foundationFiles,
+    phase: "foundation",
+    ...overrides,
+  });
+
+const fixture = async (context, declaredPolicy = policy()) => {
   const parent = path.resolve(os.tmpdir());
   const root = await mkdtemp(path.join(parent, "kernel-bootstrap-test-"));
   context.after(async () => {
@@ -40,11 +59,11 @@ const fixture = async (context) => {
     await mkdir(path.dirname(absolute), { recursive: true });
     await writeFile(absolute, content);
   };
-  for (const file of coreFiles)
+  for (const file of declaredPolicy.allowedFiles)
     await put(
       file,
       file.endsWith(".json")
-        ? JSON.stringify(policy())
+        ? JSON.stringify(file === coreFiles[0] ? declaredPolicy : {})
         : "// synthetic fixture\n",
     );
   return { put, root };
@@ -133,4 +152,76 @@ test("rejects invalid JSON and invalid JavaScript without executing it", async (
   assert.equal((await inspectBootstrap(root)).applicationReady, false);
   await put(coreFiles[0], "not json");
   await assert.rejects(inspectBootstrap(root), SyntaxError);
+});
+
+test("foundation allows its pure source and toolchain, while rejecting runnable API paths", () => {
+  assert.equal(
+    validateBootstrapPolicy(foundationPolicy()).size,
+    foundationFiles.length,
+  );
+  for (const file of [
+    "src/index.ts",
+    "src/composition.ts",
+    "src/application/auth.ts",
+    "src/infrastructure/db/client.ts",
+    "src/presentation/http/app.ts",
+    "drizzle.config.ts",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        foundationPolicy({ allowedFiles: [...foundationFiles, file] }),
+      ),
+    );
+  assert.throws(
+    () =>
+      validateBootstrapPolicy(
+        foundationPolicy({
+          allowedFiles: foundationFiles.filter(
+            (file) => file !== "package-lock.json",
+          ),
+        }),
+      ),
+    /mandatory/,
+  );
+});
+
+test("the 100-file limit applies to a PR delta rather than the total published inventory", () => {
+  const files = [
+    ...foundationFiles,
+    ...Array.from({ length: 110 }, (_, index) => `docs/topic-${index}.md`),
+  ];
+  assert.equal(
+    validateBootstrapPolicy(foundationPolicy({ allowedFiles: files })).size,
+    files.length,
+  );
+  assert.throws(() =>
+    validateBootstrapPolicy(foundationPolicy({ maximumChangedFiles: 101 })),
+  );
+});
+
+test("foundation validates its exact source while ignoring only ordinary generated root directories", async (context) => {
+  const { root, put } = await fixture(context, foundationPolicy());
+  await mkdir(path.join(root, "node_modules"));
+  await mkdir(path.join(root, "coverage"));
+  await put("node_modules/ignored.json", "not parsed");
+  await put("coverage/ignored.json", "not parsed");
+  const result = await inspectBootstrap(root);
+  assert.equal(result.phase, "foundation");
+  assert.equal(result.applicationReady, false);
+  assert.equal(result.files, foundationFiles.length);
+  await put("src/undeclared.ts", "throw new Error('not run');");
+  await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+});
+
+test("generated output names cannot hide files or links", async (context) => {
+  const { root, put } = await fixture(context, foundationPolicy());
+  await put("coverage", "not a directory");
+  await assert.rejects(inspectBootstrap(root), /ordinary root directory/);
+  await rm(path.join(root, "coverage"));
+  await symlink(
+    path.join(root, "src"),
+    path.join(root, "node_modules"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  await assert.rejects(inspectBootstrap(root), /ordinary root directory/);
 });

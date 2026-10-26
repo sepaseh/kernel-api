@@ -8,11 +8,11 @@ and resolved conversations. Protection applies to administrators, dismisses stal
 approvals, requires an up-to-date branch and linear history, and prohibits force
 pushes and deletion.
 
-The governance phase requires **Bootstrap governance (API not published)** and
+The foundation phase requires **check** from the main CI workflow and
 **SonarQube Cloud analysis** from GitHub Actions, plus **SonarCloud Code Analysis**
 from the SonarQube Cloud app. The native **CodeRabbit** status is also required.
-Replace phase-specific CI requirements only when their actual successor checks
-have been verified; never remove a required check just to merge incomplete work.
+Replace the earlier bootstrap CI requirement only when the actual foundation check
+has passed; never remove a required check just to merge incomplete work.
 
 A CodeRabbit progress status can be successful for a skipped review. Inspect the
 actual review and resolve actionable findings; request a manual review when

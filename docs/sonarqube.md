@@ -36,12 +36,20 @@ analysis is required; do not merge early merely to create a baseline.
 
 ## Current scope
 
-During [governance bootstrap](bootstrap.md),
+During the [source foundation phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
-`scripts` directory, classifies `.test.mjs` files as tests and imports actual
-`coverage/lcov.info` produced in the same CI checkout. This is governance-script
-coverage, not coverage of an unpublished API. Expand source and application
-coverage explicitly when the runnable phase is introduced.
+`src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
+tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
+This measures the published foundation and tooling. HTTP and concrete adapter
+coverage must be added when the runnable phase is introduced.
+
+Duplication detection excludes only `src/contracts/locales.ts`: its ten static
+language records repeat the same five-field schema with distinct values. Keep
+these explicit records readable rather than replacing them with positional
+tuples for the duplication metric. This file remains in source analysis and
+measured coverage; no rule or coverage exclusion is applied. Review this narrow
+exception if executable logic is added to the file. See Sonar's
+[duplication exclusion documentation](https://docs.sonarsource.com/sonarqube-cloud/managing-your-projects/project-analysis/setting-analysis-scope/exclude-from-coverage-duplication).
 
 Missing credentials or project settings fail with an explicit setup error;
 scanner failures remain visible. `sonar.qualitygate.wait=false` does not wait for

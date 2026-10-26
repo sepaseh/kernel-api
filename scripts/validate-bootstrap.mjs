@@ -6,27 +6,49 @@ import { fileURLToPath } from "node:url";
 const policyPath = ".github/bootstrap-policy.json";
 const coreFiles = [
   policyPath,
-  ".github/workflows/bootstrap.yml",
   ".github/workflows/pr-policy.yml",
   "scripts/check-pr-size.mjs",
   "scripts/check-pr-size.test.mjs",
   "scripts/validate-bootstrap.mjs",
   "scripts/validate-bootstrap.test.mjs",
 ];
+const foundationFiles = [
+  ".agents/validation.json",
+  ".github/workflows/ci.yml",
+  "package.json",
+  "package-lock.json",
+  "scripts/validate.mjs",
+  "scripts/validate.test.mjs",
+  "src/foundation.test.ts",
+  "src/validation.test.ts",
+  "tsconfig.json",
+];
+const foundationCore = new Set(
+  [
+    "authorization",
+    "errors",
+    "identity",
+    "localization",
+    "models",
+    "permissions",
+    "validation",
+  ].map((name) => `src/application/${name}.ts`),
+);
+const isFoundationSource = (file) =>
+  foundationCore.has(file) ||
+  /^src\/(?:contracts|application\/ports)\/[\w-]+\.ts$/.test(file) ||
+  ["src/foundation.test.ts", "src/validation.test.ts"].includes(file);
 
 export const validateBootstrapPolicy = (policy) => {
   if (
     policy?.schemaVersion !== 1 ||
-    policy.phase !== "governance" ||
+    !["governance", "foundation"].includes(policy.phase) ||
     policy.applicationReady !== false ||
     policy.maximumChangedFiles !== 100 ||
     !Array.isArray(policy.allowedFiles) ||
-    !policy.allowedFiles.length ||
-    policy.allowedFiles.length > 100
+    !policy.allowedFiles.length
   )
-    throw new Error(
-      "An explicit governance-only bootstrap policy is required.",
-    );
+    throw new Error("An explicit non-runnable publication phase is required.");
   const files = new Set();
   for (const file of policy.allowedFiles) {
     if (
@@ -35,20 +57,30 @@ export const validateBootstrapPolicy = (policy) => {
       file.includes("\\") ||
       file.split("/").some((part) => !part || part === "." || part === "..") ||
       /[*?[\]{}:\r\n]/.test(file) ||
-      /^(?:src|drizzle|collection|deploy|node_modules|server|coverage)(?:\/|$)/.test(
+      /^(?:drizzle|collection|deploy|node_modules|server|coverage)(?:\/|$)/.test(
         file,
       ) ||
-      /^(?:package(?:-lock)?\.json|drizzle\.config\.ts)$/.test(file) ||
+      file === "drizzle.config.ts" ||
+      (file.startsWith("src/") &&
+        (policy.phase !== "foundation" || !isFoundationSource(file))) ||
+      (policy.phase === "governance" &&
+        /^package(?:-lock)?\.json$/.test(file)) ||
       /(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/.test(file) ||
       /\.(?:pem|key|pfx|p12|sqlite|db)$/.test(file) ||
       files.has(file)
     )
       throw new Error(
-        "Bootstrap files must be unique, exact governance paths.",
+        "Publication files must be unique, exact paths within their declared phase.",
       );
     files.add(file);
   }
-  if (coreFiles.some((file) => !files.has(file)))
+  const requiredFiles = [
+    ...coreFiles,
+    ...(policy.phase === "foundation"
+      ? foundationFiles
+      : [".github/workflows/bootstrap.yml"]),
+  ];
+  if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(
       "The bootstrap policy cannot omit its mandatory guard files.",
     );
@@ -82,6 +114,16 @@ export const inspectBootstrap = async (root) => {
       entries.map(async (entry) => {
         const relative = directory ? `${directory}/${entry.name}` : entry.name;
         if (relative === ".git") return;
+        if (
+          policy.phase === "foundation" &&
+          ["node_modules", "coverage"].includes(relative)
+        ) {
+          if (entry.isSymbolicLink() || !entry.isDirectory())
+            throw new Error(
+              "Generated output must be an ordinary root directory.",
+            );
+          return;
+        }
         if (entry.isSymbolicLink())
           throw new Error(
             "Bootstrap snapshots must not contain symbolic links.",
@@ -124,9 +166,11 @@ export const inspectBootstrap = async (root) => {
   return {
     applicationReady: false,
     files: found.size,
-    phase: "governance",
+    phase: policy.phase,
     scope:
-      "Published governance files only; API runtime is not published or validated.",
+      policy.phase === "foundation"
+        ? "Published contracts, core and ports only; HTTP, database and concrete adapters are not published or validated."
+        : "Published governance files only; API runtime is not published or validated.",
   };
 };
 

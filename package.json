@@ -1,0 +1,34 @@
+{
+  "name": "kernel-api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24.15.0 <25"
+  },
+  "scripts": {
+    "audit": "node scripts/run-audit.mjs",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "check:snapshot": "node scripts/validate-bootstrap.mjs",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "npm run test:coverage && npm run test:audit",
+    "test:audit": "vitest run scripts/run-audit.test.mjs",
+    "test:coverage": "node -e \"require('node:fs').mkdirSync('coverage', { recursive: true })\" && node --experimental-test-coverage --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info src/foundation.test.ts src/validation.test.ts scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs scripts/boundaries.test.mjs scripts/validate.test.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "validate": "node scripts/validate.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.19.2",
+    "eslint": "^10.13.0",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^5.0.5"
+  }
+}
