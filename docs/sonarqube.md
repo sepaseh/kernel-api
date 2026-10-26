@@ -71,11 +71,12 @@ this repository's latest CodeRabbit review.
 
 ## Current scope
 
-During the [localization-data phase](bootstrap.md),
+During the [infrastructure-support phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
 `src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
 tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
-This measures published application services, core modules, static catalogs and tooling.
+This measures published application services, core modules, static catalogs,
+configuration, translation/logging/lifecycle support and tooling.
 Fake-port coverage is not concrete HTTP, DB, authentication or storage evidence;
 that coverage must be added when the runnable phase is introduced.
 

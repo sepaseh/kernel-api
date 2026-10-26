@@ -59,22 +59,36 @@ const localizationFiles = [
   ),
   "src/catalogs.test.ts",
 ];
+const infrastructureSupportFiles = [
+  "src/infrastructure/config.ts",
+  "src/infrastructure/lifecycle.ts",
+  "src/infrastructure/localization/i18n.ts",
+  "src/infrastructure/logging/logger.ts",
+  "src/infrastructure/logging/sanitization.ts",
+  "src/config.test.ts",
+  "src/lifecycle.test.ts",
+  "src/localization.test.ts",
+  "src/logger.test.ts",
+];
+const phaseFiles = {
+  governance: [],
+  foundation: [],
+  "application-services": applicationServicesFiles,
+  "localization-data": [...applicationServicesFiles, ...localizationFiles],
+  "infrastructure-support": [
+    ...applicationServicesFiles,
+    ...localizationFiles,
+    ...infrastructureSupportFiles,
+  ],
+};
 const isPublishedSource = (file, phase) =>
   phase !== "governance" &&
-  (isFoundationSource(file) ||
-    (["application-services", "localization-data"].includes(phase) &&
-      applicationServicesFiles.includes(file)) ||
-    (phase === "localization-data" && localizationFiles.includes(file)));
+  (isFoundationSource(file) || phaseFiles[phase]?.includes(file));
 
 export const validateBootstrapPolicy = (policy) => {
   if (
     policy?.schemaVersion !== 1 ||
-    ![
-      "governance",
-      "foundation",
-      "application-services",
-      "localization-data",
-    ].includes(policy.phase) ||
+    !Object.hasOwn(phaseFiles, policy.phase) ||
     policy.applicationReady !== false ||
     policy.maximumChangedFiles !== 100 ||
     !Array.isArray(policy.allowedFiles) ||
@@ -110,10 +124,7 @@ export const validateBootstrapPolicy = (policy) => {
     ...(policy.phase === "governance"
       ? [".github/workflows/bootstrap.yml"]
       : foundationFiles),
-    ...(["application-services", "localization-data"].includes(policy.phase)
-      ? applicationServicesFiles
-      : []),
-    ...(policy.phase === "localization-data" ? localizationFiles : []),
+    ...phaseFiles[policy.phase],
   ];
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(
@@ -207,6 +218,8 @@ export const inspectBootstrap = async (root) => {
       "Published contracts, core, ports and application services; HTTP, database and concrete adapters are not published or validated.",
     "localization-data":
       "Published contracts, application services and static translation catalogs; translation engine, HTTP, database and concrete adapters are not published or validated.",
+    "infrastructure-support":
+      "Published contracts, application services, translation engine, configuration and logging/lifecycle support; HTTP, database and authentication/storage adapters are not published or validated.",
   };
   return {
     applicationReady: false,
