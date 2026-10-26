@@ -2,27 +2,26 @@
 
 [English](branch-protection.md) · [فارسی](branch-protection.fa.md)
 
-Merging requires successful CI, CodeRabbit approval of the exact current PR head,
-a passing SonarQube Cloud quality gate for that head and resolved review threads.
-Missing, pending, failed, skipped or quota-limited evidence keeps merging blocked.
-The policy applies to administrators, dismisses stale approvals, requires an
-up-to-date branch and linear history, and prohibits force pushes and deletion.
+Use the existing GitHub, CodeRabbit and SonarQube Cloud integrations. Merging
+requires successful CI, the required native provider checks, an approving review
+and resolved conversations. Protection applies to administrators, dismisses stale
+approvals, requires an up-to-date branch and linear history, and prohibits force
+pushes and deletion.
 
 The governance phase requires **Bootstrap governance (API not published)** and
 **SonarQube Cloud analysis** from GitHub Actions, plus **SonarCloud Code Analysis**
-from the SonarQube Cloud app. The additional **Review approval gate** must come
-from the separately trusted publisher described in [gate operations](review-gate.md).
+from the SonarQube Cloud app. The native **CodeRabbit** status is also required.
 Replace phase-specific CI requirements only when their actual successor checks
 have been verified; never remove a required check just to merge incomplete work.
 
-A generic approval count cannot require a named bot, and CodeRabbit can report a
-successful progress status for a skipped review. The trusted publisher checks the
-verified bot identity, an actual `APPROVED` review on the exact head, current CI
-and Sonar results, complete thread pagination and stable head/base revisions.
-It cannot use PR-controlled source, policy or signing credentials.
+A CodeRabbit progress status can be successful for a skipped review. Inspect the
+actual review and resolve actionable findings; request a manual review when
+automatic review skips, and respect quotas. CodeRabbit's configured automatic
+approval can supply the required approving review after its review completes.
+A generic GitHub approval requirement accepts other eligible reviewers too; this
+ordinary policy does not claim to require a particular bot's identity.
 
-The initial empty `main` cannot supply trusted workflow code. Until the separate
-publisher is installed and connected, the required approval-gate context remains
-unfulfilled and PRs stay blocked. Do not let a PR-head workflow authorize its own
-merge or remove this blocker to bootstrap the repository. CODEOWNERS remains a
-review suggestion; it does not replace these enforced conditions.
+No dedicated approval App, external publisher or custom approval-gate check is
+used. CI and Sonar results must apply to the current PR commit. Missing or failed
+required checks keep merging blocked; do not remove required checks to bypass a
+failure. CODEOWNERS suggests reviewers without configuring protection by itself.

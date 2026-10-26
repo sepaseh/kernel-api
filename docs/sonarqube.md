@@ -48,7 +48,8 @@ scanner failures remain visible. `sonar.qualitygate.wait=false` does not wait fo
 the asynchronous provider decision in the scanner process. Scan execution and a
 passing provider quality gate are separate evidence; both are required for merging.
 Branch protection requires the observed **SonarCloud Code Analysis** from the
-Sonar app alongside CI and the [independent review gate](review-gate.md).
+Sonar app alongside CI, the native CodeRabbit status and the ordinary
+[review requirements](branch-protection.md).
 
 Fork PRs do not run this credentialed workflow; read-only bootstrap/file-limit
 checks still apply. Maintainers must review fork code before moving it onto an
