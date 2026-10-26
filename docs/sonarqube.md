@@ -66,23 +66,29 @@ After preflight passes, request review only within an authorized cycle, respect
 provider quotas and keep at most one request in flight per head. Do not send
 duplicate requests or enable automatic triggers to bypass this order. After
 review fixes create a new commit, run the preflight again.
+Before each new request, also verify that at least one hour has elapsed since
+this repository's latest CodeRabbit review.
 
 ## Current scope
 
-During the [application-services phase](bootstrap.md),
+During the [localization-data phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
 `src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
 tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
-This measures published application services, core modules and tooling.
+This measures published application services, core modules, static catalogs and tooling.
 Fake-port coverage is not concrete HTTP, DB, authentication or storage evidence;
 that coverage must be added when the runnable phase is introduced.
 
-Duplication detection excludes only `src/contracts/locales.ts`: its ten static
-language records repeat the same five-field schema with distinct values. Keep
-these explicit records readable rather than replacing them with positional
-tuples for the duplication metric. This file remains in source analysis and
-measured coverage; no rule or coverage exclusion is applied. Review this narrow
-exception if executable logic is added to the file. See Sonar's
+Duplication detection excludes only the ten explicit language data files under
+`src/infrastructure/localization/catalogs/`: `ar.ts`, `de.ts`, `en.ts`, `es.ts`,
+`fa.ts`, `fr.ts`, `it.ts`, `pt.ts`, `ru.ts` and `tr.ts`. Each repeats the same
+message keys with genuine translated values. AST checks enforce flat literal
+string data without executable logic or fallback spreads. The registry `index.ts`
+and `src/contracts/locales.ts` retain duplication analysis. All catalog files
+remain in source, rule and measured coverage analysis; no rule, source or coverage
+exception is applied. Revisit the narrow duplication exception if executable
+logic is introduced, and verify the actual provider analysis before reporting
+success. See Sonar's
 [duplication exclusion documentation](https://docs.sonarsource.com/sonarqube-cloud/managing-your-projects/project-analysis/setting-analysis-scope/exclude-from-coverage-duplication).
 
 Missing credentials or project settings fail with an explicit setup error;

@@ -8,6 +8,7 @@ import ts from "typescript";
 
 import {
   boundaryViolation,
+  catalogDataViolation,
   checkBoundaries,
   inspectImports,
 } from "./check-boundaries.mjs";
@@ -163,6 +164,87 @@ test("fully erased message types remain valid while module-loading import and re
     if (typeOnly) assert.equal(violation, undefined, source);
     else assert.match(violation, /fully erased types/, source);
   }
+});
+
+test("catalog data depends on erased vocabulary, with local data imports reserved for the registry", () => {
+  const directory = path.join(root, "src/infrastructure/localization/catalogs");
+  const file = path.join(directory, "fa.ts");
+  const vocabulary = "../../../application/localization.ts";
+  assert.equal(check(vocabulary, { file, typeOnly: true }), undefined);
+  for (const specifier of [
+    vocabulary,
+    "../../../application/models.ts",
+    "../../../contracts/locales.ts",
+    "./en.ts",
+    "../i18n.ts",
+    "i18next",
+  ])
+    assert.ok(check(specifier, { file, typeOnly: false }));
+  for (const specifier of [
+    "./en.ts",
+    "i18next",
+    "../../../application/models.ts",
+  ])
+    assert.ok(check(specifier, { file, typeOnly: true }));
+  const registry = path.join(directory, "index.ts");
+  assert.equal(
+    check("./en.ts", { file: registry, typeOnly: false }),
+    undefined,
+  );
+  assert.equal(
+    check("../../../contracts/locales.ts", { file: registry, typeOnly: true }),
+    undefined,
+  );
+  for (const specifier of [
+    "../../../contracts/locales.ts",
+    "../i18n.ts",
+    "./index.ts",
+    "i18next",
+  ])
+    assert.ok(check(specifier, { file: registry, typeOnly: false }));
+  assert.match(
+    check("../infrastructure/localization/catalogs/index.ts", {
+      file: path.join(root, "src/application/localization.ts"),
+      typeOnly: true,
+    }),
+    /local application\/contracts/,
+  );
+});
+
+test("literal catalog policy accepts only one exported const of flat string messages", () => {
+  for (const content of [
+    'export const apiEn = { message: "literal" };',
+    'export const apiEn = { "message": "literal" } as const;',
+    'import type { ApiTranslationResource } from "../../../application/localization.ts"; export const apiEn = { message: "literal" } satisfies ApiTranslationResource;',
+  ])
+    assert.equal(catalogDataViolation(content, "en.ts"), undefined);
+  for (const content of [
+    "",
+    "export const apiEn = {};",
+    'export const apiEn = { message: "" };',
+    'export const apiEn = { message: "literal", message: "duplicate" };',
+    'export const apiEn = { common: { message: "nested" } };',
+    "export const apiEn = { message: calculate() };",
+    'export const apiEn = { get message() { return "getter"; } };',
+    'export const apiEn = { message() { return "method"; } };',
+    'export const apiEn = { ["message"]: "computed" };',
+    "export const apiEn = { ...other };",
+    "export const apiEn = { message: `template` };",
+    'export const apiEn = Object.freeze({ message: "called" });',
+    'export const apiEn = { message: "literal" }; run();',
+    'export const apiEn = { message: "literal" }; export function run() {}',
+    'export const apiEn = { message: "literal" }; export { other };',
+    'import "side-effect"; export const apiEn = { message: "literal" };',
+    'export const apiEn = { message: "literal" }, extra = "extra";',
+    'export const apiEn = { message: "literal" }; const extra = "extra";',
+    'export let apiEn = { message: "literal" };',
+    'export using apiEn = { message: "disposable" };',
+    'export await using apiEn = { message: "asynchronous disposal" };',
+    'const apiEn = { message: "literal" };',
+    'export const apiFa = { message: "wrong locale" };',
+    "export const apiEn = { message: ;",
+  ])
+    assert.ok(catalogDataViolation(content, "en.ts"), content);
 });
 
 test("the working tree is a standalone project with contained pure contracts", async () => {

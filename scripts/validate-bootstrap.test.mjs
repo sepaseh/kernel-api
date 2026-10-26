@@ -70,6 +70,18 @@ const applicationServicesPolicy = (overrides = {}) =>
     phase: "application-services",
     ...overrides,
   });
+const localizationFiles = [
+  ...["ar", "de", "en", "es", "fa", "fr", "it", "pt", "ru", "tr", "index"].map(
+    (code) => `src/infrastructure/localization/catalogs/${code}.ts`,
+  ),
+  "src/catalogs.test.ts",
+];
+const localizationPolicy = (overrides = {}) =>
+  applicationServicesPolicy({
+    allowedFiles: [...applicationServicesFiles, ...localizationFiles],
+    phase: "localization-data",
+    ...overrides,
+  });
 
 const fixture = async (context, declaredPolicy = policy()) => {
   const parent = path.resolve(os.tmpdir());
@@ -271,6 +283,61 @@ test("application-services inspects its exact non-runnable snapshot", async (con
     "// synthetic undeclared test\n",
   );
   await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+});
+
+test("localization-data requires the complete catalogs, registry and data tests", () => {
+  const declared = localizationPolicy();
+  assert.equal(
+    validateBootstrapPolicy(declared).size,
+    declared.allowedFiles.length,
+  );
+  for (const file of [...localizationFiles, ...serviceFiles, ...serviceTests])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy(
+          localizationPolicy({
+            allowedFiles: declared.allowedFiles.filter((item) => item !== file),
+          }),
+        ),
+      /mandatory/,
+    );
+});
+
+test("localization-data cannot admit a translation engine, arbitrary catalogs or runtime adapters", () => {
+  for (const file of [
+    "src/infrastructure/localization/i18n.ts",
+    "src/infrastructure/localization/catalogs/unknown.ts",
+    "src/infrastructure/localization/catalogs/nested/en.ts",
+    "src/infrastructure/db/client.ts",
+    "src/presentation/http/app.ts",
+    "src/composition.ts",
+    "src/index.ts",
+    "src/unrelated.test.ts",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        localizationPolicy({
+          allowedFiles: [...localizationPolicy().allowedFiles, file],
+        }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(localizationPolicy({ applicationReady: true })),
+  );
+  for (const phase of ["foundation", "application-services"])
+    assert.throws(() => validateBootstrapPolicy(localizationPolicy({ phase })));
+});
+
+test("localization-data inspects its complete non-runnable snapshot", async (context) => {
+  const declared = localizationPolicy();
+  const { root } = await fixture(context, declared);
+  assert.deepEqual(await inspectBootstrap(root), {
+    applicationReady: false,
+    files: declared.allowedFiles.length,
+    phase: "localization-data",
+    scope:
+      "Published contracts, application services and static translation catalogs; translation engine, HTTP, database and concrete adapters are not published or validated.",
+  });
 });
 
 test("the 100-file limit applies to a PR delta rather than the total published inventory", () => {

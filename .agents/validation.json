@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "application-services",
+  "phase": "localization-data",
   "applicationReady": false,
   "checks": [
     {
@@ -8,63 +8,63 @@
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["application-services"]
+      "scopes": ["application-services", "localization-data"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["application-services", "tooling"]
+      "scopes": ["application-services", "tooling", "localization-data"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["application-services"]
+      "scopes": ["application-services", "localization-data"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["application-services"]
+      "scopes": ["application-services", "localization-data"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["application-services"]
+      "scopes": ["application-services", "localization-data"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["application-services"]
+      "scopes": ["application-services", "localization-data"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["application-services"]
+      "scopes": ["application-services", "localization-data"]
     },
     {
       "id": "coverage-tests",
       "command": "npm run test:coverage",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["application-services"]
+      "scopes": ["application-services", "localization-data"]
     },
     {
       "id": "audit-helper-tests",
       "command": "npm run test:audit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["application-services"]
+      "scopes": ["application-services", "localization-data"]
     }
   ],
   "profiles": {

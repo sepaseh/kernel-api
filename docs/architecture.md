@@ -2,8 +2,9 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The current [application-services phase](bootstrap.md) is a framework-free
-application layer with local contracts and feature-specific dependency ports.
+The current [localization-data phase](bootstrap.md) contains a framework-free
+application layer, local contracts, feature-specific dependency ports and ten
+static API message catalogs.
 `applicationReady:false` is deliberate: there is no HTTP server, composition
 root, database schema, migration or concrete adapter in this snapshot.
 
@@ -16,10 +17,18 @@ there is no workspace or shared-package dependency.
 
 Application services never import framework, ORM, authentication/storage SDK or
 HTTP request/response types. The localization module supplies erased message-key
-types; runtime translations and HTTP status mapping belong to future adapters.
+types. Static translated strings live in
+`src/infrastructure/localization/catalogs/`; translation execution and HTTP status
+mapping belong to future adapters. Each language module exports one flat literal
+object and may import the application vocabulary only as a fully erased type.
+The registry in `catalogs/index.ts` consumes those original objects and the
+erased locale contract type. Application code cannot import catalog data or
+other infrastructure.
 `scripts/check-boundaries.mjs` checks source containment, local dependency
 resolution, contract purity and forbidden application dependencies. The exact
 publication guard separately rejects undeclared source and runnable layers.
+Catalog AST checks reject executable logic, engine imports and fallback spreads;
+the only catalog runtime dependencies are the registry's local data imports.
 
 | Service       | Responsibility                                                                                                                                                                    |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -46,6 +55,13 @@ language; ordinary permitted branding saves do not overwrite a concurrent
 language change. Frontends consume API settings rather than persisting an
 independent user language choice.
 
+All ten catalog files have the complete application message vocabulary and
+matching interpolation variables. Values are genuine translations, with one
+flat key space per language. The registry preserves canonical object identity
+without copying data or choosing a fallback. This phase supplies data only;
+language resolution, interpolation execution and HTTP localization are not
+implemented or validated by a catalog-data test.
+
 Soft deletion is prohibited. Role deletion uses the port's atomic
 `deleteIfUnassigned` result and reports a semantic conflict when assigned. User
 deletion re-reads state through its transaction port, protects self/final active
@@ -63,6 +79,9 @@ semantic errors, dependency calls and observable ordering. File tests cover
 compensating cleanup and preservation of the original metadata failure even if
 cleanup also fails. User tests verify transaction-port policy against the state
 read inside the callback; they do not prove database isolation or rollback.
+Data-only catalog tests cover language and message-key parity, flat strings,
+interpolation variables and canonical object identity without loading a translation
+engine.
 
 Uploads reject oversized declared sizes before reading, then validate the actual
 read bytes before any object write. Metadata and upload diagnostics use the

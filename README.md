@@ -3,8 +3,8 @@
 [English](README.md) · [فارسی](README.fa.md)
 
 Kernel API is a standalone TypeScript project. The current
-**application-services** phase provides pure HTTP contracts, application services
-and feature-specific adapter ports. `applicationReady` remains **false**: this
+**localization-data** phase provides pure HTTP contracts, application services,
+feature-specific adapter ports and ten API message catalogs. `applicationReady` remains **false**: this
 snapshot does not start an HTTP API.
 
 ## Current scope
@@ -18,8 +18,13 @@ snapshot does not start an HTTP API.
 - [`src/application/ports/`](src/application/ports/) contains eight feature ports
   for persistence, authentication, OTP and object storage. Concrete adapters are
   not included.
+- [`src/infrastructure/localization/catalogs/`](src/infrastructure/localization/catalogs/)
+  contains flat, complete API catalogs for Arabic, German, English, Spanish,
+  Persian, French, Italian, Portuguese, Russian and Turkish. Its `index.ts`
+  exposes each original catalog object; no translation engine is included.
 - Pure tests cover application policies and operation ordering with synthetic
-  fake ports. Governance tests cover source boundaries, exact publication scope,
+  fake ports, plus catalog vocabulary, placeholders and static-data boundaries.
+  Governance tests cover source boundaries, exact publication scope,
   PR size, audit handling and validation execution.
 
 [Architecture](docs/architecture.md) explains ownership, language authority,
@@ -45,7 +50,7 @@ source boundaries, types, lint, formatting, measured test coverage and audit-hel
 tests. These checks use synthetic data and do not need an environment file,
 existing database or running API.
 
-Tests generate real `coverage/lcov.info` for published application source and
+Tests generate real `coverage/lcov.info` for published application source, catalog data and
 repository tooling in this checkout. This is not coverage of concrete HTTP, DB,
 authentication or storage implementations. Generated coverage is not committed.
 See [Sonar setup](docs/sonarqube.md) for scanner and provider-gate evidence.
