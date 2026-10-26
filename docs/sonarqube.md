@@ -44,10 +44,11 @@ coverage, not coverage of an unpublished API. Expand source and application
 coverage explicitly when the runnable phase is introduced.
 
 Missing credentials or project settings fail with an explicit setup error;
-scanner failures remain visible. `sonar.qualitygate.wait=false` keeps quality-gate
-evaluation advisory. Scan execution and a passing
-provider quality gate are separate evidence. Require a named Sonar check in branch
-protection only after verifying its actual execution and project binding.
+scanner failures remain visible. `sonar.qualitygate.wait=false` does not wait for
+the asynchronous provider decision in the scanner process. Scan execution and a
+passing provider quality gate are separate evidence; both are required for merging.
+Branch protection requires the observed **SonarCloud Code Analysis** from the
+Sonar app alongside CI and the [independent review gate](review-gate.md).
 
 Fork PRs do not run this credentialed workflow; read-only bootstrap/file-limit
 checks still apply. Maintainers must review fork code before moving it onto an

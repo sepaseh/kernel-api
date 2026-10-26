@@ -41,7 +41,7 @@ jobs:
       - name: Measure coverage for published governance scripts
         run: |
           node -e "require('node:fs').mkdirSync('coverage', { recursive: true })"
-          node --experimental-test-coverage --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs
+          node --experimental-test-coverage --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info scripts/check-pr-size.test.mjs scripts/check-review-approvals.test.mjs scripts/publish-review-approval.test.mjs scripts/validate-bootstrap.test.mjs
       - name: Analyze published scripts and measured coverage
         uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         env:

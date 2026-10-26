@@ -42,7 +42,11 @@ coverage, not API application coverage. Generated reports are not committed.
    a later skipped status does not re-review the updated commit.
 6. Verify the actual Sonar analysis and quality-gate result when configured.
    Missing setup, unavailable analysis and failed analysis are distinct states.
-7. Merge after required checks and owner review. Automatic merging, deployment
+7. Merge only after successful CI, genuine CodeRabbit approval of the current head,
+   a passing Sonar quality gate for that head and resolved review discussions.
+   The independent [review gate](review-gate.md) must confirm those conditions.
+   Missing, skipped, quota-limited or stale evidence keeps merging blocked.
+   Automatic merging, deployment
    and release tagging are not enabled by this bootstrap.
 
 The [PR policy](../.github/workflows/pr-policy.yml) runs trusted default-branch
@@ -51,11 +55,17 @@ PR-head code or an unreviewed target branch in this privileged event. Complete p
 are required; incomplete API responses fail the check. The first PR also runs an
 unprivileged head-branch size check because its empty base lacks the policy.
 
-The initial `main` protection requires a PR, a successful **Bootstrap governance
-(API not published)** check from GitHub Actions and resolved conversations. It
-also applies to administrators, prevents force pushes/deletion and requires
-linear history. A second human approval is not required. Sonar quality-gate
-evaluation remains advisory. After the initial merge, verify a real **PR file
+The initial `main` protection requires a PR, successful **Bootstrap governance
+(API not published)** and **SonarQube Cloud analysis** checks from GitHub Actions,
+a passing **SonarCloud Code Analysis** from the Sonar app, an approving review and
+the independent **Review approval gate**. It also requires resolved conversations,
+applies to administrators, dismisses stale approvals, prevents force pushes/deletion
+and requires linear history. The independent publisher is not installed yet, so
+its required context deliberately keeps merging blocked. A generic human approval
+or CodeRabbit progress status cannot substitute for the actual bot approval.
+The empty initial main branch must not be bootstrapped by letting a PR authorize
+itself. See [branch protection](branch-protection.md). After the initial merge,
+verify a real **PR file
 limit** run from the trusted workflow before adding that check as required.
 When introducing the runnable phase, replace obsolete required bootstrap checks
 with the verified application checks so branch protection cannot require a

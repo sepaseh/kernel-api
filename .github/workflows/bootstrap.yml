@@ -27,10 +27,10 @@ jobs:
           node-version-file: .nvmrc
       - name: Verify the exact published governance snapshot
         run: node scripts/validate-bootstrap.mjs
-      - name: Test bootstrap and PR-size behavior with measured coverage
+      - name: Test governance and approval enforcement with measured coverage
         run: |
           node -e "require('node:fs').mkdirSync('coverage', { recursive: true })"
-          node --experimental-test-coverage --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs
+          node --experimental-test-coverage --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info scripts/check-pr-size.test.mjs scripts/check-review-approvals.test.mjs scripts/publish-review-approval.test.mjs scripts/validate-bootstrap.test.mjs
       - name: First-PR file count (unprivileged PR code)
         if: github.event_name == 'pull_request'
         env:
