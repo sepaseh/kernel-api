@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "phase": "governance",
+  "applicationReady": false,
+  "maximumChangedFiles": 100,
+  "allowedFiles": [
+    ".coderabbit.yaml",
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    ".github/bootstrap-policy.json",
+    ".github/workflows/bootstrap.yml",
+    ".github/workflows/pr-policy.yml",
+    ".github/workflows/sonar.yml",
+    ".gitignore",
+    ".nvmrc",
+    "docs/bootstrap.fa.md",
+    "docs/bootstrap.md",
+    "docs/sonarqube.fa.md",
+    "docs/sonarqube.md",
+    "scripts/check-pr-size.mjs",
+    "scripts/check-pr-size.test.mjs",
+    "scripts/validate-bootstrap.mjs",
+    "scripts/validate-bootstrap.test.mjs",
+    "sonar-project.properties"
+  ]
+}

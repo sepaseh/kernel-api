@@ -1,0 +1,50 @@
+# تحلیل SonarQube Cloud
+
+[English](sonarqube.md) · [فارسی](sonarqube.fa.md)
+
+[گردش کار](../.github/workflows/sonar.yml) در سازمان `sepaseh` برای PRها، ارسال به
+`main` و اجرای دستی، تحلیل در CI انجام می‌دهد. ابتدا پروژهٔ عمومی را در Sonar
+وارد و به همین ریپوی GitHub متصل کنید.
+
+## تنظیمات
+
+1. از [برنامه‌های نصب‌شدهٔ GitHub](https://github.com/settings/installations)
+   دسترسی برنامهٔ موجود SonarQube Cloud به این ریپو را فعال کنید.
+2. [مخزن را وارد کنید](https://sonarcloud.io/projects/create)، سازمان `sepaseh`
+   و روش **With GitHub Actions** را انتخاب کنید.
+3. در **Administration → Analysis Method**، گزینهٔ **Automatic Analysis** را
+   خاموش کنید؛ تحلیل خودکار و تحلیل CI نباید هم‌زمان اجرا شوند.
+4. در [My Account → Security](https://sonarcloud.io/account/security) توکن بسازید
+   و آن را فقط در Actions secret مخزن با نام **`SONAR_TOKEN`** قرار دهید. مقدارش
+   نباید وارد کامیت، PR، لاگ یا گفتگو شود.
+5. Actions variable به نام **`SONAR_PROJECT_KEY`** را برابر کلید واقعی پروژه قرار
+   دهید. پیش‌فرض **`SONAR_HOST_URL`** برابر `https://sonarcloud.io` است. گردش کار
+   اسکن دومی از صفحهٔ راه‌اندازی سرویس اضافه نکنید.
+
+پروژهٔ خالی یا صرفاً تنظیم توکن، شاهد تحلیل موفق نیست. نتیجهٔ واقعی تحلیل و دروازهٔ
+کیفیت سرویس را بررسی کنید. ممکن است تحلیل PR اول به تحلیل اولیهٔ `main` نیاز داشته
+باشد.
+
+## محدودهٔ فعلی
+
+در [مرحلهٔ راه‌اندازی قواعد کار](bootstrap.fa.md)،
+[sonar-project.properties](../sonar-project.properties) پوشهٔ منتشرشدهٔ `scripts`
+را تحلیل، فایل‌های `.test.mjs` را تست مشخص و گزارش واقعی `coverage/lcov.info`
+تولیدشده در همان checkout مربوط به CI را وارد می‌کند. این پوشش اسکریپت‌های گردش
+کار است و پوشش API منتشرنشده نیست. هنگام ورود مرحلهٔ قابل اجرا، محدودهٔ کد و پوشش
+برنامه باید صریح گسترش یابند.
+
+نبود اعتبارنامه یا تنظیمات پروژه با خطای مشخص تنظیم شکست می‌خورد؛ خطای اسکن هم
+پنهان نمی‌شود. گزینهٔ `sonar.qualitygate.wait=false` ارزیابی دروازهٔ کیفیت را
+مشورتی نگه می‌دارد. اجرای اسکن و موفقیت دروازهٔ کیفیت سرویس دو شاهد
+جدا هستند. بررسی Sonar تنها پس از تأیید اجرای واقعی و اتصال پروژه در حفاظت شاخه
+الزامی شود.
+
+این گردش کار دارای اعتبارنامه برای PRهای fork اجرا نمی‌شود؛ بررسی فقط‌خواندنی
+راه‌اندازی و سقف فایل همچنان برقرار است. مالک باید کد fork را پیش از انتقال به
+شاخهٔ مجاز و تحلیل دارای اعتبارنامه بازبینی کند. توکن مخزن دیگری کپی نمی‌شود و
+تست‌های محلی به SonarQube Cloud وصل نمی‌شوند.
+
+[اسکنر رسمی](https://github.com/SonarSource/sonarqube-scan-action) و
+[راهنمای روش تحلیل](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/automatic-analysis)
+را ببینید.

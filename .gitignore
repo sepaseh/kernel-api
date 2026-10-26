@@ -1,0 +1,48 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+node_modules
+dist
+coverage
+test-results
+*.local
+server/data/*.sqlite
+server/data/*.sqlite-*
+server/data/uploads/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# AI assistant local settings
+.agents/settings.local.json
+
+# Independent project outputs and local state
+**/*.tsbuildinfo
+
+# Operator-managed deployment configuration, credentials and certificates
+deploy/**/.env
+deploy/**/*.env
+deploy/**/tls/
+deploy/**/*.pem
+deploy/**/*.key
+deploy/**/bootstrap-admin.json
+
+# Standalone API secrets and local runtime state
+.env
+.env.*
+!.env.example
+!**/.env.example
+server/data/
