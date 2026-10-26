@@ -103,10 +103,32 @@ test("application imports stay local and framework-free even for erased SDK type
   );
   assert.equal(check("./models.ts", { file, typeOnly: true }), undefined);
   assert.equal(check("../contracts/account.ts", { file }), undefined);
+  assert.equal(check("crypto", { file }), undefined);
   assert.equal(check("node:crypto", { file }), undefined);
   assert.equal(check("node:assert/strict", { file }), undefined);
   for (const specifier of ["http", "node:http", "http2", "node:https"])
     assert.match(check(specifier, { file }), /HTTP transport/);
+});
+
+test("built-in SQLite dependencies cannot enter application code through runtime or erased types", () => {
+  const file = path.join(root, "src/application/service.ts");
+  const sources = [
+    'import { DatabaseSync } from "node:sqlite";',
+    'import type { DatabaseSync } from "node:sqlite";',
+    'export type { DatabaseSync } from "node:sqlite";',
+    'type Database = import("node:sqlite").DatabaseSync;',
+    'const sqlite = import("node:sqlite");',
+    'const sqlite = require("node:sqlite");',
+  ];
+  for (const source of sources) {
+    const edges = inspectImports(source, file);
+    assert.equal(edges.length, 1, source);
+    assert.match(
+      check(edges[0].specifier, { file, typeOnly: edges[0].typeOnly }),
+      /database/,
+      source,
+    );
+  }
 });
 
 test("fully erased message types remain valid while module-loading import and re-export forms fail", () => {

@@ -76,9 +76,9 @@ const applicationImportViolation = ({ root, specifier, target, typeOnly }) => {
       ? specifier.slice(5)
       : specifier;
     return isBuiltin(specifier) &&
-      !["http", "http2", "https"].includes(nativeName)
+      !["http", "http2", "https", "sqlite"].includes(nativeName)
       ? undefined
-      : "Application modules must not depend on external packages or HTTP transport";
+      : "Application modules must not depend on external packages, HTTP transport or database modules";
   }
 
   const application = path.join(root, "src", "application");
