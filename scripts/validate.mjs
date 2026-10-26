@@ -42,7 +42,7 @@ const declaredChecks = (definitions) => {
     throw new Error("Validation checks must be a nonempty array");
   const checks = new Map();
   for (const check of definitions) {
-    if (typeof check?.id !== "string" || !/^[\w][\w:-]*$/.test(check.id))
+    if (typeof check?.id !== "string" || !/^\w[\w:-]*$/.test(check.id))
       throw new Error("Validation checks must have explicit valid IDs");
     if (checks.has(check.id))
       throw new Error("Duplicate validation check ID: " + check.id);
