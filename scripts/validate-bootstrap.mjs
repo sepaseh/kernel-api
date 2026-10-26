@@ -53,18 +53,28 @@ const serviceTests = ["account", "auth", "files", "management", "users"].map(
   (name) => `src/${name}-application.test.ts`,
 );
 const applicationServicesFiles = [...serviceFiles, ...serviceTests];
+const localizationFiles = [
+  ...["ar", "de", "en", "es", "fa", "fr", "it", "pt", "ru", "tr", "index"].map(
+    (code) => `src/infrastructure/localization/catalogs/${code}.ts`,
+  ),
+  "src/catalogs.test.ts",
+];
 const isPublishedSource = (file, phase) =>
   phase !== "governance" &&
   (isFoundationSource(file) ||
-    (phase === "application-services" &&
-      applicationServicesFiles.includes(file)));
+    (["application-services", "localization-data"].includes(phase) &&
+      applicationServicesFiles.includes(file)) ||
+    (phase === "localization-data" && localizationFiles.includes(file)));
 
 export const validateBootstrapPolicy = (policy) => {
   if (
     policy?.schemaVersion !== 1 ||
-    !["governance", "foundation", "application-services"].includes(
-      policy.phase,
-    ) ||
+    ![
+      "governance",
+      "foundation",
+      "application-services",
+      "localization-data",
+    ].includes(policy.phase) ||
     policy.applicationReady !== false ||
     policy.maximumChangedFiles !== 100 ||
     !Array.isArray(policy.allowedFiles) ||
@@ -100,9 +110,10 @@ export const validateBootstrapPolicy = (policy) => {
     ...(policy.phase === "governance"
       ? [".github/workflows/bootstrap.yml"]
       : foundationFiles),
-    ...(policy.phase === "application-services"
+    ...(["application-services", "localization-data"].includes(policy.phase)
       ? applicationServicesFiles
       : []),
+    ...(policy.phase === "localization-data" ? localizationFiles : []),
   ];
   if (requiredFiles.some((file) => !files.has(file)))
     throw new Error(
@@ -194,6 +205,8 @@ export const inspectBootstrap = async (root) => {
       "Published contracts, core and ports only; HTTP, database and concrete adapters are not published or validated.",
     "application-services":
       "Published contracts, core, ports and application services; HTTP, database and concrete adapters are not published or validated.",
+    "localization-data":
+      "Published contracts, application services and static translation catalogs; translation engine, HTTP, database and concrete adapters are not published or validated.",
   };
   return {
     applicationReady: false,

@@ -16,7 +16,7 @@
     "lint:fix": "eslint . --fix",
     "test": "npm run test:coverage && npm run test:audit",
     "test:audit": "vitest run scripts/run-audit.test.mjs",
-    "test:coverage": "node -e \"require('node:fs').mkdirSync('coverage', { recursive: true })\" && node --experimental-test-coverage --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info src/foundation.test.ts src/validation.test.ts src/account-application.test.ts src/auth-application.test.ts src/files-application.test.ts src/management-application.test.ts src/users-application.test.ts scripts/check-ci.test.mjs scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs scripts/boundaries.test.mjs scripts/validate.test.mjs",
+    "test:coverage": "node -e \"require('node:fs').mkdirSync('coverage', { recursive: true })\" && node --experimental-test-coverage --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info src/catalogs.test.ts src/foundation.test.ts src/validation.test.ts src/account-application.test.ts src/auth-application.test.ts src/files-application.test.ts src/management-application.test.ts src/users-application.test.ts scripts/check-ci.test.mjs scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs scripts/boundaries.test.mjs scripts/validate.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "validate": "node scripts/validate.mjs",
     "check:ci": "node scripts/check-ci.mjs"

@@ -2,8 +2,9 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The current [application-services phase](docs/bootstrap.md) contains pure
-contracts, application primitives, feature services and adapter interfaces. It is
+The current [localization-data phase](docs/bootstrap.md) contains pure
+contracts, application primitives, feature services, adapter interfaces and ten
+static API message catalogs. It is
 not a runnable API.
 Contributions must preserve this declared scope and the independent project
 boundary.
@@ -21,6 +22,14 @@ application interfaces. Erasing an import at runtime does not remove this source
 coupling. Local application/contract type imports remain valid; the boundary
 checker distinguishes fully erased declarations from imports that still load a
 module under Node's TypeScript stripping.
+
+Keep API catalog data under `src/infrastructure/localization/catalogs/`, with
+one flat literal string object per supported language and the canonical registry
+in `index.ts`. Catalogs may use fully erased application message types; the
+registry may also use the locale contract type. Application code must never
+import infrastructure. Do not add fallback spreads, executable catalog logic or
+a translation engine to this data phase. Preserve complete message keys and
+interpolation placeholders in all ten genuine translations.
 
 The exact maintained inventory is declared by
 [`.github/bootstrap-policy.json`](.github/bootstrap-policy.json). Update that
@@ -48,7 +57,7 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
-Each PR runs all nine required checks for the published application-services
+Each PR runs all nine required checks for the published localization-data
 snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
 This includes draft and documentation-only PRs; there are no changed-path or
 branch filters. The runner rejects duplicate IDs, omitted required checks and
@@ -60,14 +69,15 @@ transitions.
 The full phase includes the source/snapshot guards, dependency audit, type and
 style checks, measured application/governance coverage and audit-helper tests.
 Keep tests for authorization boundaries, semantic errors, canonical permissions,
-identity, locale metadata, validation and repository safety meaningful. Do not
+identity, locale metadata, catalog completeness and object identity, literal-data
+boundaries, validation and repository safety meaningful. Do not
 fabricate LCOV, borrow another project's report or describe foundation coverage as
 full API coverage. See [architecture](docs/architecture.md) for service ownership
 and the limits of fake-port evidence.
 
 A later runnable phase must introduce coherent HTTP transport and concrete adapters
 with the complete HTTP, DB, authentication and storage tests and its full canonical
-validation gate. This application-service pass cannot replace those tests or establish
+validation gate. This pure-source phase pass cannot replace those tests or establish
 application readiness in advance.
 
 ## Before requesting CodeRabbit

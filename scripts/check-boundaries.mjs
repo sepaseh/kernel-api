@@ -93,6 +93,94 @@ const applicationImportViolation = ({ root, specifier, target, typeOnly }) => {
   return undefined;
 };
 
+const catalogDirectory = (root) =>
+  path.join(root, "src", "infrastructure", "localization", "catalogs");
+const catalogImportViolation = ({
+  root,
+  file,
+  specifier,
+  target,
+  typeOnly,
+}) => {
+  const directory = catalogDirectory(root);
+  const vocabulary = path.join(root, "src", "application", "localization.ts");
+  const locales = path.join(root, "src", "contracts", "locales.ts");
+  if (specifier.startsWith(".") && typeOnly && target === vocabulary)
+    return undefined;
+  if (path.basename(file) === "index.ts" && specifier.startsWith(".")) {
+    if (typeOnly && target === locales) return undefined;
+    if (
+      !typeOnly &&
+      target &&
+      path.dirname(target) === directory &&
+      target !== file
+    )
+      return undefined;
+  }
+  return "Static catalogs may load only local catalog data; application vocabulary and locale metadata references must be fully erased types";
+};
+
+const catalogObject = (declaration) => {
+  let value = declaration.initializer;
+  while (value && (ts.isAsExpression(value) || ts.isSatisfiesExpression(value)))
+    value = value.expression;
+  return value && ts.isObjectLiteralExpression(value) ? value : undefined;
+};
+
+const literalProperties = (object) => {
+  const keys = new Set();
+  if (!object?.properties.length) return false;
+  return object.properties.every((property) => {
+    if (
+      !ts.isPropertyAssignment(property) ||
+      (!ts.isIdentifier(property.name) && !ts.isStringLiteral(property.name)) ||
+      !ts.isStringLiteral(property.initializer)
+    )
+      return false;
+    const key = property.name.text;
+    if (!key || keys.has(key) || !property.initializer.text.trim())
+      return false;
+    keys.add(key);
+    return true;
+  });
+};
+
+export const catalogDataViolation = (content, filename) => {
+  const source = ts.createSourceFile(
+    filename,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const declarations = source.statements.filter(ts.isVariableStatement);
+  const allowedStatement = (statement) =>
+    declarations.includes(statement) ||
+    (ts.isImportDeclaration(statement) && isErasedTypeReference(statement));
+  if (
+    source.parseDiagnostics.length ||
+    !source.statements.every(allowedStatement)
+  )
+    return "Catalog data must contain only erased imports and its exported literal object";
+  const statement = declarations[0];
+  if (
+    declarations.length !== 1 ||
+    statement.declarationList.flags !== ts.NodeFlags.Const ||
+    statement.declarationList.declarations.length !== 1 ||
+    statement.modifiers?.length !== 1 ||
+    statement.modifiers[0].kind !== ts.SyntaxKind.ExportKeyword
+  )
+    return "Catalog data must declare exactly one exported const";
+  const declaration = statement.declarationList.declarations[0];
+  const code = path.basename(filename, ".ts");
+  if (
+    !ts.isIdentifier(declaration.name) ||
+    declaration.name.text !== `api${code[0].toUpperCase()}${code.slice(1)}` ||
+    !literalProperties(catalogObject(declaration))
+  )
+    return "Catalog data must be a flat object of unique literal string messages";
+  return undefined;
+};
+
 export const boundaryViolation = ({
   root,
   file,
@@ -118,6 +206,8 @@ export const boundaryViolation = ({
     return "Source imports must not escape this repository";
   if (inside(path.join(root, "src", "application"), file))
     return applicationImportViolation({ root, specifier, target, typeOnly });
+  if (inside(catalogDirectory(root), file))
+    return catalogImportViolation({ root, file, specifier, target, typeOnly });
 
   return undefined;
 };
@@ -175,7 +265,13 @@ export const checkBoundaries = async (root = repository) => {
   const files = await sourceFiles(path.join(root, "src"));
   const fileViolations = await Promise.all(
     files.map(async (file) => {
-      const edges = inspectImports(await readFile(file, "utf8"), file);
+      const content = await readFile(file, "utf8");
+      const edges = inspectImports(content, file);
+      const dataViolation =
+        inside(catalogDirectory(root), file) &&
+        path.basename(file) !== "index.ts"
+          ? catalogDataViolation(content, file)
+          : undefined;
       const importViolations = await Promise.all(
         edges.map(async (edge) => {
           const module =
@@ -195,7 +291,12 @@ export const checkBoundaries = async (root = repository) => {
             : undefined;
         }),
       );
-      return importViolations.filter((violation) => violation !== undefined);
+      return [
+        ...(dataViolation
+          ? [`${path.relative(root, file)}:1: ${dataViolation}`]
+          : []),
+        ...importViolations.filter((violation) => violation !== undefined),
+      ];
     }),
   );
   violations.push(...fileViolations.flat());

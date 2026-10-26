@@ -1,13 +1,14 @@
-# Application-services phase and validation
+# Localization-data phase and validation
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This snapshot is in the **application-services** phase. Its exact inventory is
+This snapshot is in the **localization-data** phase. Its exact inventory is
 [bootstrap-policy.json](../.github/bootstrap-policy.json), and `applicationReady`
 remains **false**. Pure contracts, core modules, feature ports and the seven
 account, authentication, calendar, files, roles, settings and users services are
-published. HTTP, DB/migrations, concrete authentication/storage adapters and
-deployment are not included.
+published, together with ten flat API message catalogs and their canonical
+registry. HTTP, DB/migrations, concrete authentication/storage adapters,
+translation-engine integration and deployment are not included.
 
 Read [README](../README.md) for the source map, [architecture](architecture.md)
 for ownership and limitations, and [Contributing](../CONTRIBUTING.md) for the
@@ -49,8 +50,9 @@ policy deliberately rather than silently moving platform-specific checks.
 Validate an isolated checkout/export of the exact proposed snapshot. The guard
 rejects missing or unexpected maintained files, symlinks and private paths;
 ambient untracked source must not make a partial PR appear complete. This phase
-requires all seven service modules and the five declared pure application test
-files. Adding a path to the inventory alone cannot admit an unreviewed module,
+requires all seven service modules, the five declared pure application test
+files, all ten language data files, their registry and the data-only catalog
+tests. Adding a path to the inventory alone cannot admit an unreviewed module,
 concrete adapter or runnable entry point. The **100-file cap applies to each
 PR's GitHub changed-file list**, not the repository's total file count.
 
@@ -64,8 +66,16 @@ language authority, operation ordering and preservation of the original metadata
 failure when compensating file cleanup fails. Existing foundation and governance
 tests remain in the complete gate.
 
+Catalog tests compare all supported language codes and the complete application
+message vocabulary, verify flat nonempty strings and identical interpolation
+variables, and check that the registry preserves each original object. AST checks
+keep language modules literal data without engine imports, fallback spreads or
+executable logic. These checks validate catalog data; translation execution,
+fallback resolution and HTTP response localization need their own integration
+tests when the runtime adapter is published.
+
 `npm run test:coverage` produces actual `coverage/lcov.info` from published
-application source and tested repository scripts in this checkout. Audit-helper
+application source, catalog data and tested repository scripts in this checkout. Audit-helper
 tests are also required by the full profile. Generated reports are not committed.
 Fake ports do not establish real DB transactions, concurrency, cookies, OTP
 delivery or storage behavior and do not prove a runnable API is ready.
@@ -114,7 +124,7 @@ and expand the canonical full gate when those implementations arrive. Update
 the inventory, workflows, analysis scope and branch-protection contexts together;
 verify replacement checks before retiring obsolete ones.
 
-Do not set application readiness to true because the application-service gate passes.
+Do not set application readiness to true because the localization-data gate passes.
 Do not use broad allowlist changes, placeholder behavior or unrelated untracked
 source as evidence that a runnable API works. Preserve the per-PR 100-file cap
 through subsequent phases.
