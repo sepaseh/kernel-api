@@ -77,8 +77,7 @@ const requireCompleteFullProfile = (profiles, checks) => {
     (id) => checks.get(id).check.kind === "required",
   );
   if (
-    !full ||
-    full.length !== required.length ||
+    full?.length !== required.length ||
     full.some((id) => checks.get(id).check.kind !== "required")
   )
     throw new Error(
