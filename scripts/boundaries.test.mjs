@@ -124,6 +124,7 @@ test("fully erased message types remain valid while module-loading import and re
     'import { type ApiMessageKey } from "./localization.ts";',
     'export { type ApiMessageKey } from "./localization.ts";',
     'import * as messages from "./localization.ts";',
+    'import defer * as messages from "./localization.ts";',
     'import "./localization.ts";',
     'export * from "./localization.ts";',
     'const messages = import("./localization.ts");',

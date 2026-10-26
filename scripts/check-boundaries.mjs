@@ -18,7 +18,7 @@ const inside = (root, file) => {
 const isErasedTypeReference = (node) => {
   if (ts.isImportTypeNode(node)) return true;
   if (ts.isImportDeclaration(node))
-    return node.importClause?.isTypeOnly === true;
+    return node.importClause?.phaseModifier === ts.SyntaxKind.TypeKeyword;
   if (ts.isExportDeclaration(node) || ts.isImportEqualsDeclaration(node))
     return node.isTypeOnly;
 
