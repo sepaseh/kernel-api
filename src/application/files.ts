@@ -46,7 +46,7 @@ export const createFilesService = ({
       events?: FileEvents,
     ): Promise<PublicFileContent> => {
       const record = await repository.findById(id);
-      if (!record || record.visibility !== "public") {
+      if (record?.visibility !== "public") {
         throw new ApplicationError("not-found", "fileNotFound");
       }
       const contents = await storageOperation(

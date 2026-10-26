@@ -35,7 +35,7 @@ export const createAccountService = ({
       input: Record<string, unknown>,
     ) {
       const email = requiredString(input.email, "email").toLowerCase();
-      if (!/^\S+@\S+\.\S+$/.test(email))
+      if (!/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email))
         throw new ApplicationError("invalid", "emailInvalid");
       return otp.issue(email, "verify_email", actor.account.id);
     },

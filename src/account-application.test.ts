@@ -117,7 +117,16 @@ test("email verification requests normalize and bind their destination to the ac
   };
   const service = createAccountService(dependencies);
 
-  for (const email of ["invalid", "a@b", "a b@example.com"]) {
+  for (const email of [
+    "invalid",
+    "a@b",
+    "a b@example.com",
+    "a@@example.com",
+    "a@b@example.com",
+    "a@.example.com",
+    "a@example..com",
+    "a@example.com.",
+  ]) {
     await assert.rejects(service.requestEmailVerification(actor, { email }), {
       key: "emailInvalid",
       kind: "invalid",
@@ -131,6 +140,39 @@ test("email verification requests normalize and bind their destination to the ac
     ["profile@example.com", "verify_email", actor.account.id],
   ]);
   assert.deepEqual(result, { expires_in: 90, remaining_seconds: 60 });
+  await service.requestEmailVerification(actor, {
+    email: " User.Name+TAG@MAIL.EXAMPLE.COM ",
+  });
+  assert.deepEqual(issued[1], [
+    "user.name+tag@mail.example.com",
+    "verify_email",
+    actor.account.id,
+  ]);
+});
+
+test("email requests reject long malformed or oversized input without sending OTP", async () => {
+  const dependencies = fixture();
+  let issued = false;
+  dependencies.otp.issue = async () => {
+    issued = true;
+    return { expires_in: 90, remaining_seconds: 60 };
+  };
+  const service = createAccountService(dependencies);
+
+  for (const email of ["a@".repeat(499) + "a.", "a@" + "a.".repeat(499)]) {
+    assert.equal(email.length, 1000);
+    await assert.rejects(service.requestEmailVerification(actor, { email }), {
+      key: "emailInvalid",
+      kind: "invalid",
+    });
+  }
+  await assert.rejects(
+    service.requestEmailVerification(actor, {
+      email: "a".repeat(1001) + "@example.com",
+    }),
+    { key: "fieldInvalid", kind: "invalid", values: { field: "email" } },
+  );
+  assert.equal(issued, false);
 });
 
 test("verification never writes the email before OTP consumption succeeds", async () => {

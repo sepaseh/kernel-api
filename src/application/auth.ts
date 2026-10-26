@@ -42,7 +42,7 @@ export const createAuthService = ({
     if (!current)
       throw new ApplicationError("unauthenticated", "authenticationRequired");
     const account = await persistence.findUserById(current.userId);
-    if (!account || account.status !== "active")
+    if (account?.status !== "active")
       throw new ApplicationError("unauthenticated", "authenticationRequired");
     const permissions = account.isSystemAdmin
       ? [...permissionKeys]
@@ -100,7 +100,7 @@ export const createAuthService = ({
       if (!isMobile(identifier))
         throw new ApplicationError("invalid", "invalidCredentials");
       const existing = await persistence.findUserByMobile(identifier);
-      if (!existing || existing.status !== "active")
+      if (existing?.status !== "active")
         throw new ApplicationError("invalid", "invalidCredentials");
       try {
         return await provider.signIn(existing.authEmail, password);

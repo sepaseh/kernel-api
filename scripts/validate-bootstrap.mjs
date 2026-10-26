@@ -185,16 +185,19 @@ export const inspectBootstrap = async (root) => {
       }
     }),
   );
+  const scopeByPhase = {
+    governance:
+      "Published governance files only; API runtime is not published or validated.",
+    foundation:
+      "Published contracts, core and ports only; HTTP, database and concrete adapters are not published or validated.",
+    "application-services":
+      "Published contracts, core, ports and application services; HTTP, database and concrete adapters are not published or validated.",
+  };
   return {
     applicationReady: false,
     files: found.size,
     phase: policy.phase,
-    scope:
-      policy.phase === "application-services"
-        ? "Published contracts, core, ports and application services; HTTP, database and concrete adapters are not published or validated."
-        : policy.phase === "foundation"
-          ? "Published contracts, core and ports only; HTTP, database and concrete adapters are not published or validated."
-          : "Published governance files only; API runtime is not published or validated.",
+    scope: scopeByPhase[policy.phase],
   };
 };
 

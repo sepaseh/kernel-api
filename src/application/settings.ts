@@ -73,13 +73,18 @@ export const createSettingsService = (
         input.language_code === undefined
           ? undefined
           : requiredString(input.language_code, "language_code");
-      if (suppliedLanguage !== undefined) {
-        if (actor.account.isSystemAdmin) {
-          if (!supportedLanguages.some(({ code }) => code === suppliedLanguage))
-            throw new ApplicationError("not-found", "languageNotFound");
-        } else if (suppliedLanguage !== (await repository.readLanguageCode()))
-          throw new ApplicationError("forbidden", "systemAdminRequired");
-      }
+      if (
+        suppliedLanguage !== undefined &&
+        !actor.account.isSystemAdmin &&
+        suppliedLanguage !== (await repository.readLanguageCode())
+      )
+        throw new ApplicationError("forbidden", "systemAdminRequired");
+      if (
+        suppliedLanguage !== undefined &&
+        actor.account.isSystemAdmin &&
+        !supportedLanguages.some(({ code }) => code === suppliedLanguage)
+      )
+        throw new ApplicationError("not-found", "languageNotFound");
       const darkTheme = parsePalette(input.dark_theme, "dark_theme");
       const lightTheme = parsePalette(input.light_theme, "light_theme");
       // Ordinary branding saves must not overwrite a concurrent language change.
