@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "foundation",
+  "phase": "application-services",
   "applicationReady": false,
   "checks": [
     {
@@ -8,61 +8,69 @@
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["application-services"]
+    },
+    {
+      "id": "ci-policy",
+      "command": "npm run check:ci",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["application-services", "tooling"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["application-services"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["application-services"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["application-services"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["application-services"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["application-services"]
     },
     {
       "id": "coverage-tests",
       "command": "npm run test:coverage",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["application-services"]
     },
     {
       "id": "audit-helper-tests",
       "command": "npm run test:audit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["foundation"]
+      "scopes": ["application-services"]
     }
   ],
   "profiles": {
     "full": [
       "snapshot",
+      "ci-policy",
       "audit",
       "boundaries",
       "typecheck",

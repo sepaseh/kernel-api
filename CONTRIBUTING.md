@@ -2,8 +2,9 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The current [foundation phase](docs/bootstrap.md) contains pure contracts,
-application primitives and adapter interfaces. It is not a runnable API.
+The current [application-services phase](docs/bootstrap.md) contains pure
+contracts, application primitives, feature services and adapter interfaces. It is
+not a runnable API.
 Contributions must preserve this declared scope and the independent project
 boundary.
 
@@ -23,17 +24,17 @@ module under Node's TypeScript stripping.
 
 The exact maintained inventory is declared by
 [`.github/bootstrap-policy.json`](.github/bootstrap-policy.json). Update that
-inventory deliberately when adding a reviewed foundation file. Its allowlist is
+inventory deliberately when adding a reviewed phase file. Its allowlist is
 not the 100-file PR limit: the repository may contain more than 100 files, while
 each PR must still change no more than 100 GitHub file entries.
 
 Preserve unrelated work, private environment files, credentials and runtime data.
-Foundation tests use synthetic local fixtures. Never use real databases, uploads
+Application tests use synthetic fake ports and local fixtures. Never use real databases, uploads
 or production services to validate this phase.
 
 ## Development and validation
 
-Use [`.nvmrc`](.nvmrc), the Node range in [`package.json`](package.json) and npm 12:
+Use [`.nvmrc`](.nvmrc), the Node range in [`package.json`](package.json) and the npm bundled with that Node release, matching CI:
 
 ```sh
 npm ci
@@ -47,17 +48,44 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
+Each PR runs all nine required checks for the published application-services
+snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
+This includes draft and documentation-only PRs; there are no changed-path or
+branch filters. The runner rejects duplicate IDs, omitted required checks and
+optional checks added to `full` before executing any command. Focused profiles
+remain development tools. A semantic YAML policy check rejects conditional or
+advisory full execution, custom shells/directories and undeclared job/runner
+transitions.
+
 The full phase includes the source/snapshot guards, dependency audit, type and
-style checks, measured foundation/governance coverage and audit-helper tests.
+style checks, measured application/governance coverage and audit-helper tests.
 Keep tests for authorization boundaries, semantic errors, canonical permissions,
 identity, locale metadata, validation and repository safety meaningful. Do not
 fabricate LCOV, borrow another project's report or describe foundation coverage as
-full API coverage.
+full API coverage. See [architecture](docs/architecture.md) for service ownership
+and the limits of fake-port evidence.
 
-A later runnable phase must introduce coherent services, transport and adapters
+A later runnable phase must introduce coherent HTTP transport and concrete adapters
 with the complete HTTP, DB, authentication and storage tests and its full canonical
-validation gate. This foundation pass cannot replace those tests or establish
+validation gate. This application-service pass cannot replace those tests or establish
 application readiness in advance.
+
+## Before requesting CodeRabbit
+
+Follow the [CodeRabbit preflight](docs/sonarqube.md#before-requesting-coderabbit)
+before every request or re-review: all required non-CodeRabbit checks, including
+protected build/end-to-end/visual jobs when required, Sonar scanner execution and
+the actual quality gate must pass for the exact current head. The complete latest
+applicable Sonar PR/branch report must have zero open/unresolved issues at every
+severity, including existing issues. A new commit invalidates prior evidence;
+missing, pending, skipped, failed or stale results block the request. Only
+CodeRabbit's own status/approval is excluded to avoid a cycle. Fix issues or obtain
+proper explicit authorization for a legitimate Sonar classification and verify
+fresh zero-issue evidence; a written false-positive note is insufficient. Do not
+weaken, exclude, suppress or waive findings just to request review. Respect quotas,
+keep one request in flight per head and do not bypass the order with automation.
+Also verify that at least one hour has elapsed since the latest CodeRabbit review
+in this repository before sending a new request.
 
 ## Pull requests and review
 
@@ -70,9 +98,10 @@ application readiness in advance.
    exact checked revision, executed checks and remaining limitations.
 4. Publish or modify remote state only when explicitly authorized. Keep incomplete
    work in draft. Do not commit credentials, runtime state or generated reports.
-5. Read actual CodeRabbit findings, fix actionable defects and recheck the updated
-   head. If a review is skipped, request one review within the authorized cycle;
-   respect provider quota and disclose pending re-review.
+5. Complete the CodeRabbit preflight above before any authorized review request.
+   Read actual findings and fix actionable defects. Every new commit requires
+   fresh successful checks and zero-issue Sonar evidence before re-review;
+   respect quotas and disclose pending re-review.
 6. Merge only under the ordinary required CI, native CodeRabbit and Sonar checks,
    an approving review and resolved conversations. A skipped progress status is
    not evidence of substantive review. Verify the Sonar analysis and quality gate

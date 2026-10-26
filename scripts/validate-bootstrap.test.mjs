@@ -35,6 +35,8 @@ const foundationFiles = [
   "package-lock.json",
   "scripts/validate.mjs",
   "scripts/validate.test.mjs",
+  "scripts/check-ci.mjs",
+  "scripts/check-ci.test.mjs",
   "src/foundation.test.ts",
   "src/validation.test.ts",
   "tsconfig.json",
@@ -43,6 +45,29 @@ const foundationPolicy = (overrides = {}) =>
   policy({
     allowedFiles: foundationFiles,
     phase: "foundation",
+    ...overrides,
+  });
+const serviceFiles = [
+  "account",
+  "auth",
+  "calendar",
+  "files",
+  "roles",
+  "settings",
+  "users",
+].map((name) => `src/application/${name}.ts`);
+const serviceTests = ["account", "auth", "files", "management", "users"].map(
+  (name) => `src/${name}-application.test.ts`,
+);
+const applicationServicesFiles = [
+  ...foundationFiles,
+  ...serviceFiles,
+  ...serviceTests,
+];
+const applicationServicesPolicy = (overrides = {}) =>
+  foundationPolicy({
+    allowedFiles: applicationServicesFiles,
+    phase: "application-services",
     ...overrides,
   });
 
@@ -183,6 +208,69 @@ test("foundation allows its pure source and toolchain, while rejecting runnable 
       ),
     /mandatory/,
   );
+});
+
+test("application-services requires every declared service and its pure behavior tests", () => {
+  assert.equal(
+    validateBootstrapPolicy(applicationServicesPolicy()).size,
+    applicationServicesFiles.length,
+  );
+  for (const file of [...serviceFiles, ...serviceTests, "package-lock.json"])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy(
+          applicationServicesPolicy({
+            allowedFiles: applicationServicesFiles.filter(
+              (declared) => declared !== file,
+            ),
+          }),
+        ),
+      /mandatory/,
+    );
+});
+
+test("application-services rejects unrelated source, concrete adapters and runnable entry points", () => {
+  for (const file of [
+    "src/index.ts",
+    "src/composition.ts",
+    "src/application/unreviewed.ts",
+    "src/infrastructure/db/client.ts",
+    "src/presentation/http/app.ts",
+    "src/management-services.test.ts",
+    "src/other.test.ts",
+    "drizzle.config.ts",
+    "drizzle/0000.sql",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        applicationServicesPolicy({
+          allowedFiles: [...applicationServicesFiles, file],
+        }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(
+      applicationServicesPolicy({ applicationReady: true }),
+    ),
+  );
+});
+
+test("application-services inspects its exact non-runnable snapshot", async (context) => {
+  const { root, put } = await fixture(context, applicationServicesPolicy());
+  await mkdir(path.join(root, "node_modules"));
+  await mkdir(path.join(root, "coverage"));
+  assert.deepEqual(await inspectBootstrap(root), {
+    applicationReady: false,
+    files: applicationServicesFiles.length,
+    phase: "application-services",
+    scope:
+      "Published contracts, core, ports and application services; HTTP, database and concrete adapters are not published or validated.",
+  });
+  await put(
+    "src/ambient-application.test.ts",
+    "// synthetic undeclared test\n",
+  );
+  await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
 });
 
 test("the 100-file limit applies to a PR delta rather than the total published inventory", () => {

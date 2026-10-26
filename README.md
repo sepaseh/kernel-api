@@ -2,61 +2,63 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
-Kernel API is a standalone TypeScript project. The current **foundation** phase
-provides pure HTTP contract definitions, application primitives and interfaces
-for infrastructure adapters. `applicationReady` is **false**: this snapshot does
-not provide a running HTTP API.
+Kernel API is a standalone TypeScript project. The current
+**application-services** phase provides pure HTTP contracts, application services
+and feature-specific adapter ports. `applicationReady` remains **false**: this
+snapshot does not start an HTTP API.
 
 ## Current scope
 
 - [`src/contracts/`](src/contracts/) contains seven pure contract modules for
   account, authentication, locales, OTP, permissions, profile and settings.
-- [`src/application/`](src/application/) contains seven framework-free core
-  modules for authorization, errors, identity, localization vocabulary, models,
-  permissions and validation.
-- [`src/application/ports/`](src/application/ports/) contains eight adapter
-  interfaces. They describe dependencies; concrete implementations are not
-  included.
-- Foundation and validation tests exercise the pure behavior. Repository checks
-  also cover source boundaries, snapshot integrity, PR size, audit handling and
-  the validation runner.
+- [`src/application/`](src/application/) contains seven core modules for
+  authorization, errors, identity, localization vocabulary, models, permissions
+  and validation, plus services for account, authentication, calendar, files,
+  roles, settings and users.
+- [`src/application/ports/`](src/application/ports/) contains eight feature ports
+  for persistence, authentication, OTP and object storage. Concrete adapters are
+  not included.
+- Pure tests cover application policies and operation ordering with synthetic
+  fake ports. Governance tests cover source boundaries, exact publication scope,
+  PR size, audit handling and validation execution.
 
-Feature services, HTTP routes, authentication execution, database access,
-migrations, storage adapters and deployment are not included in this phase.
-The toolchain has development dependencies and no runtime dependencies. Passing
-foundation checks does not establish readiness of a complete API.
+[Architecture](docs/architecture.md) explains ownership, language authority,
+hard-deletion policy and what fake-port tests can establish. HTTP routes,
+cookies, concrete authentication, database/migrations, storage adapters and
+deployment are not published or validated in this phase. The toolchain has
+development dependencies and no runtime dependencies.
 
 ## Install and validate
 
 Use the Node.js version in [`.nvmrc`](.nvmrc), within the range declared in
-[`package.json`](package.json), and npm 12.
+[`package.json`](package.json), and the npm bundled with that Node release.
+CI uses the same pinned Node release without upgrading npm separately.
 
 ```sh
 npm ci
 npm run validate -- full
 ```
 
-The [validation manifest](.agents/validation.json) owns all eight required checks
-in the complete gate for the current phase. It checks the exact source snapshot,
-dependency audit, source boundaries, types, lint, formatting, measured test
-coverage and audit-helper tests.
-These checks use local synthetic data and do not require an environment file,
+The [validation manifest](.agents/validation.json) owns all nine required checks
+in the complete current-phase gate: exact source snapshot, semantic CI policy, dependency audit,
+source boundaries, types, lint, formatting, measured test coverage and audit-helper
+tests. These checks use synthetic data and do not need an environment file,
 existing database or running API.
 
-The tests generate real `coverage/lcov.info` for the foundation and repository
-tooling tested in this checkout. This is not coverage of HTTP, DB, authentication
-or storage implementations. Generated coverage is not committed. See
-[Sonar setup](docs/sonarqube.md) for the distinction between scanner execution
-and the provider quality gate.
+Tests generate real `coverage/lcov.info` for published application source and
+repository tooling in this checkout. This is not coverage of concrete HTTP, DB,
+authentication or storage implementations. Generated coverage is not committed.
+See [Sonar setup](docs/sonarqube.md) for scanner and provider-gate evidence.
 
 ## Contribute
 
 Read [Contributing](CONTRIBUTING.md) and the
-[foundation phase guide](docs/bootstrap.md). Keep each PR at **100 or fewer
-GitHub changed-file entries**; this is a limit on each PR's diff, not on the total
-number of files allowed in the repository.
+[publication phase guide](docs/bootstrap.md). Keep each PR at **100 or fewer
+GitHub changed-file entries**; this limits each PR's diff, not the repository's
+file count.
 
-Use the existing native CI, CodeRabbit and Sonar integrations and
-[branch protection](docs/branch-protection.md). Configuration alone does not
-prove a hosted check ran. Record results for the exact proposed revision and
-run the complete current-phase gate before an authorized commit or PR handoff.
+Use native CI, CodeRabbit and Sonar integrations and
+[branch protection](docs/branch-protection.md). Record actual results for the
+exact proposed revision and run the full phase gate before an authorized commit
+or PR handoff. Before requesting CodeRabbit, complete the
+[current-head, zero-open-issue preflight](docs/sonarqube.md#before-requesting-coderabbit).

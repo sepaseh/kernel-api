@@ -20,6 +20,7 @@ export type FileRepository = {
 export type UploadFileSource = {
   name: string;
   read(): Promise<Uint8Array>;
+  // Declared size permits early rejection; the service also validates actual bytes.
   size: number;
   type: string;
 };
@@ -40,6 +41,7 @@ export type UploadedFile = {
   visibility: FileRecord["visibility"];
 };
 
+// Best-effort synchronous diagnostics; observer exceptions cannot affect file operations.
 export type FileEvents = {
   cleanupFailed?(event: { error: unknown; fileId: string }): void;
   stage?(stage: FileUploadStage): void;

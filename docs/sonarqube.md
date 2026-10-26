@@ -34,14 +34,48 @@ quality-gate result. An empty `main` analysis history does not itself prove that
 PR analysis is blocked. Follow an actual provider error if initial branch
 analysis is required; do not merge early merely to create a baseline.
 
+## Before requesting CodeRabbit
+
+Request or re-request CodeRabbit only after all of the following are verified for
+the exact current PR head:
+
+1. Every required non-CodeRabbit CI/protection check has passed, including build,
+   end-to-end and visual checks whenever required. Missing, pending, queued,
+   skipped, cancelled, stale, failed or unavailable checks block the request.
+   The publication phase does not excuse a configured required job.
+2. Sonar scanner execution succeeded and the actual Sonar provider quality gate
+   passed for that revision. Read these as two separate results.
+3. The complete applicable latest Sonar PR/branch report, across all result pages,
+   contains **zero open or unresolved issues at every severity**, including
+   existing issues. Inspect the full report rather than only new-code widgets,
+   changed lines, selected issue types or quality-gate conditions. Verify the
+   project, analysis revision and issue scope; an older or unavailable report
+   does not establish readiness. Read the issue count even when the gate passes.
+
+CodeRabbit's own check and approving review are excluded from this preflight to
+avoid a circular dependency. Other required checks remain mandatory. A new commit
+invalidates the evidence; repeat the full preflight before another request.
+
+Fix issues legitimately. A written false-positive explanation alone does not
+clear an issue. Any legitimate classification change in Sonar requires proper
+explicit authorization and fresh evidence of zero open/unresolved issues. Do not
+exclude code, suppress findings, weaken rules/gates, hide severities or waive
+issues merely to request review or consume quota.
+
+After preflight passes, request review only within an authorized cycle, respect
+provider quotas and keep at most one request in flight per head. Do not send
+duplicate requests or enable automatic triggers to bypass this order. After
+review fixes create a new commit, run the preflight again.
+
 ## Current scope
 
-During the [source foundation phase](bootstrap.md),
+During the [application-services phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
 `src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
 tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
-This measures the published foundation and tooling. HTTP and concrete adapter
-coverage must be added when the runnable phase is introduced.
+This measures published application services, core modules and tooling.
+Fake-port coverage is not concrete HTTP, DB, authentication or storage evidence;
+that coverage must be added when the runnable phase is introduced.
 
 Duplication detection excludes only `src/contracts/locales.ts`: its ten static
 language records repeat the same five-field schema with distinct values. Keep

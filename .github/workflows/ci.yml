@@ -30,12 +30,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: node scripts/check-pr-size.mjs
-      - run: npm run check:snapshot
       - run: npm ci
-      - run: npm run audit
-      - run: npm run check:boundaries
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run format:check
-      - run: npm run test:coverage
-      - run: npm run test:audit
+      - name: Run every required check for the published snapshot
+        run: npm run validate -- full
