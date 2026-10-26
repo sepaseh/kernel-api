@@ -29,18 +29,12 @@ export const createLogger = (
     hooks: {
       logMethod(args, method) {
         const [first, message] = args;
-        const fields =
-          first instanceof Error
-            ? { err: first }
-            : typeof first === "object" && first !== null
-              ? first
-              : {};
-        const text =
-          typeof first === "string"
-            ? first
-            : typeof message === "string"
-              ? message
-              : undefined;
+        let fields: object = {};
+        if (first instanceof Error) fields = { err: first };
+        else if (typeof first === "object" && first !== null) fields = first;
+        const fallbackMessage =
+          typeof message === "string" ? message : undefined;
+        const text = typeof first === "string" ? first : fallbackMessage;
         // Interpolated arguments are deliberately not formatted into free text.
         // An explicit fallback prevents Pino from copying err.message into msg.
         method.call(

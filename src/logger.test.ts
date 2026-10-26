@@ -8,7 +8,10 @@ import {
   createLogger,
   requestLogContext,
 } from "./infrastructure/logging/logger.ts";
-import { serializeLogError } from "./infrastructure/logging/sanitization.ts";
+import {
+  sanitizeLogText,
+  serializeLogError,
+} from "./infrastructure/logging/sanitization.ts";
 
 const captureLogs = (
   config: LoggingConfig = {
@@ -138,6 +141,21 @@ test("normalizes control characters and Unicode line separators in log messages 
   assert.equal(output.records().length, 1);
   assert.equal(output.records()[0].detail, "safe    tail");
   assert.equal(output.records()[0].msg, "event line tail");
+});
+
+test("credential assignments redact quoted and unquoted values while retaining public metadata", () => {
+  const text = `password="synthetic quoted secret"; token='synthetic quoted token'; api-key=synthetic-key, access_key: synthetic-access&database_url=synthetic-db safe=retained`;
+  const sanitized = sanitizeLogText(text);
+  assert.doesNotMatch(sanitized, /synthetic/);
+  assert.match(sanitized, /safe=retained/);
+  assert.equal(
+    sanitizeLogText("result=retained release=commit123"),
+    "result=retained release=commit123",
+  );
+  assert.equal(
+    sanitizeLogText("safe=password=synthetic-private"),
+    "safe=password=[Redacted]",
+  );
 });
 
 test("serializes safe stack locations and synthetic query-error causes without private fields", () => {

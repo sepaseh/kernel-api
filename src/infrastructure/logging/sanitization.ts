@@ -39,18 +39,32 @@ const sensitiveKey = (key: string) => {
   );
 };
 
+const redactAssignments = (text: string) => {
+  let result = "";
+  let cursor = 0;
+  for (const marker of text.matchAll(/([\w-]+)\s*[=:]\s*/g)) {
+    if (marker.index < cursor || !sensitiveKey(marker[1])) continue;
+    const start = marker.index + marker[0].length;
+    const value = /^(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;&]+)/.exec(
+      text.slice(start),
+    );
+    if (!value) continue;
+    result += text.slice(cursor, start) + REDACTED;
+    cursor = start + value[0].length;
+  }
+  return result + text.slice(cursor);
+};
+
 export const sanitizeLogText = (value: string) =>
-  value
-    .slice(0, 8_192)
-    .replaceAll(/\b(?:Bearer|Basic)\s+[^\s,;]+/gi, REDACTED)
-    .replaceAll(/\b[a-z][a-z0-9+.-]*:\/\/[^\s<>"')]+/gi, REDACTED)
-    .replaceAll(/\bfile:[^\s<>"')]+/gi, REDACTED)
-    .replaceAll(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/gi, REDACTED)
-    .replaceAll(/\b09\d{9}\b/g, REDACTED)
-    .replaceAll(
-      /((?:authorization|cookie|password|passwd|otp|token|secret|api[_-]?key|access[_-]?key|database[_-]?url)\s*[=:]\s*)(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;&]+)/gi,
-      `$1${REDACTED}`,
-    )
+  redactAssignments(
+    value
+      .slice(0, 8_192)
+      .replaceAll(/\b(?:Bearer|Basic)\s+[^\s,;]+/gi, REDACTED)
+      .replaceAll(/\b[a-z][a-z0-9+.-]*:\/\/[^\s<>"')]+/gi, REDACTED)
+      .replaceAll(/\bfile:[^\s<>"')]+/gi, REDACTED)
+      .replaceAll(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/gi, REDACTED)
+      .replaceAll(/\b09\d{9}\b/g, REDACTED),
+  )
     .replaceAll(/[?&][^\s#]*/g, REDACTED)
     .replaceAll(/[\p{Cc}\u2028\u2029]/gu, " ")
     .slice(0, 2_048);
@@ -180,14 +194,15 @@ const sanitizeValue = (
     : Object.fromEntries(
         Object.entries(Object.getOwnPropertyDescriptors(value))
           .slice(0, MAX_ENTRIES)
-          .map(([key, descriptor]) => [
-            key.slice(0, 128),
-            sensitiveKey(key) || !("value" in descriptor)
-              ? REDACTED
-              : key === "err" || key === "error"
-                ? serializeLogError(descriptor.value)
-                : sanitizeValue(descriptor.value, seen, depth + 1),
-          ]),
+          .map(([key, descriptor]) => {
+            let value: unknown = REDACTED;
+            if (!sensitiveKey(key) && "value" in descriptor)
+              value =
+                key === "err" || key === "error"
+                  ? serializeLogError(descriptor.value)
+                  : sanitizeValue(descriptor.value, seen, depth + 1);
+            return [key.slice(0, 128), value];
+          }),
       );
   return result;
 };

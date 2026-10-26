@@ -163,16 +163,18 @@ const resolveAllowedOrigins = (
   environment: NodeJS.ProcessEnv,
   baseUrl: string,
 ) => {
-  const configuredOrigins = environment.SERVER_ALLOWED_ORIGINS?.trim()
-    ? environment.SERVER_ALLOWED_ORIGINS.split(",")
-        .map((value) => value.trim())
-        .filter(Boolean)
-    : environment.NODE_ENV === "production"
+  const defaultOrigins =
+    environment.NODE_ENV === "production"
       ? [environment.SERVER_ALLOWED_ORIGIN!]
       : [
           environment.SERVER_ALLOWED_ORIGIN ?? "http://localhost:5173",
           "http://localhost:3001",
         ];
+  const configuredOrigins = environment.SERVER_ALLOWED_ORIGINS?.trim()
+    ? environment.SERVER_ALLOWED_ORIGINS.split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : defaultOrigins;
   if (!configuredOrigins.length)
     throw new Error("At least one allowed browser origin is required.");
   return [...new Set([...configuredOrigins.map(trustedOrigin), baseUrl])];
