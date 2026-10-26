@@ -156,6 +156,11 @@ test("credential assignments redact quoted and unquoted values while retaining p
     sanitizeLogText("safe=password=synthetic-private"),
     "safe=password=[Redacted]",
   );
+  assert.equal(
+    sanitizeLogText("prefixPassword=synthetic-private"),
+    "prefixPassword=[Redacted]",
+  );
+  assert.equal(sanitizeLogText("x".repeat(8_192)), "x".repeat(2_048));
 });
 
 test("serializes safe stack locations and synthetic query-error causes without private fields", () => {

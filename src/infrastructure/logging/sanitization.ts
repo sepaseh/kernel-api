@@ -42,7 +42,7 @@ const sensitiveKey = (key: string) => {
 const redactAssignments = (text: string) => {
   let result = "";
   let cursor = 0;
-  for (const marker of text.matchAll(/([\w-]+)\s*[=:]\s*/g)) {
+  for (const marker of text.matchAll(/(?<![\w-])([\w-]+)\s*[=:]\s*/g)) {
     if (marker.index < cursor || !sensitiveKey(marker[1])) continue;
     const start = marker.index + marker[0].length;
     const value = /^(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;&]+)/.exec(
