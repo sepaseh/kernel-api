@@ -11,19 +11,28 @@ Import and bind the repository as a public Sonar project before analysis.
 1. Give the existing SonarQube Cloud app access through
    [GitHub installed applications](https://github.com/settings/installations).
 2. [Import the repository](https://sonarcloud.io/projects/create) into `sepaseh`
-   and select **With GitHub Actions**.
+   and select **With GitHub Actions**. Choose **Linux** for this workflow's
+   `ubuntu-latest` runner, even when the local development machine uses Windows.
 3. Disable **Automatic Analysis** in **Administration → Analysis Method**;
    automatic and CI-based analysis must not run together.
 4. Generate a token in [My Account → Security](https://sonarcloud.io/account/security)
    and store it only as repository Actions secret **`SONAR_TOKEN`**. Never put its
-   value in a commit, PR, log or chat.
+   value in a commit, PR, log or chat. The token's display label, such as
+   `kernel-github-actions`, is arbitrary; it is not the secret name or project key.
 5. Set Actions variable **`SONAR_PROJECT_KEY`** to the actual imported project key.
    **`SONAR_HOST_URL`** defaults to `https://sonarcloud.io`. Do not manually add a
    second scanner workflow from the provider wizard.
 
+The Actions secret stores the token value. `SONAR_PROJECT_KEY` identifies the
+imported project (`sepaseh_kernel-api`); `SONAR_HOST_URL` identifies the service.
+These are separate settings. Inspect secret names and timestamps when verifying
+configuration, without reading or printing secret values.
+
 An empty project or a configured token alone does not establish successful
-analysis. Verify the actual analysis and provider quality-gate result. The first
-PR may need the initial `main` analysis before PR analysis becomes available.
+analysis. Verify the actual GitHub run and the provider's PR analysis and
+quality-gate result. An empty `main` analysis history does not itself prove that
+PR analysis is blocked. Follow an actual provider error if initial branch
+analysis is required; do not merge early merely to create a baseline.
 
 ## Current scope
 

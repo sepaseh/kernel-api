@@ -33,15 +33,35 @@ coverage, not API application coverage. Generated reports are not committed.
    actual verification evidence and limitations. Keep incomplete work in draft.
 5. Read CodeRabbit findings, fix actionable defects and rerun affected checks.
    A skipped bot review is not a completed review.
+   If automatic review is skipped, request it once with `@coderabbitai review`
+   in a PR comment. Public repositories below the provider's star threshold
+   currently require this manual trigger; do not treat its skipped success
+   status as review evidence.
 6. Verify the actual Sonar analysis and quality-gate result when configured.
    Missing setup, unavailable analysis and failed analysis are distinct states.
 7. Merge after required checks and owner review. Automatic merging, deployment
    and release tagging are not enabled by this bootstrap.
 
 The [PR policy](../.github/workflows/pr-policy.yml) runs trusted default-branch
-code with read-only permissions. Complete pagination and a stable PR head/base
+code with read-only permissions, pinned to `github.workflow_sha`. Never check out
+PR-head code or an unreviewed target branch in this privileged event. Complete pagination and a stable PR head/base
 are required; incomplete API responses fail the check. The first PR also runs an
 unprivileged head-branch size check because its empty base lacks the policy.
+
+The initial `main` protection requires a PR, a successful **Bootstrap governance
+(API not published)** check from GitHub Actions and resolved conversations. It
+also applies to administrators, prevents force pushes/deletion and requires
+linear history. A second human approval is not required. Sonar quality-gate
+evaluation remains advisory. After the initial merge, verify a real **PR file
+limit** run from the trusted workflow before adding that check as required.
+When introducing the runnable phase, replace obsolete required bootstrap checks
+with the verified application checks so branch protection cannot require a
+removed job.
+
+The repository's Actions event policy permits `pull_request_target` only for
+`.github/workflows/pr-policy.yml`. Keep this exception narrow and retain the
+immutable trusted checkout; the general public-repository event restriction
+does not justify allowing PR code to run with elevated trust.
 
 Runtime source requires a reviewed phase transition with coherent dependencies
 and validation on the actual committed tree. Do not broaden the governance

@@ -135,11 +135,20 @@ export const inspectPullRequest = async ({
     )
       throw new Error("GitHub returned unsafe or incomplete file pagination.");
     visited.add(next.href);
+    // Each next URL comes from the preceding page, so requests must stay sequential.
     const page = await query(next);
     if (!Array.isArray(page.data))
       throw new Error("GitHub returned an invalid pull request file page.");
     files.push(...page.data);
-    const nextLink = page.link?.match(/<([^>]+)>;\s*rel="next"/)?.[1];
+    let nextLink;
+    for (const segment of page.link?.split(",") ?? []) {
+      const match = /^<([^<>]+)>;\s*rel="next"$/.exec(segment.trim());
+      if (match) {
+        if (nextLink)
+          throw new Error("GitHub returned ambiguous file pagination.");
+        nextLink = match[1];
+      }
+    }
     next = nextLink ? new URL(nextLink, filesEndpoint) : undefined;
   }
   const after = metadata((await query(endpoint)).data);

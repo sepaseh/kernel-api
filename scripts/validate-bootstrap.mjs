@@ -56,10 +56,11 @@ export const validateBootstrapPolicy = (policy) => {
 };
 
 export const inspectBootstrap = async (root) => {
-  for (const file of [".github", policyPath]) {
-    if ((await lstat(path.join(root, file))).isSymbolicLink())
-      throw new Error("Bootstrap snapshots must not contain symbolic links.");
-  }
+  if (
+    (await lstat(path.join(root, ".github"))).isSymbolicLink() ||
+    (await lstat(path.join(root, policyPath))).isSymbolicLink()
+  )
+    throw new Error("Bootstrap snapshots must not contain symbolic links.");
   const policy = JSON.parse(
     await readFile(path.join(root, policyPath), "utf8"),
   );
@@ -74,21 +75,26 @@ export const inspectBootstrap = async (root) => {
   );
   const found = new Set();
   const visit = async (directory) => {
-    for (const entry of await readdir(path.join(root, directory), {
+    const entries = await readdir(path.join(root, directory), {
       withFileTypes: true,
-    })) {
-      const relative = directory ? `${directory}/${entry.name}` : entry.name;
-      if (relative === ".git") continue;
-      if (entry.isSymbolicLink())
-        throw new Error("Bootstrap snapshots must not contain symbolic links.");
-      if (entry.isDirectory() && directories.has(relative)) {
-        await visit(relative);
-      } else if (entry.isFile() && allowed.has(relative)) {
-        found.add(relative);
-      } else {
-        throw new Error(`Unexpected bootstrap path: ${relative}`);
-      }
-    }
+    });
+    await Promise.all(
+      entries.map(async (entry) => {
+        const relative = directory ? `${directory}/${entry.name}` : entry.name;
+        if (relative === ".git") return;
+        if (entry.isSymbolicLink())
+          throw new Error(
+            "Bootstrap snapshots must not contain symbolic links.",
+          );
+        if (entry.isDirectory() && directories.has(relative)) {
+          await visit(relative);
+        } else if (entry.isFile() && allowed.has(relative)) {
+          found.add(relative);
+        } else {
+          throw new Error(`Unexpected bootstrap path: ${relative}`);
+        }
+      }),
+    );
   };
   await visit("");
   if ([...allowed].some((file) => !found.has(file)))
@@ -96,23 +102,25 @@ export const inspectBootstrap = async (root) => {
       "The published bootstrap snapshot is missing declared files.",
     );
 
-  for (const file of found) {
-    if (file.endsWith(".json"))
-      JSON.parse(await readFile(path.join(root, file), "utf8"));
-    if (file.endsWith(".mjs")) {
-      const result = spawnSync(
-        process.execPath,
-        ["--check", path.join(root, file)],
-        {
-          cwd: root,
-          encoding: "utf8",
-          windowsHide: true,
-        },
-      );
-      if (result.error || result.status !== 0)
-        throw new Error(`Bootstrap JavaScript syntax is invalid: ${file}`);
-    }
-  }
+  await Promise.all(
+    [...found].map(async (file) => {
+      if (file.endsWith(".json"))
+        JSON.parse(await readFile(path.join(root, file), "utf8"));
+      if (file.endsWith(".mjs")) {
+        const result = spawnSync(
+          process.execPath,
+          ["--check", path.join(root, file)],
+          {
+            cwd: root,
+            encoding: "utf8",
+            windowsHide: true,
+          },
+        );
+        if (result.error || result.status !== 0)
+          throw new Error(`Bootstrap JavaScript syntax is invalid: ${file}`);
+      }
+    }),
+  );
   return {
     applicationReady: false,
     files: found.size,

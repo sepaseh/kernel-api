@@ -89,6 +89,67 @@ test("follows all pagination links and checks the same head and count afterward"
   assert.equal(requests[1].options.redirect, "error");
 });
 
+test("selects the next page from a multi-link header without following other relations", async () => {
+  const fixture = files(2);
+  const requests = [];
+  const endpoint = "https://api.github.com/repos/example/api/pulls/1/files";
+  const result = await inspect(async (url) => {
+    requests.push(url);
+    if (!url.includes("/files")) return response(pull(2));
+    if (url.includes("page=2")) return response(fixture.slice(1));
+    return response(
+      fixture.slice(0, 1),
+      [
+        `<${endpoint}?page=1>; rel="first"`,
+        `<${endpoint}?page=2>; rel="next"`,
+        `<${endpoint}?page=3>; rel="last"`,
+      ].join(", "),
+    );
+  });
+  assert.equal(result.changedFiles, 2);
+  assert.equal(requests.length, 4);
+  assert.equal(requests[2], `${endpoint}?page=2`);
+});
+
+test("rejects incomplete results with long malformed or embedded pagination links", async () => {
+  const validLink =
+    '<https://api.github.com/repos/example/api/pulls/1/files?page=2>; rel="next"';
+  for (const header of [
+    "<".repeat(200_000),
+    `unexpected-prefix${validLink}`,
+    `${validLink}unexpected-suffix`,
+  ]) {
+    let requests = 0;
+    await assert.rejects(
+      inspect(async (url) => {
+        requests++;
+        if (!url.includes("/files")) return response(pull(2));
+        if (url.includes("page=2")) return response(files(2).slice(1));
+        return response(files(1), header);
+      }),
+      /incomplete/,
+    );
+    assert.equal(requests, 3);
+  }
+});
+
+test("rejects ambiguous next-page links before requesting either target", async () => {
+  let requests = 0;
+  await assert.rejects(
+    inspect(async (url) => {
+      requests++;
+      return url.includes("/files")
+        ? response(
+            files(1),
+            '<https://api.github.com/repos/example/api/pulls/1/files?page=2>; rel="next", <https://api.github.com/repos/example/api/pulls/1/files?page=3>; rel="next"',
+          )
+        : response(pull(2));
+    }),
+    /ambiguous/,
+  );
+  assert.equal(requests, 2);
+});
+
 test("rejects an over-limit result spread across pages", async () => {
   const fixture = files(101);
   await assert.rejects(
