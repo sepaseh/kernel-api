@@ -39,8 +39,8 @@ npm ci
 npm run validate -- full
 ```
 
-The [validation manifest](.agents/validation.json) owns all eight required checks
-in the complete current-phase gate: exact source snapshot, dependency audit,
+The [validation manifest](.agents/validation.json) owns all nine required checks
+in the complete current-phase gate: exact source snapshot, semantic CI policy, dependency audit,
 source boundaries, types, lint, formatting, measured test coverage and audit-helper
 tests. These checks use synthetic data and do not need an environment file,
 existing database or running API.

@@ -34,6 +34,8 @@
     "package.json",
     "scripts/boundaries.test.mjs",
     "scripts/check-boundaries.mjs",
+    "scripts/check-ci.mjs",
+    "scripts/check-ci.test.mjs",
     "scripts/check-pr-size.mjs",
     "scripts/check-pr-size.test.mjs",
     "scripts/run-audit.mjs",

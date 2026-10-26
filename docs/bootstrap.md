@@ -26,10 +26,25 @@ npm run validate -- full
 ```
 
 The [canonical validation manifest](../.agents/validation.json) defines all
-required checks: snapshot integrity, dependency audit, source boundaries, types,
-lint, formatting, coverage-backed tests and audit-helper tests. Run the entire
+required checks: snapshot integrity, semantic CI policy, dependency audit, source
+boundaries, types, lint, formatting, coverage-backed tests and audit-helper tests.
+Run the entire
 `full` profile before an explicitly authorized commit or PR handoff. Focused
 development tests do not replace it.
+
+Every PR, including drafts and documentation-only changes, runs all nine required
+checks through `npm run validate -- full` after `npm ci`. No changed-path or PR
+branch filter narrows this gate. The runner validates the complete inventory
+before execution: every required check appears once in `full`, with no duplicate
+IDs, unknown checks or optional checks. Its declared execution order and first
+failure are preserved.
+
+The semantic YAML policy checks the actual workflow rather than matching its
+formatting. It rejects duplicate keys, narrowed PR triggers, conditional/advisory
+check execution, incorrect install/full ordering, custom shells or working
+directories and undeclared runner/job transitions. All current phase checks
+belong to the Ubuntu `check` job; a later multi-job runtime phase must update this
+policy deliberately rather than silently moving platform-specific checks.
 
 Validate an isolated checkout/export of the exact proposed snapshot. The guard
 rejects missing or unexpected maintained files, symlinks and private paths;
@@ -77,7 +92,8 @@ before reporting success. See [Sonar setup](sonarqube.md).
    blocks requests; every new commit invalidates this preflight.
 6. Only then request one review within an authorized cycle. Read actual findings,
    fix defects and repeat step 5 before re-review. Respect quotas and one
-   in-flight request per head. A skipped status or documented but still-open
+   in-flight request per head. Before a new request, verify at least one hour has
+   elapsed since the repository's latest CodeRabbit review. A skipped status or documented but still-open
    false positive does not satisfy the prerequisites; do not bypass them through
    automatic triggers, suppressions or weaker requirements.
 7. Merge only after required CI, native CodeRabbit/Sonar checks, an approving

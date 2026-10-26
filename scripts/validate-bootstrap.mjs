@@ -19,6 +19,8 @@ const foundationFiles = [
   "package-lock.json",
   "scripts/validate.mjs",
   "scripts/validate.test.mjs",
+  "scripts/check-ci.mjs",
+  "scripts/check-ci.test.mjs",
   "src/foundation.test.ts",
   "src/validation.test.ts",
   "tsconfig.json",

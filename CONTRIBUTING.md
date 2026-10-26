@@ -48,6 +48,15 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
+Each PR runs all nine required checks for the published application-services
+snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
+This includes draft and documentation-only PRs; there are no changed-path or
+branch filters. The runner rejects duplicate IDs, omitted required checks and
+optional checks added to `full` before executing any command. Focused profiles
+remain development tools. A semantic YAML policy check rejects conditional or
+advisory full execution, custom shells/directories and undeclared job/runner
+transitions.
+
 The full phase includes the source/snapshot guards, dependency audit, type and
 style checks, measured application/governance coverage and audit-helper tests.
 Keep tests for authorization boundaries, semantic errors, canonical permissions,
@@ -75,6 +84,8 @@ proper explicit authorization for a legitimate Sonar classification and verify
 fresh zero-issue evidence; a written false-positive note is insufficient. Do not
 weaken, exclude, suppress or waive findings just to request review. Respect quotas,
 keep one request in flight per head and do not bypass the order with automation.
+Also verify that at least one hour has elapsed since the latest CodeRabbit review
+in this repository before sending a new request.
 
 ## Pull requests and review
 

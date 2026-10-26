@@ -11,6 +11,13 @@
       "scopes": ["application-services"]
     },
     {
+      "id": "ci-policy",
+      "command": "npm run check:ci",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["application-services", "tooling"]
+    },
+    {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
@@ -63,6 +70,7 @@
   "profiles": {
     "full": [
       "snapshot",
+      "ci-policy",
       "audit",
       "boundaries",
       "typecheck",
