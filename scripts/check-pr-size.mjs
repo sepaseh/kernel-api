@@ -31,6 +31,19 @@ const metadata = (value) => {
   };
 };
 
+const parseNextPageLink = (header) => {
+  let nextLink;
+  for (const segment of header?.split(",") ?? []) {
+    const match = /^<([^<>]+)>;\s*rel="next"$/.exec(segment.trim());
+    if (match) {
+      if (nextLink)
+        throw new Error("GitHub returned ambiguous file pagination.");
+      nextLink = match[1];
+    }
+  }
+  return nextLink;
+};
+
 export const evaluateFiles = (files, expectedCount) => {
   if (!Array.isArray(files))
     throw new Error("GitHub returned an invalid pull request file list.");
@@ -140,15 +153,7 @@ export const inspectPullRequest = async ({
     if (!Array.isArray(page.data))
       throw new Error("GitHub returned an invalid pull request file page.");
     files.push(...page.data);
-    let nextLink;
-    for (const segment of page.link?.split(",") ?? []) {
-      const match = /^<([^<>]+)>;\s*rel="next"$/.exec(segment.trim());
-      if (match) {
-        if (nextLink)
-          throw new Error("GitHub returned ambiguous file pagination.");
-        nextLink = match[1];
-      }
-    }
+    const nextLink = parseNextPageLink(page.link);
     next = nextLink ? new URL(nextLink, filesEndpoint) : undefined;
   }
   const after = metadata((await query(endpoint)).data);

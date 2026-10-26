@@ -234,13 +234,22 @@ test("rejects repeated pagination and invalid HTTP or metadata responses", async
 });
 
 test("validates its target before making requests", async () => {
-  const fetchImpl = () => assert.fail("No request should be made");
+  let requests = 0;
+  const fetchImpl = () => {
+    requests++;
+    throw new Error("No request should be made");
+  };
   for (const options of [
     { repository: "../private/repo" },
     { repository: "../.." },
     { pullNumber: 0 },
     { expectedHeadSha: undefined },
     { apiUrl: "http://api.github.com" },
-  ])
-    await assert.rejects(inspect(fetchImpl, options));
+  ]) {
+    await assert.rejects(
+      inspect(fetchImpl, options),
+      options.apiUrl ? /HTTPS/ : /required/,
+    );
+    assert.equal(requests, 0);
+  }
 });

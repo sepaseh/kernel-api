@@ -37,6 +37,9 @@ coverage, not API application coverage. Generated reports are not committed.
    in a PR comment. Public repositories below the provider's star threshold
    currently require this manual trigger; do not treat its skipped success
    status as review evidence.
+   Respect the allowance reported by the provider. If re-review is quota-limited,
+   record the reviewed commit, verified fixes and pending re-review explicitly;
+   a later skipped status does not re-review the updated commit.
 6. Verify the actual Sonar analysis and quality-gate result when configured.
    Missing setup, unavailable analysis and failed analysis are distinct states.
 7. Merge after required checks and owner review. Automatic merging, deployment
