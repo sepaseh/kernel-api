@@ -36,12 +36,12 @@ analysis is required; do not merge early merely to create a baseline.
 
 ## Current scope
 
-During [governance bootstrap](bootstrap.md),
+During the [source foundation phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
-`scripts` directory, classifies `.test.mjs` files as tests and imports actual
-`coverage/lcov.info` produced in the same CI checkout. This is governance-script
-coverage, not coverage of an unpublished API. Expand source and application
-coverage explicitly when the runnable phase is introduced.
+`src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
+tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
+This measures the published foundation and tooling. HTTP and concrete adapter
+coverage must be added when the runnable phase is introduced.
 
 Missing credentials or project settings fail with an explicit setup error;
 scanner failures remain visible. `sonar.qualitygate.wait=false` does not wait for
