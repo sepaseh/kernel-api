@@ -15,6 +15,12 @@ Do not import another checkout, add local-package links or introduce runtime
 framework, DB or storage dependencies into these pure layers. Use the existing
 boundary check rather than weakening it to permit a new dependency.
 
+Framework, database and storage SDK types also belong in adapters, not in
+application interfaces. Erasing an import at runtime does not remove this source
+coupling. Local application/contract type imports remain valid; the boundary
+checker distinguishes fully erased declarations from imports that still load a
+module under Node's TypeScript stripping.
+
 The exact maintained inventory is declared by
 [`.github/bootstrap-policy.json`](.github/bootstrap-policy.json). Update that
 inventory deliberately when adding a reviewed foundation file. Its allowlist is

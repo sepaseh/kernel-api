@@ -48,8 +48,32 @@ test("validation runner preserves arguments without a shell", () => {
     "npm run test --workspace=other",
     "npm run test --workspaces",
     "npm run test --prefix=../other",
+    "npm run --workspaces test",
+    "npm run --prefix ../other test",
+    "npm run --prefix=../other test",
+    "npm run -w other test",
+    "npm run test -w other",
+    "npm run test -w=other",
+    "npm run test -wother",
+    "npm run test -C ../other",
+    "npm run test --pref=../other",
+    "npm run test positional",
   ])
     assert.throws(() => commandArguments(command));
+});
+test("validation runner accepts script names and forwards root-looking script arguments after the separator", () => {
+  for (const script of [
+    "test",
+    "type-check",
+    "test:coverage",
+    "_internal",
+    "2fa",
+  ])
+    assert.deepEqual(commandArguments(`npm run ${script}`), ["run", script]);
+  assert.deepEqual(
+    commandArguments("npm run test -- --prefix=fixture -w value -C fixture"),
+    ["run", "test", "--", "--prefix=fixture", "-w", "value", "-C", "fixture"],
+  );
 });
 test("validation profiles stop at the first failed required command", () => {
   const manifest = {

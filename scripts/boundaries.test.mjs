@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import ts from "typescript";
+
 import {
   boundaryViolation,
   checkBoundaries,
@@ -90,10 +92,148 @@ test("resolved contract aliases cannot smuggle runtime implementations", () => {
   );
 });
 
+test("application imports stay local and framework-free even for erased SDK types", () => {
+  const file = path.join(root, "src/application/service.ts");
+  for (const specifier of ["hono", "drizzle-orm", "better-auth", "pino"])
+    for (const typeOnly of [false, true])
+      assert.match(check(specifier, { file, typeOnly }), /external packages/);
+  assert.match(
+    check("../infrastructure/db.ts", { file, typeOnly: true }),
+    /local application\/contracts/,
+  );
+  assert.equal(check("./models.ts", { file, typeOnly: true }), undefined);
+  assert.equal(check("../contracts/account.ts", { file }), undefined);
+  assert.equal(check("node:crypto", { file }), undefined);
+  assert.equal(check("node:assert/strict", { file }), undefined);
+  for (const specifier of ["http", "node:http", "http2", "node:https"])
+    assert.match(check(specifier, { file }), /HTTP transport/);
+});
+
+test("fully erased message types remain valid while module-loading import and re-export forms fail", () => {
+  const file = path.join(root, "src/application/service.ts");
+  const erased = [
+    'import type { ApiMessageKey } from "./localization.ts";',
+    'export type { ApiMessageKey } from "./localization.ts";',
+    'export type * from "./localization.ts";',
+    'type Key = import("./localization.ts").ApiMessageKey;',
+    'type Module = typeof import("./localization.ts");',
+    'import type Messages = require("./localization.ts");',
+  ];
+  const moduleLoading = [
+    'import { ApiMessageKey } from "./localization.ts";',
+    'import { type ApiMessageKey } from "./localization.ts";',
+    'export { type ApiMessageKey } from "./localization.ts";',
+    'import * as messages from "./localization.ts";',
+    'import "./localization.ts";',
+    'export * from "./localization.ts";',
+    'const messages = import("./localization.ts");',
+    'const messages = require("./localization.ts");',
+    'import Messages = require("./localization.ts");',
+  ];
+  for (const source of [...erased, ...moduleLoading]) {
+    const edges = inspectImports(source, file);
+    const typeOnly = erased.includes(source);
+
+    assert.equal(edges.length, 1, source);
+    assert.equal(edges[0].typeOnly, typeOnly, source);
+    const violation = check(edges[0].specifier, { file, typeOnly });
+    if (typeOnly) assert.equal(violation, undefined, source);
+    else assert.match(violation, /fully erased types/, source);
+  }
+});
+
 test("the working tree is a standalone project with contained pure contracts", async () => {
   const result = await checkBoundaries();
   assert.ok(result.files > 0);
   assert.deepEqual(result.violations, []);
+});
+
+test("installed packages cannot bypass the application boundary through runtime or type-only imports", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "kernel-boundaries-"));
+  try {
+    await Promise.all(
+      [
+        "src/application/ports",
+        "src/contracts",
+        "node_modules/runtime-framework",
+      ].map((name) => mkdir(path.join(directory, name), { recursive: true })),
+    );
+    const files = {
+      "package.json": JSON.stringify({ name: "synthetic-package-boundary" }),
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: { module: "ESNext", moduleResolution: "bundler" },
+        include: ["src/**/*.ts"],
+      }),
+      "node_modules/runtime-framework/package.json": JSON.stringify({
+        name: "runtime-framework",
+        types: "index.d.ts",
+      }),
+      "node_modules/runtime-framework/index.d.ts":
+        "export type Database = { id: string }; export declare const createServer: () => void;",
+      "src/application/ports/local.ts": "export type Port = { id: string };",
+      "src/contracts/local.ts": "export type Dto = { id: string };",
+      "src/application/localization.ts":
+        'export type ApiMessageKey = "synthetic";',
+      "src/application/allowed.ts": [
+        'import type { Port } from "./ports/local.ts";',
+        'export type { Dto } from "../contracts/local.ts";',
+        'type Key = import("./localization.ts").ApiMessageKey;',
+        'import type Messages = require("./localization.ts");',
+        'import { type Port as LocalPort } from "./ports/local.ts";',
+      ].join("\n"),
+      "src/application/runtime-package.ts":
+        'import { createServer } from "runtime-framework";',
+      "src/application/package-types.ts":
+        'import type { Database } from "runtime-framework";',
+      "src/application/runtime-vocabulary.ts":
+        'export { type ApiMessageKey } from "./localization.ts";',
+    };
+    await Promise.all(
+      Object.entries(files).map(([name, content]) =>
+        writeFile(path.join(directory, name), content),
+      ),
+    );
+    const module = ts.resolveModuleName(
+      "runtime-framework",
+      path.join(directory, "src/application/runtime-package.ts"),
+      {
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+      },
+      ts.sys,
+    ).resolvedModule;
+
+    assert.equal(module?.isExternalLibraryImport, true);
+    assert.equal(
+      path.resolve(module.resolvedFileName),
+      path.join(directory, "node_modules/runtime-framework/index.d.ts"),
+    );
+    const result = await checkBoundaries(directory);
+    const locations = result.violations.map((violation) =>
+      violation.slice(0, violation.indexOf(": ")),
+    );
+
+    assert.equal(result.violations.length, 3);
+    assert.deepEqual(
+      new Set(locations),
+      new Set([
+        `${path.join("src", "application", "runtime-package.ts")}:1`,
+        `${path.join("src", "application", "package-types.ts")}:1`,
+        `${path.join("src", "application", "runtime-vocabulary.ts")}:1`,
+      ]),
+    );
+    assert.ok(
+      result.violations.some((violation) =>
+        violation.includes("fully erased types"),
+      ),
+    );
+  } finally {
+    assert.ok(
+      path.resolve(directory).startsWith(path.resolve(tmpdir()) + path.sep),
+    );
+    assert.ok(path.basename(directory).startsWith("kernel-boundaries-"));
+    await rm(directory, { force: true, recursive: true });
+  }
 });
 
 test("nested production files retain import order while test trees and non-TypeScript files stay excluded", async () => {

@@ -1,4 +1,5 @@
 import { readdir, readFile, realpath } from "node:fs/promises";
+import { isBuiltin } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,6 +13,16 @@ const inside = (root, file) => {
     !relative.startsWith(`..${path.sep}`) &&
     !path.isAbsolute(relative)
   );
+};
+
+const isErasedTypeReference = (node) => {
+  if (ts.isImportTypeNode(node)) return true;
+  if (ts.isImportDeclaration(node))
+    return node.importClause?.isTypeOnly === true;
+  if (ts.isExportDeclaration(node) || ts.isImportEqualsDeclaration(node))
+    return node.isTypeOnly;
+
+  return false;
 };
 
 export const inspectImports = (content, filename = "source.ts") => {
@@ -28,6 +39,7 @@ export const inspectImports = (content, filename = "source.ts") => {
         value && ts.isStringLiteralLike(value) ? value.text : undefined,
       line:
         source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+      typeOnly: isErasedTypeReference(node),
     });
   const visit = (node) => {
     if (
@@ -58,7 +70,36 @@ export const inspectImports = (content, filename = "source.ts") => {
   return imports;
 };
 
-export const boundaryViolation = ({ root, file, specifier, resolved }) => {
+const applicationImportViolation = ({ root, specifier, target, typeOnly }) => {
+  if (!specifier.startsWith(".")) {
+    const nativeName = specifier.startsWith("node:")
+      ? specifier.slice(5)
+      : specifier;
+    return isBuiltin(specifier) &&
+      !["http", "http2", "https"].includes(nativeName)
+      ? undefined
+      : "Application modules must not depend on external packages or HTTP transport";
+  }
+
+  const application = path.join(root, "src", "application");
+  const contracts = path.join(root, "src", "contracts");
+  if (!target || (!inside(application, target) && !inside(contracts, target)))
+    return "Application modules must depend only on local application/contracts modules";
+
+  const vocabulary = path.join(application, "localization.ts");
+  if (inside(vocabulary, target) && (target !== vocabulary || !typeOnly))
+    return "Application message vocabulary references must be fully erased types";
+
+  return undefined;
+};
+
+export const boundaryViolation = ({
+  root,
+  file,
+  specifier,
+  resolved,
+  typeOnly,
+}) => {
   if (!specifier)
     return "Use literal module paths so source boundaries can be checked";
   if (specifier.startsWith("@kernel/"))
@@ -75,6 +116,9 @@ export const boundaryViolation = ({ root, file, specifier, resolved }) => {
   }
   if (target && !inside(root, target))
     return "Source imports must not escape this repository";
+  if (inside(path.join(root, "src", "application"), file))
+    return applicationImportViolation({ root, specifier, target, typeOnly });
+
   return undefined;
 };
 
@@ -144,6 +188,7 @@ export const checkBoundaries = async (root = repository) => {
             file,
             specifier: edge.specifier,
             resolved,
+            typeOnly: edge.typeOnly,
           });
           return violation
             ? `${path.relative(root, file)}:${edge.line}: ${edge.specifier ?? "[computed import]"}: ${violation}`
@@ -167,6 +212,6 @@ if (
     process.exitCode = 1;
   } else
     console.log(
-      `Source boundaries checked: ${result.files} production files. Application/HTTP layer rules are checked separately.`,
+      `Source boundaries checked: ${result.files} production files; contracts are pure and application imports remain framework-free.`,
     );
 }

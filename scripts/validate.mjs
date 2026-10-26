@@ -18,18 +18,14 @@ export const commandArguments = (command) => {
   if (
     args?.[0] !== "npm" ||
     args[1] !== "run" ||
-    !/^[\w:-]+$/.test(args[2] ?? "")
+    !/^[\w:][\w:-]*$/.test(args[2] ?? "")
   )
     throw new Error("Validation commands must use a declared npm script");
   const separator = args.indexOf("--");
   const npmOptions =
     separator === -1 ? args.slice(3) : args.slice(3, separator);
-  if (
-    npmOptions.some((argument) =>
-      /^--(?:workspace|workspaces|prefix)(?:=|$)/.test(argument),
-    )
-  )
-    throw new Error("Validation commands must run from the root package");
+  if (npmOptions.length > 0)
+    throw new Error("Validation commands must pass script arguments after --");
   return args.slice(1);
 };
 export const runProfile = (manifest, profile, run) => {
