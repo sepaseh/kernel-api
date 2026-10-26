@@ -43,6 +43,14 @@ tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
 This measures the published foundation and tooling. HTTP and concrete adapter
 coverage must be added when the runnable phase is introduced.
 
+Duplication detection excludes only `src/contracts/locales.ts`: its ten static
+language records repeat the same five-field schema with distinct values. Keep
+these explicit records readable rather than replacing them with positional
+tuples for the duplication metric. This file remains in source analysis and
+measured coverage; no rule or coverage exclusion is applied. Review this narrow
+exception if executable logic is added to the file. See Sonar's
+[duplication exclusion documentation](https://docs.sonarsource.com/sonarqube-cloud/managing-your-projects/project-analysis/setting-analysis-scope/exclude-from-coverage-duplication).
+
 Missing credentials or project settings fail with an explicit setup error;
 scanner failures remain visible. `sonar.qualitygate.wait=false` does not wait for
 the asynchronous provider decision in the scanner process. Scan execution and a

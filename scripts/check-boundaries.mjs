@@ -79,19 +79,21 @@ export const boundaryViolation = ({ root, file, specifier, resolved }) => {
 };
 
 const sourceFiles = async (directory) => {
-  const files = [];
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const filename = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      if (!["test", "__tests__", "node_modules"].includes(entry.name))
-        files.push(...(await sourceFiles(filename)));
-    } else if (
-      /\.ts$/.test(entry.name) &&
-      !/\.(?:test|spec)\./.test(entry.name)
-    )
-      files.push(filename);
-  }
-  return files;
+  const entries = await readdir(directory, { withFileTypes: true });
+  const files = await Promise.all(
+    entries.map((entry) => {
+      const filename = path.join(directory, entry.name);
+      if (entry.isDirectory())
+        return ["test", "__tests__", "node_modules"].includes(entry.name)
+          ? []
+          : sourceFiles(filename);
+
+      return entry.name.endsWith(".ts") && !/\.(?:test|spec)\./.test(entry.name)
+        ? [filename]
+        : [];
+    }),
+  );
+  return files.flat();
 };
 
 export const checkBoundaries = async (root = repository) => {
@@ -127,25 +129,31 @@ export const checkBoundaries = async (root = repository) => {
     );
   const cache = ts.createModuleResolutionCache(root, (value) => value, options);
   const files = await sourceFiles(path.join(root, "src"));
-  for (const file of files) {
-    for (const edge of inspectImports(await readFile(file, "utf8"), file)) {
-      const module =
-        edge.specifier &&
-        ts.resolveModuleName(edge.specifier, file, options, ts.sys, cache)
-          .resolvedModule;
-      const resolved = module && (await realpath(module.resolvedFileName));
-      const violation = boundaryViolation({
-        root,
-        file,
-        specifier: edge.specifier,
-        resolved,
-      });
-      if (violation)
-        violations.push(
-          `${path.relative(root, file)}:${edge.line}: ${edge.specifier ?? "[computed import]"}: ${violation}`,
-        );
-    }
-  }
+  const fileViolations = await Promise.all(
+    files.map(async (file) => {
+      const edges = inspectImports(await readFile(file, "utf8"), file);
+      const importViolations = await Promise.all(
+        edges.map(async (edge) => {
+          const module =
+            edge.specifier &&
+            ts.resolveModuleName(edge.specifier, file, options, ts.sys, cache)
+              .resolvedModule;
+          const resolved = module && (await realpath(module.resolvedFileName));
+          const violation = boundaryViolation({
+            root,
+            file,
+            specifier: edge.specifier,
+            resolved,
+          });
+          return violation
+            ? `${path.relative(root, file)}:${edge.line}: ${edge.specifier ?? "[computed import]"}: ${violation}`
+            : undefined;
+        }),
+      );
+      return importViolations.filter((violation) => violation !== undefined);
+    }),
+  );
+  violations.push(...fileViolations.flat());
   return { files: files.length, violations };
 };
 

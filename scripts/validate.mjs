@@ -22,12 +22,12 @@ export const commandArguments = (command) => {
   )
     throw new Error("Validation commands must use a declared npm script");
   const separator = args.indexOf("--");
+  const npmOptions =
+    separator === -1 ? args.slice(3) : args.slice(3, separator);
   if (
-    args
-      .slice(3, separator === -1 ? undefined : separator)
-      .some((argument) =>
-        /^--(?:workspace|workspaces|prefix)(?:=|$)/.test(argument),
-      )
+    npmOptions.some((argument) =>
+      /^--(?:workspace|workspaces|prefix)(?:=|$)/.test(argument),
+    )
   )
     throw new Error("Validation commands must run from the root package");
   return args.slice(1);

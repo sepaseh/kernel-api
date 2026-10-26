@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
@@ -92,4 +94,64 @@ test("the working tree is a standalone project with contained pure contracts", a
   const result = await checkBoundaries();
   assert.ok(result.files > 0);
   assert.deepEqual(result.violations, []);
+});
+
+test("nested production files retain import order while test trees and non-TypeScript files stay excluded", async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), "kernel-boundaries-"));
+  try {
+    await Promise.all(
+      ["application", "contracts", "test", "__tests__", "node_modules"].map(
+        (name) => mkdir(path.join(directory, "src", name), { recursive: true }),
+      ),
+    );
+    const files = {
+      "package.json": JSON.stringify({ name: "synthetic-boundary-fixture" }),
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: { module: "ESNext", moduleResolution: "bundler" },
+        include: ["src/**/*.ts"],
+      }),
+      "src/application/a.ts": 'import "@kernel/a";\nimport(variable);\n',
+      "src/application/b.ts": 'import "@kernel/b";\n',
+      "src/contracts/types.ts": 'import "hono";\n',
+      "src/ignored.spec.ts": 'import "@kernel/ignored";\n',
+      "src/ignored.test.helper.ts": 'import "@kernel/ignored";\n',
+      "src/ignored.tsx": 'import "@kernel/ignored";\n',
+      "src/test/ignored.ts": 'import "@kernel/ignored";\n',
+      "src/__tests__/ignored.ts": 'import "@kernel/ignored";\n',
+      "src/node_modules/ignored.ts": 'import "@kernel/ignored";\n',
+    };
+    await Promise.all(
+      Object.entries(files).map(([name, content]) =>
+        writeFile(path.join(directory, name), content),
+      ),
+    );
+
+    const result = await checkBoundaries(directory);
+    const locations = result.violations.map((violation) =>
+      violation.slice(0, violation.indexOf(": ")),
+    );
+    const firstFile = path.join("src", "application", "a.ts");
+
+    assert.equal(result.files, 3);
+    assert.equal(result.violations.length, 4);
+    assert.deepEqual(
+      new Set(locations),
+      new Set([
+        `${firstFile}:1`,
+        `${firstFile}:2`,
+        `${path.join("src", "application", "b.ts")}:1`,
+        `${path.join("src", "contracts", "types.ts")}:1`,
+      ]),
+    );
+    assert.deepEqual(
+      locations.filter((location) => location.startsWith(`${firstFile}:`)),
+      [`${firstFile}:1`, `${firstFile}:2`],
+    );
+  } finally {
+    assert.ok(
+      path.resolve(directory).startsWith(path.resolve(tmpdir()) + path.sep),
+    );
+    assert.ok(path.basename(directory).startsWith("kernel-boundaries-"));
+    await rm(directory, { force: true, recursive: true });
+  }
 });
