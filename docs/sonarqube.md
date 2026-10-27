@@ -74,7 +74,7 @@ review, including recent PRs. Respect any later retry time reported by the provi
 
 ## Current scope
 
-During the [database-persistence phase](bootstrap.md),
+During the [auth-bootstrap phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
 `src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
 tests and imports actual `coverage/lcov.info` produced in the same CI checkout.

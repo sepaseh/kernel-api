@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "database-persistence",
+  "phase": "auth-bootstrap",
   "applicationReady": false,
   "checks": [
     {
@@ -14,7 +14,8 @@
         "infrastructure-support",
         "storage-local",
         "storage-adapters",
-        "database-persistence"
+        "database-persistence",
+        "auth-bootstrap"
       ]
     },
     {
@@ -29,7 +30,8 @@
         "infrastructure-support",
         "storage-local",
         "storage-adapters",
-        "database-persistence"
+        "database-persistence",
+        "auth-bootstrap"
       ]
     },
     {
@@ -43,7 +45,8 @@
         "infrastructure-support",
         "storage-local",
         "storage-adapters",
-        "database-persistence"
+        "database-persistence",
+        "auth-bootstrap"
       ]
     },
     {
@@ -57,7 +60,8 @@
         "infrastructure-support",
         "storage-local",
         "storage-adapters",
-        "database-persistence"
+        "database-persistence",
+        "auth-bootstrap"
       ]
     },
     {
@@ -71,7 +75,8 @@
         "infrastructure-support",
         "storage-local",
         "storage-adapters",
-        "database-persistence"
+        "database-persistence",
+        "auth-bootstrap"
       ]
     },
     {
@@ -85,7 +90,8 @@
         "infrastructure-support",
         "storage-local",
         "storage-adapters",
-        "database-persistence"
+        "database-persistence",
+        "auth-bootstrap"
       ]
     },
     {
@@ -99,7 +105,8 @@
         "infrastructure-support",
         "storage-local",
         "storage-adapters",
-        "database-persistence"
+        "database-persistence",
+        "auth-bootstrap"
       ]
     },
     {
@@ -113,7 +120,8 @@
         "infrastructure-support",
         "storage-local",
         "storage-adapters",
-        "database-persistence"
+        "database-persistence",
+        "auth-bootstrap"
       ]
     },
     {
@@ -127,7 +135,8 @@
         "infrastructure-support",
         "storage-local",
         "storage-adapters",
-        "database-persistence"
+        "database-persistence",
+        "auth-bootstrap"
       ]
     }
   ],

@@ -2,12 +2,12 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The current [database-persistence phase](bootstrap.md) contains a framework-free
+The current [auth-bootstrap phase](bootstrap.md) contains a framework-free
 application layer, local contracts, feature ports, ten static API catalogs and
 configuration, translation, logging, fatal-lifecycle support and real database
-schema, migrations and non-authentication persistence.
-`applicationReady:false` is deliberate: there is no HTTP server, composition
-root, initialization/seeding or authentication provider in this snapshot.
+schema, migrations, authentication/OTP persistence and administrator provisioning.
+`applicationReady:false` is deliberate: there is no HTTP server, application composition
+root or production OTP delivery in this snapshot. See [authentication adapters](auth-adapters.md).
 Local and S3-compatible MinIO adapters implement the object-storage port; their
 factory is not an application composition root.
 

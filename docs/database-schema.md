@@ -43,8 +43,8 @@ independent of their mobile number. A mobile change preserves the stored email,
 including legacy mobile-derived or custom values; migrations do not rewrite it.
 The authentication layer must look up the user by mobile and use the stored
 identity when signing in. A new account can therefore reuse a released mobile
-without taking over a legacy internal email. Auth adapters and end-to-end
-authentication are not published in this phase and must be verified before rollout.
+without taking over a legacy internal email. Auth adapters are tested against synthetic
+databases; end-to-end HTTP authentication and rollback require separate verification before rollout.
 
 If the account disappears before a profile, username or verified-email write,
 the adapter reports the authentication-required error instead of succeeding or

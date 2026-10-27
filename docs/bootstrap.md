@@ -1,17 +1,17 @@
-# Database and persistence publication phase
+# Authentication and bootstrap publication phase
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This snapshot is in the **database-persistence** phase. Its exact inventory is
+This snapshot is in the **auth-bootstrap** phase. Its exact inventory is
 [bootstrap-policy.json](../.github/bootstrap-policy.json), and `applicationReady`
 remains **false**. Pure contracts, core modules, feature ports and the seven
 account, authentication, calendar, files, roles, settings and users services are
 published, together with ten flat API catalogs, their registry, the i18next
 adapter, configuration validation, Pino logging/redaction and fatal process
 handlers, local/MinIO object storage, adapter selection, URL validation and safe
-storage-operation diagnostics, database schema/migrations and non-authentication
-persistence. HTTP, database initialization/seeding, concrete authentication/OTP,
-initial-administrator setup and deployment are not included.
+storage-operation diagnostics, database schema/migrations, authentication/OTP
+persistence, initialization and initial-administrator setup. HTTP, production OTP
+delivery and deployment are not included. See [authentication adapters](auth-adapters.md).
 
 Read [README](../README.md) for the source map, [architecture](architecture.md)
 for ownership and limitations, and [Contributing](../CONTRIBUTING.md) for the
@@ -58,7 +58,7 @@ files, all ten language data files and their registry, the declared support
 modules and their data, configuration, engine, logging and lifecycle tests.
 It additionally requires both local-storage modules, the MinIO adapter, factory,
 URL helpers and their filesystem/signed SDK tests. The guard still rejects
-unpublished memory helpers, authentication/OTP, initialization and HTTP layers even if a path is added to
+unpublished memory helpers and HTTP layers even if a path is added to
 the inventory.
 Adding a path to the inventory alone cannot admit an unreviewed module,
 concrete adapter or runnable entry point. The **100-file cap applies to each
@@ -174,7 +174,7 @@ and expand the canonical full gate when those implementations arrive. Update
 the inventory, workflows, analysis scope and branch-protection contexts together;
 verify replacement checks before retiring obsolete ones.
 
-Do not set application readiness to true because the database-persistence gate passes.
+Do not set application readiness to true because the auth-bootstrap gate passes.
 Do not use broad allowlist changes, placeholder behavior or unrelated untracked
 source as evidence that a runnable API works. Preserve the per-PR 100-file cap
 through subsequent phases.

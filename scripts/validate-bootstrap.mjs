@@ -119,6 +119,20 @@ const databaseFiles = [
     "_journal",
   ].map((name) => `drizzle/meta/${name}.json`),
 ];
+const authBootstrapFiles = [
+  "docs/auth-adapters.md",
+  "docs/auth-adapters.fa.md",
+  "scripts/auth-bootstrap-integration.test.mjs",
+  "scripts/auth-identity-integration.test.mjs",
+  "src/auth-gateway.test.ts",
+  "src/bootstrap-admin.ts",
+  "src/infrastructure/admin/bootstrap.ts",
+  "src/infrastructure/auth/better-auth.ts",
+  "src/infrastructure/auth/gateway.ts",
+  "src/infrastructure/auth/otp.ts",
+  "src/infrastructure/db/initialize.ts",
+  "src/infrastructure/persistence/auth.ts",
+];
 const phaseFiles = {
   governance: [],
   foundation: [],
@@ -150,6 +164,15 @@ const phaseFiles = {
     ...objectStorageFiles,
     ...databaseFiles,
   ],
+  "auth-bootstrap": [
+    ...applicationServicesFiles,
+    ...localizationFiles,
+    ...infrastructureSupportFiles,
+    ...localStorageFiles,
+    ...objectStorageFiles,
+    ...databaseFiles,
+    ...authBootstrapFiles,
+  ],
 };
 const isPublishedSource = (file, phase) =>
   phase !== "governance" &&
@@ -177,7 +200,7 @@ export const validateBootstrapPolicy = (policy) => {
         file,
       ) ||
       (/^drizzle(?:\/|$)/.test(file) &&
-        (policy.phase !== "database-persistence" ||
+        (!["database-persistence", "auth-bootstrap"].includes(policy.phase) ||
           !databaseFiles.includes(file))) ||
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") && !isPublishedSource(file, policy.phase)) ||
@@ -299,6 +322,8 @@ export const inspectBootstrap = async (root) => {
       "Published application services, infrastructure support, local and S3-compatible MinIO storage, adapter selection and URL helpers; HTTP, database, authentication, deployed MinIO integration and application composition are not published or validated.",
     "database-persistence":
       "Published application services, infrastructure support, storage adapters and concrete libsql/Drizzle schema, migrations and non-authentication persistence with disposable local-database tests; HTTP, authentication/OTP, initialization, deployed database/storage services and application composition are not published or validated.",
+    "auth-bootstrap":
+      "Published database, storage and authentication adapters with synthetic tests and initial administrator provisioning; HTTP, production OTP delivery, deployed services and application composition remain unpublished or unvalidated.",
   };
   return {
     applicationReady: false,

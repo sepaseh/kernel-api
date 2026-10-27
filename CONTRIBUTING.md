@@ -2,10 +2,10 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The current [database-persistence phase](docs/bootstrap.md) contains contracts,
+The current [auth-bootstrap phase](docs/bootstrap.md) contains contracts,
 application services, ports, ten static catalogs and configuration, translation,
 logging, fatal-lifecycle support, local/MinIO object storage and real database
-schema, migrations and non-authentication persistence. It is
+schema, migrations, authentication and initial administrator provisioning. It is
 not a runnable API.
 Contributions must preserve this declared scope and the independent project
 boundary.
@@ -61,8 +61,8 @@ real libSQL/Drizzle migrations and repositories with owned temporary/in-memory
 databases; close every client and clean up only those fixtures. Cover populated
 upgrades, schema/metadata parity, active foreign keys, rollback, usage conflicts,
 canonical permission mapping and persisted language/branding. Logo references
-must block file deletion rather than clear themselves. Initialization/seeding,
-OTP/auth persistence and HTTP remain outside this phase.
+must block file deletion rather than clear themselves. Initialization, OTP/auth persistence and initial administrator provisioning are included;
+HTTP and production OTP delivery remain outside this phase.
 
 ## Development and validation
 
@@ -80,7 +80,7 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
-Each PR runs all nine required checks for the published database-persistence
+Each PR runs all nine required checks for the published auth-bootstrap
 snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
 This includes draft and documentation-only PRs; there are no changed-path or
 branch filters. The runner rejects duplicate IDs, omitted required checks and
