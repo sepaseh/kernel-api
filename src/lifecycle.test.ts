@@ -122,3 +122,26 @@ test("a stalled flush exits by its deadline and repeated fatal signals log once"
   assert.equal(result.stdout, "safe-fatal-event");
   assert.equal(result.stderr, "");
 });
+
+for (const failure of ["throw", "rejection"] as const) {
+  test(`repeated ${failure} failures during a stalled flush stay private and log once`, () => {
+    const result = child(`
+      import { installFatalErrorHandlers } from './src/infrastructure/lifecycle.ts';
+      installFatalErrorHandlers({
+        fatal() { process.stdout.write('safe-fatal-event'); },
+        flush() {}
+      });
+      setInterval(() => {}, 50);
+      setTimeout(() => {
+        ${failure === "throw" ? "throw new Error('synthetic-private-first');" : "void Promise.reject(new Error('synthetic-private-first'));"}
+      }, 0);
+      setTimeout(() => {
+        ${failure === "throw" ? "throw new Error('synthetic-private-second');" : "void Promise.reject(new Error('synthetic-private-second'));"}
+      }, 20);
+    `);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "safe-fatal-event");
+    assert.equal(result.stderr, "");
+  });
+}

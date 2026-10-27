@@ -33,11 +33,18 @@ the only catalog runtime dependencies are the registry's local data imports.
 
 `src/infrastructure/config.ts` parses supplied environment settings without loading
 environment files or opening services. It validates numeric settings and driver
-selection and requires explicit credentials for MinIO. `logging/logger.ts` owns
+selection and requires explicit credentials for MinIO.
+Fixed OTP codes and development seeding require an explicit `NODE_ENV` of
+`development` or `test`; an unset or other environment rejects fixed codes and
+keeps seeding disabled. This does not change logging's development default.
+`logging/logger.ts` owns
 Pino JSON logging and asynchronous request context; `logging/sanitization.ts`
-removes private fields and raw error/SDK details. Development pretty output uses
+removes private fields and raw error/SDK details, including credential assignments
+inside serialized JSON text. Development pretty output uses
 pino-pretty with the same redaction policy. `lifecycle.ts` installs fatal-error
-handlers only when called and bounds flushing before process exit. None of these
+handlers only when called and keeps them active while flushing, so repeated fatal
+failures cannot fall through to raw process diagnostics. Flushing is bounded
+before process exit. None of these
 support modules composes or starts an HTTP server.
 
 | Service       | Responsibility                                                                                                                                                                    |

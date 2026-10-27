@@ -30,10 +30,10 @@ export const installFatalErrorHandlers = (logger: AppLogger) => {
     }
     flushAndExit(logger, 1);
   };
-  process.once("uncaughtException", (error) =>
+  process.on("uncaughtException", (error) =>
     terminate(error, "uncaughtException"),
   );
-  process.once("unhandledRejection", (error: unknown) =>
+  process.on("unhandledRejection", (error: unknown) =>
     terminate(error, "unhandledRejection"),
   );
 };

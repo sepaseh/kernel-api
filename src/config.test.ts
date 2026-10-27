@@ -47,10 +47,40 @@ test("local configuration uses contained repository paths without creating files
   assert.equal(config.minio.secretKey, "");
   assert.equal(config.seedDevelopmentData, false);
   assert.equal(
-    loadConfig({ ...base, SERVER_SEED_DEVELOPMENT_DATA: "true" })
-      .seedDevelopmentData,
+    loadConfig({
+      ...base,
+      NODE_ENV: "development",
+      SERVER_SEED_DEVELOPMENT_DATA: "true",
+    }).seedDevelopmentData,
     true,
   );
+});
+
+test("fixed OTPs and development seeding require an explicit development or test environment", () => {
+  for (const NODE_ENV of ["development", "test"]) {
+    const config = loadConfig({
+      ...base,
+      NODE_ENV,
+      OTP_FIXED_CODE: "synthetic-fixed-code",
+      SERVER_SEED_DEVELOPMENT_DATA: "true",
+    });
+    assert.equal(config.otpCode, "synthetic-fixed-code");
+    assert.equal(config.seedDevelopmentData, true);
+  }
+  for (const NODE_ENV of [undefined, "", "staging", "Development"]) {
+    const environment = {
+      ...base,
+      NODE_ENV,
+      SERVER_ENVIRONMENT: "test",
+      SERVER_SEED_DEVELOPMENT_DATA: "true",
+    };
+    assert.equal(loadConfig(environment).seedDevelopmentData, false);
+    for (const OTP_FIXED_CODE of ["synthetic-fixed-code", ""])
+      assert.throws(
+        () => loadConfig({ ...environment, OTP_FIXED_CODE }),
+        /OTP_FIXED_CODE requires NODE_ENV=development or NODE_ENV=test/,
+      );
+  }
 });
 
 test("database location resolution preserves memory, absolute file and remote URLs", () => {

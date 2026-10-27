@@ -39,32 +39,42 @@ const sensitiveKey = (key: string) => {
   );
 };
 
+const assignmentValueEnd = (text: string, start: number) => {
+  const quote = text[start];
+  if (quote !== '"' && quote !== "'") {
+    const value = text
+      .slice(start)
+      .match(/^(?:(?:Bearer|Basic)\s+)?[^\s,;&]+/i);
+    return start + (value?.[0].length ?? 0);
+  }
+  for (let index = start + 1; index < text.length; index++) {
+    if (text[index] === "\\") index++;
+    else if (text[index] === quote) return index + 1;
+  }
+  return text.length;
+};
+
 const redactAssignments = (text: string) => {
   let result = "";
   let cursor = 0;
-  for (const marker of text.matchAll(/(?<![\w-])([\w-]+)\s*[=:]\s*/g)) {
+  for (const marker of text.matchAll(/(?<![\w-])([\w-]+)["']?\s*[=:]\s*/g)) {
     if (marker.index < cursor || !sensitiveKey(marker[1])) continue;
     const start = marker.index + marker[0].length;
-    const value = /^(?:"[^"\r\n]*"|'[^'\r\n]*'|[^\s,;&]+)/.exec(
-      text.slice(start),
-    );
-    if (!value) continue;
+    const end = assignmentValueEnd(text, start);
+    if (end === start) continue;
     result += text.slice(cursor, start) + REDACTED;
-    cursor = start + value[0].length;
+    cursor = end;
   }
   return result + text.slice(cursor);
 };
 
 export const sanitizeLogText = (value: string) =>
-  redactAssignments(
-    value
-      .slice(0, 8_192)
-      .replaceAll(/\b(?:Bearer|Basic)\s+[^\s,;]+/gi, REDACTED)
-      .replaceAll(/\b[a-z][a-z0-9+.-]*:\/\/[^\s<>"')]+/gi, REDACTED)
-      .replaceAll(/\bfile:[^\s<>"')]+/gi, REDACTED)
-      .replaceAll(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/gi, REDACTED)
-      .replaceAll(/\b09\d{9}\b/g, REDACTED),
-  )
+  redactAssignments(value.slice(0, 8_192))
+    .replaceAll(/\b(?:Bearer|Basic)\s+[^\s,;]+/gi, REDACTED)
+    .replaceAll(/\b[a-z][a-z0-9+.-]*:\/\/[^\s<>"')]+/gi, REDACTED)
+    .replaceAll(/\bfile:[^\s<>"')]+/gi, REDACTED)
+    .replaceAll(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/gi, REDACTED)
+    .replaceAll(/\b09\d{9}\b/g, REDACTED)
     .replaceAll(/[?&][^\s#]*/g, REDACTED)
     .replaceAll(/[\p{Cc}\u2028\u2029]/gu, " ")
     .slice(0, 2_048);

@@ -185,8 +185,12 @@ export const loadConfig = (
 ): ServerConfig => {
   if (!environment.BETTER_AUTH_SECRET?.trim())
     throw new Error("BETTER_AUTH_SECRET is required.");
-  if (environment.NODE_ENV === "production" && environment.OTP_FIXED_CODE)
-    throw new Error("OTP_FIXED_CODE is not allowed in production.");
+  const developmentFeaturesEnabled =
+    environment.NODE_ENV === "development" || environment.NODE_ENV === "test";
+  if (environment.OTP_FIXED_CODE !== undefined && !developmentFeaturesEnabled)
+    throw new Error(
+      "OTP_FIXED_CODE requires NODE_ENV=development or NODE_ENV=test.",
+    );
   const storageDriver = resolveStorageDriver(environment);
   requireConfiguration(environment, storageDriver);
   const port = numberFromEnvironment("PORT", environment.PORT, 3000, 65535);
@@ -232,7 +236,7 @@ export const loadConfig = (
     otpCode: environment.OTP_FIXED_CODE,
     port,
     seedDevelopmentData:
-      environment.NODE_ENV !== "production" &&
+      developmentFeaturesEnabled &&
       environment.SERVER_SEED_DEVELOPMENT_DATA === "true",
     storageDriver,
     uploadLimitBytes: numberFromEnvironment(

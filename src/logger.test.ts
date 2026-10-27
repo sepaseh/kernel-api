@@ -163,6 +163,58 @@ test("credential assignments redact quoted and unquoted values while retaining p
   assert.equal(sanitizeLogText("x".repeat(8_192)), "x".repeat(2_048));
 });
 
+test("serialized JSON credentials and escaped quoted values stay private in Pino messages and fields", () => {
+  const text = JSON.stringify({
+    token: 'synthetic-token"synthetic-tail',
+    apiKey: "synthetic-key\\synthetic-tail",
+    password: "",
+    secret: 'https://internal.example/private"synthetic-url-tail',
+    safe: "retained",
+  });
+  const expected =
+    '{"token":[Redacted],"apiKey":[Redacted],"password":[Redacted],"secret":[Redacted],"safe":"retained"}';
+  assert.equal(sanitizeLogText(text), expected);
+  assert.equal(
+    sanitizeLogText(String.raw`{'token':'synthetic\'tail','safe':'retained'}`),
+    "{'token':[Redacted],'safe':'retained'}",
+  );
+  const output = captureLogs();
+  output.logger.info({ detail: text }, text);
+  assert.equal(output.records()[0].detail, expected);
+  assert.equal(output.records()[0].msg, expected);
+  assert.doesNotMatch(output.lines.join(""), /synthetic/);
+});
+
+test("credential assignments redact complete authorization schemes before generic text masks", () => {
+  const output = captureLogs();
+  for (const [scheme, spacing] of [
+    ["Bearer", " "],
+    ["Basic", "\t  "],
+    ["bearer", "   "],
+    ["BASIC", "\t"],
+  ]) {
+    const text = `Authorization: ${scheme}${spacing}synthetic-credential; safe=retained`;
+    const expected = "Authorization: [Redacted]; safe=retained";
+    assert.equal(sanitizeLogText(text), expected);
+    output.logger.info({ detail: text }, text);
+    assert.equal(output.records().at(-1)?.detail, expected);
+    assert.equal(output.records().at(-1)?.msg, expected);
+  }
+  assert.doesNotMatch(output.lines.join(""), /synthetic/);
+});
+
+test("unterminated quoted credentials redact the remaining bounded text", () => {
+  for (const text of [
+    'password="synthetic private suffix',
+    String.raw`token='synthetic\'private suffix`,
+    'apiKey="synthetic-trailing\\',
+  ]) {
+    const sanitized = sanitizeLogText(text);
+    assert.doesNotMatch(sanitized, /synthetic|private|suffix|trailing/);
+    assert.match(sanitized, /=\[Redacted\]$/);
+  }
+});
+
 test("serializes safe stack locations and synthetic query-error causes without private fields", () => {
   const output = captureLogs();
   const sql = Object.assign(
