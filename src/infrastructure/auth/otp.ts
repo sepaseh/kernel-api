@@ -27,8 +27,8 @@ export const consumeOtpAttempt = async (
     ),
   });
   const now = new Date();
+  if (!record) throw new ApplicationError("invalid", "otpInvalid");
   if (
-    !record ||
     record.consumedAt !== null ||
     record.expiresAt <= now ||
     record.valueHash !== attempt.valueHash
