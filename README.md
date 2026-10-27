@@ -85,8 +85,10 @@ the reviewed database migrations and may create storage resources, so use only
 intended local data and obtain authorization and a verified backup before
 migrating an existing database. Use a single instance for optional development
 seeding. The first seed requires an empty business database; an existing sample
-administrator with its expected role is accepted, while an incomplete seed fails
-explicitly and is not repaired automatically. The seed's business records and
+administrator is accepted only with its expected role assignment and a credential
+for the same account with a nonempty password hash; otherwise the incomplete seed fails without repair.
+Role permissions and calendar entries remain editable after seeding and are not
+restored or required to retain their initial values. The seed's business records and
 emptiness check share one transaction, so failure or competing seed attempts do
 not leave a partially created sample account or grants. Migrations and initial
 settings happen separately before that transaction.

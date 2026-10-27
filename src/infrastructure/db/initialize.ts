@@ -45,20 +45,30 @@ const seed = async (database: Database, auth: Auth) => {
     where: eq(settings.id, 1),
   });
   const translate = getTranslator(configuredSettings?.languageCode ?? "en");
-  const existingAdmin = await database.query.user.findFirst({
-    where: eq(user.mobile, "09123456789"),
-  });
   const defaultRoleId = "3ecb1f52-6d6e-43b9-a8fb-4e0772c9f863";
-  if (existingAdmin?.isSystemAdmin) {
-    const assignment = await database.query.userRoles.findFirst({
+  const alreadySeeded = await database.transaction(async (transaction) => {
+    const existingAdmin = await transaction.query.user.findFirst({
+      where: eq(user.mobile, "09123456789"),
+    });
+    if (!existingAdmin?.isSystemAdmin) return false;
+    const assignment = await transaction.query.userRoles.findFirst({
       where: and(
         eq(userRoles.roleId, defaultRoleId),
         eq(userRoles.userId, existingAdmin.id),
       ),
     });
-    if (!assignment) throw new Error("Development seed is incomplete.");
-    return;
-  }
+    const credential = await transaction.query.account.findFirst({
+      where: and(
+        eq(account.userId, existingAdmin.id),
+        eq(account.accountId, existingAdmin.id),
+        eq(account.providerId, "credential"),
+      ),
+    });
+    if (!assignment || !credential?.password?.trim())
+      throw new Error("Development seed is incomplete.");
+    return true;
+  });
+  if (alreadySeeded) return;
   const passwordHash = await (await auth.$context).password.hash("password123");
   const adminId = randomUUID();
   const now = new Date();

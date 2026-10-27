@@ -182,8 +182,11 @@ configuration. It binds the configured port first and returns `503` with
 finish. An occupied port fails before either initialization starts. Startup runs
 reviewed migrations, so an existing database needs explicit authorization and a
 verified matching backup before launch. Use one instance for development seed:
-the first seed requires an empty business database, and an incomplete seed fails
-explicitly rather than attempting repair. The emptiness check and sample account,
+the first seed requires an empty business database. An existing sample administrator
+must retain the expected role assignment and a credential for the same account
+with a nonempty password hash; otherwise initialization fails without repair. Role permissions and calendar entries
+may be edited after seeding and are not required to retain their initial values.
+The emptiness check and sample account,
 credential, roles, grants, memberships and calendar entries are in one transaction;
 failure or competing seeds do not leave those records partially created. Migrations
 and initial settings are separate earlier startup operations.
