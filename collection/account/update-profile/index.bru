@@ -1,0 +1,57 @@
+meta {
+  name: Update Profile
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{base_url}}/account/update-profile
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "first_name": "علی",
+    "last_name": "رضایی"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Partially updates the basic profile information of the authenticated user.
+
+  ## Authentication
+
+  Requires a valid access token.
+
+  ## Behavior
+
+  - Only fields included in the request body are updated.
+  - Omitted fields remain unchanged.
+  - At least one supported field must be provided.
+  - Supported fields include `first_name`, `last_name`, and `mobile`. To change `mobile`, first request verification for the new number, then send that same number with the received `otp`. An unchanged mobile does not require an OTP.
+  - Names are trimmed and limited to 1,000 UTF-16 code units each, the same limit used by registration and user management.
+  - An omitted or blank name leaves that field unchanged; blank names do not clear existing values.
+  - A supplied non-string (including `null`) or over-limit name rejects the whole request with `400`; no profile field is written.
+  - Users do not have individual language preferences.
+  - Username and email are managed through their dedicated endpoints.
+
+  ## Response
+
+  - `200 OK` — Profile updated successfully.
+  - `400 Bad Request` — The request body is empty or contains invalid values.
+  - `401 Unauthorized` — The access token is missing, invalid, or expired.
+  - `413 Payload Too Large` — The JSON body exceeds 64 KiB, including when `Content-Length` understates its actual size.
+  - `415 Unsupported Media Type` — The request does not use `application/json`.
+}

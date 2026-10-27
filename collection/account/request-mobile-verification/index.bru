@@ -1,0 +1,50 @@
+meta {
+  name: Request Mobile Verification
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/account/request-mobile-verification
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "mobile": "09120000002"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Issue a verification code for a new mobile number for the current account.
+
+  ## Authentication
+
+  Requires a valid access token.
+
+  ## Behavior
+
+  - The new number must differ from the current one and match the supported mobile format.
+  - Complete the change in the same session with `PATCH /account/update-profile`, sending the same `mobile` and the issued `otp`.
+  - Local development uses a configured code; production delivery is not implemented.
+  - A cooldown and a bounded in-process attempt limit apply.
+
+  ## Response
+
+  - `200 OK` — Verification code issued.
+  - `400 Bad Request` — The number is invalid or unchanged.
+  - `401 Unauthorized` — Authentication is required.
+  - `429 Too Many Requests` — The cooldown or attempt limit applies.
+}

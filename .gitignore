@@ -46,3 +46,6 @@ deploy/**/bootstrap-admin.json
 !.env.example
 !**/.env.example
 server/data/
+
+# Bruno environments may contain local credentials.
+collection/environments/
