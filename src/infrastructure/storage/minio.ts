@@ -44,7 +44,8 @@ const endpointUrl = (config: ServerConfig["minio"]) => {
     throw new Error("Invalid MinIO endpoint configuration.");
   if (!config.useSSL && !isLoopbackHost(host))
     throw new Error("TLS is required for non-loopback MinIO endpoints.");
-  return `${config.useSSL ? "https" : "http"}://${ip === 6 ? `[${host}]` : host}:${config.port}`;
+  const endpointHost = ip === 6 ? `[${host}]` : host;
+  return `${config.useSSL ? "https" : "http"}://${endpointHost}:${config.port}`;
 };
 
 const publicReadPolicy = (bucket: string) =>
@@ -93,19 +94,8 @@ export class MinioObjectStorage implements ObjectStorage {
   }
 
   async ensureReady() {
-    for (const bucket of [this.#privateBucket, this.#publicBucket]) {
-      try {
-        await this.#client.send(new HeadBucketCommand({ Bucket: bucket }));
-      } catch (error) {
-        if (
-          !(error instanceof S3ServiceException) ||
-          error.$metadata.httpStatusCode !== 404
-        )
-          throw error;
-        await this.#client.send(new CreateBucketCommand({ Bucket: bucket }));
-      }
-      await this.#assertUnversioned(bucket);
-    }
+    await this.#ensureBucket(this.#privateBucket);
+    await this.#ensureBucket(this.#publicBucket);
     await this.#client.send(
       new DeleteBucketPolicyCommand({ Bucket: this.#privateBucket }),
     );
@@ -171,6 +161,20 @@ export class MinioObjectStorage implements ObjectStorage {
     if (bucket !== this.#privateBucket && bucket !== this.#publicBucket)
       throw new Error("Invalid object storage bucket.");
     assertObjectKey(objectKey);
+  }
+
+  async #ensureBucket(bucket: string) {
+    try {
+      await this.#client.send(new HeadBucketCommand({ Bucket: bucket }));
+    } catch (error) {
+      if (
+        !(error instanceof S3ServiceException) ||
+        error.$metadata.httpStatusCode !== 404
+      )
+        throw error;
+      await this.#client.send(new CreateBucketCommand({ Bucket: bucket }));
+    }
+    await this.#assertUnversioned(bucket);
   }
 
   async #assertUnversioned(bucket: string) {

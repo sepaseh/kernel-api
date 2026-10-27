@@ -412,6 +412,19 @@ test("SDK isolation forbids external network and non-fixture credential files", 
 test("real signed SDK readiness creates owned buckets and replaces stale private/public policies", async (context) => {
   const { buckets, records, storage } = await fixture(context);
   await storage.ensureReady();
+  assert.deepEqual(
+    records.map(({ operation, bucket }) => [operation, bucket]),
+    [
+      ["head", "kernel-fixture-private"],
+      ["create", "kernel-fixture-private"],
+      ["versioning", "kernel-fixture-private"],
+      ["head", "kernel-fixture-public"],
+      ["create", "kernel-fixture-public"],
+      ["versioning", "kernel-fixture-public"],
+      ["delete-policy", "kernel-fixture-private"],
+      ["put-policy", "kernel-fixture-public"],
+    ],
+  );
   assert.equal(buckets.size, 2);
   const privateBucket = buckets.get("kernel-fixture-private");
   const publicBucket = buckets.get("kernel-fixture-public");
@@ -532,6 +545,7 @@ test("owned bucket and key checks reject invalid operations before any SDK reque
     "a\\b",
     "control\u0000",
     "control\n",
+    "control\u007f",
     "a".repeat(1025),
   ]) {
     await assert.rejects(
@@ -640,6 +654,14 @@ test("constructor validation keeps plaintext restricted to real loopback endpoin
 });
 
 test("public URLs preserve configured prefixes and encoded values without traversal or credentials", () => {
+  assert.equal(
+    publicObjectUrl(
+      `https://cdn.example.test/assets${"/".repeat(10_000)}`,
+      "owned-public",
+      "id/😀.bin",
+    ),
+    "https://cdn.example.test/assets/owned-public/id/%F0%9F%98%80.bin",
+  );
   assert.equal(
     publicObjectUrl(
       "https://cdn.example.test/assets/",

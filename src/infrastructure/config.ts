@@ -151,8 +151,7 @@ const requireConfiguration = (
     throw new Error(`Missing required configuration: ${missing.join(", ")}`);
 };
 
-export const resolveMinioRegion = (supplied: string | undefined) => {
-  const region = supplied ?? "us-east-1";
+export const resolveMinioRegion = (region = "us-east-1") => {
   if (
     !region ||
     region.length > 63 ||

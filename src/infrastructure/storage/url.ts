@@ -20,7 +20,7 @@ export const assertStorageBucket = (bucket: string) => {
 
 export const assertObjectKey = (objectKey: string) => {
   const hasControl = [...objectKey].some((character) => {
-    const code = character.charCodeAt(0);
+    const code = character.codePointAt(0) ?? -1;
     return code < 32 || code === 127;
   });
   if (
@@ -50,7 +50,10 @@ export const normalizedPublicBaseUrl = (value: string) => {
     throw new Error(
       "Public object storage URLs require HTTPS without credentials, query or fragment.",
     );
-  return url.href.replace(/\/+$/, "");
+  const href = url.href;
+  let end = href.length;
+  while (href[end - 1] === "/") end -= 1;
+  return href.slice(0, end);
 };
 
 export const publicObjectUrl = (
