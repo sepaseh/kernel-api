@@ -67,14 +67,19 @@ async function createFixture(t) {
 }
 function start(t, env, { observeDbClose = false } = {}) {
   const flags = observeDbClose ? ["--experimental-test-module-mocks"] : [];
-  const script = observeDbClose ? observeDbCloseRunner : runner;
+  const useIpc = process.platform === "win32";
+  let script = "await import('./src/index.ts')";
+  if (observeDbClose) script = observeDbCloseRunner;
+  else if (useIpc) script = runner;
   const child = spawn(
     process.execPath,
     [...flags, "--input-type=module", "-e", script],
     {
       cwd: root,
       env,
-      stdio: ["ignore", "pipe", "pipe", "ipc"],
+      stdio: useIpc
+        ? ["ignore", "pipe", "pipe", "ipc"]
+        : ["ignore", "pipe", "pipe"],
       windowsHide: true,
     },
   );
@@ -234,10 +239,7 @@ test(
     });
     assert.equal(oversized, 413);
     if (process.platform === "win32") running.child.send("stop");
-    else {
-      running.child.disconnect();
-      running.child.kill("SIGTERM");
-    }
+    else running.child.kill("SIGTERM");
     const result = await running.result;
     assert.equal(result.code, 0, running.output());
     assert.match(running.output(), /server.stopped/);
@@ -302,10 +304,7 @@ test(
     assert.equal(response.status, 503);
     assert.equal(response.headers.get("cache-control"), "no-store");
     if (process.platform === "win32") running.child.send("stop");
-    else {
-      running.child.disconnect();
-      running.child.kill("SIGTERM");
-    }
+    else running.child.kill("SIGTERM");
     await delay(100);
     release();
     const result = await running.result;
@@ -423,10 +422,7 @@ test("SIGINT shuts down a running server", { timeout: 20_000 }, async (t) => {
   const running = start(t, fixture.env);
   await waitForReady(fixture, running);
   if (process.platform === "win32") running.child.send("interrupt");
-  else {
-    running.child.disconnect();
-    running.child.kill("SIGINT");
-  }
+  else running.child.kill("SIGINT");
   const result = await running.result;
   assert.equal(result.code, 0, running.output());
   assert.match(running.output(), /server.stopped/);
