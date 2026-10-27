@@ -181,6 +181,61 @@ export const catalogDataViolation = (content, filename) => {
   return undefined;
 };
 
+const databasePackages = new Set(["@libsql/client", "drizzle-orm"]);
+const databaseImports = {
+  "src/infrastructure/db/client.ts": ["@libsql/client", "drizzle-orm/libsql"],
+  "src/infrastructure/db/schema.ts": ["drizzle-orm", "drizzle-orm/sqlite-core"],
+  ...Object.fromEntries(
+    [
+      "account",
+      "calendar",
+      "files",
+      "identity",
+      "roles",
+      "settings",
+      "users",
+    ].map((name) => [
+      `src/infrastructure/persistence/${name}.ts`,
+      ["drizzle-orm"],
+    ]),
+  ),
+};
+const databaseImportViolation = ({
+  root,
+  file,
+  specifier,
+  target,
+  resolvedPackage,
+}) => {
+  const packageDirectories = ["@libsql", "drizzle-orm"].map((name) =>
+    path.join(root, "node_modules", name),
+  );
+  const isDatabaseReference =
+    specifier === "drizzle-orm" ||
+    specifier.startsWith("drizzle-orm/") ||
+    specifier.startsWith("@libsql/") ||
+    resolvedPackage?.startsWith("@libsql/") ||
+    databasePackages.has(resolvedPackage) ||
+    (target &&
+      packageDirectories.some((directory) => inside(directory, target)));
+  if (!isDatabaseReference) return undefined;
+  const owner = path.relative(root, file).split(path.sep).join("/");
+  const expectedPackage =
+    specifier === "@libsql/client" ? "@libsql/client" : "drizzle-orm";
+  const packageRoot = databasePackages.has(resolvedPackage)
+    ? path.join(root, "node_modules", expectedPackage)
+    : undefined;
+  if (
+    !databaseImports[owner]?.includes(specifier) ||
+    resolvedPackage !== expectedPackage ||
+    !packageRoot ||
+    !target ||
+    !inside(packageRoot, target)
+  )
+    return "Database SDK imports must use exact declared owners and their real installed packages";
+  return undefined;
+};
+
 export const boundaryViolation = ({
   root,
   file,
@@ -228,7 +283,13 @@ export const boundaryViolation = ({
       return "The S3 SDK must resolve to its installed package and stay inside the owned MinIO adapter";
   }
 
-  return undefined;
+  return databaseImportViolation({
+    root,
+    file,
+    specifier,
+    target,
+    resolvedPackage,
+  });
 };
 
 const sourceFiles = async (directory) => {

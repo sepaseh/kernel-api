@@ -238,8 +238,9 @@ test("managed user creation normalizes identity and revokes the provider-created
   const { auth, repository, service } = managementFixture();
   const effects: string[] = [];
   auth.signUp = async (input) => {
+    assert.match(input.authEmail, /^[0-9a-f-]{36}@kernel\.local$/);
     assert.deepEqual(input, {
-      authEmail: `${target.mobile}@kernel.local`,
+      authEmail: input.authEmail,
       firstName: "New",
       lastName: "User",
       mobile: target.mobile,

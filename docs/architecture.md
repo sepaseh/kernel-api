@@ -2,13 +2,39 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The current [storage-adapters phase](bootstrap.md) contains a framework-free
+The current [database-persistence phase](bootstrap.md) contains a framework-free
 application layer, local contracts, feature ports, ten static API catalogs and
-configuration, translation, logging and fatal-lifecycle support.
+configuration, translation, logging, fatal-lifecycle support and real database
+schema, migrations and non-authentication persistence.
 `applicationReady:false` is deliberate: there is no HTTP server, composition
-root, database schema, migration or authentication provider in this snapshot.
+root, initialization/seeding or authentication provider in this snapshot.
 Local and S3-compatible MinIO adapters implement the object-storage port; their
 factory is not an application composition root.
+
+## Database and persistence
+
+`infrastructure/db/schema.ts` defines the SQLite schema; reviewed SQL and snapshot
+metadata live in `drizzle/`. The database factory owns libSQL connection creation
+and Drizzle binding. Only the exact owned database/persistence modules may import
+their SDKs; application ports expose domain values rather than ORM types.
+
+Account, calendar, file-metadata, identity, role, settings and user adapters
+implement the existing ports. Role replacement and user administrative writes
+are transactional. Profile name updates derive untouched name components from current
+database columns in the same bound SQL update, preserving consistency across
+partial patches from stale actor snapshots. Assigned roles, users with business references and referenced
+logo files cannot be deleted; allowed identity deletion cascades only to owned
+technical sessions/accounts. No soft-delete flag or automatic business unlinking
+is introduced. Settings preserve language when a branding-only write omits it.
+Constraint classification walks error causes safely, including cycles, and
+unrelated failures retain their original identity.
+
+Real libSQL/Drizzle tests use in-memory or fresh owned file databases. They apply
+fresh and populated-upgrade migrations, compare columns/foreign keys/indexes with
+the ORM and snapshot metadata, verify rollback and reference restrictions, and
+close/remove their fixtures. These tests establish the published SQLite adapter
+behavior, not production migration execution, remote database behavior, HTTP
+authorization or complete authentication. Read [database schema](database-schema.md).
 
 ## Local object storage
 
@@ -142,7 +168,8 @@ codes and interpolates messages from every catalog, with English fallback for
 unsupported codes. That fallback does not authorize a separate user language choice:
 the future HTTP adapter must use the API-owned active-language setting. Engine tests
 establish translation execution; catalog-data tests establish data integrity.
-HTTP response localization and persisted-language selection remain unvalidated.
+Persisted-language reads and branding-only writes are tested against the database;
+HTTP response localization and session-language integration remain unvalidated.
 
 Soft deletion is prohibited. Role deletion uses the port's atomic
 `deleteIfUnassigned` result and reports a semantic conflict when assigned. User
@@ -150,9 +177,9 @@ deletion re-reads state through its transaction port, protects self/final active
 administrator and reports a conflict for a record still in business use.
 Dependents must be resolved first; do not silently unlink them or cascade away
 business records. Future HTTP mapping must return a localized 409 for conflicts.
-Future persistence adapters must enforce reference checks, allowed technical
-cleanup and writes atomically. These requirements are not proof of a database
-implementation in this phase.
+The published persistence adapters and foreign keys enforce reference checks,
+allowed technical cleanup and writes atomically. Populated-upgrade and rollback
+tests verify these database invariants; HTTP conflict mapping remains future work.
 
 ## Test evidence and remaining integration
 
@@ -177,7 +204,8 @@ actual byte length. File event callbacks are best-effort synchronous diagnostics
 their exceptions cannot fail a committed upload, prevent cleanup or replace the
 original storage/metadata error.
 
-Before runnable publication, add concrete HTTP/auth/persistence/storage adapters,
+Before runnable publication, complete concrete HTTP/auth adapters around the published
+database and storage adapters,
 manual composition and full HTTP contract, permission, session/cookie,
 translation, transaction/concurrency, OTP and storage integration tests using
 fresh disposable fixtures. The file-size check occurs after the boundary has

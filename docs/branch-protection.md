@@ -8,7 +8,7 @@ and resolved conversations. Protection applies to administrators, dismisses stal
 approvals, requires an up-to-date branch and linear history, and prohibits force
 pushes and deletion.
 
-The non-runnable storage-adapters phase requires **check** and
+The non-runnable database-persistence phase requires **check** and
 **PR file limit** from GitHub Actions and
 **SonarQube Cloud analysis** from GitHub Actions, plus **SonarCloud Code Analysis**
 from the SonarQube Cloud app. The native **CodeRabbit** status is also required.

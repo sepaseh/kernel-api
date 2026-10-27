@@ -149,6 +149,28 @@ test("profile rejects either malformed or oversized name before any partial writ
   assert.equal(writes, 0);
 });
 
+test("registration uses a fresh authentication identity independent of mobile", async () => {
+  const dependencies = fixture();
+  const identities: string[] = [];
+  dependencies.provider.signUp = async (input) => {
+    identities.push(input.authEmail);
+    return { token: "synthetic-token", userId: account.id };
+  };
+  const service = createAuthService(dependencies);
+  const input = {
+    first_name: "New",
+    last_name: "User",
+    mobile: account.mobile,
+    otp: "123456",
+    password: "synthetic-password",
+  };
+  await service.register(input);
+  await service.register(input);
+  assert.equal(identities.length, 2);
+  assert.match(identities[0]!, /^[0-9a-f-]{36}@kernel\.local$/);
+  assert.notEqual(identities[0], identities[1]);
+});
+
 test("registration validates bounded names before OTP consumption or provider writes", async () => {
   const dependencies = fixture();
   let consumed = 0;

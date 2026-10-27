@@ -7,7 +7,7 @@
 دارد. این قانون برای مدیران هم برقرار است؛ تأیید قدیمی بی‌اعتبار، شاخهٔ به‌روز و
 تاریخچهٔ خطی الزامی و force push و حذف شاخه ممنوع است.
 
-در مرحلهٔ آداپترهای ذخیره‌سازیِ غیرقابل اجرا، بررسی **check** و **PR file limit**
+در مرحلهٔ دیتابیس و ماندگاریِ غیرقابل اجرا، بررسی **check** و **PR file limit**
 از GitHub Actions و
 **SonarQube Cloud analysis** از GitHub Actions و **SonarCloud Code Analysis** از
 برنامهٔ SonarQube Cloud الزامی‌اند. وضعیت اصلی **CodeRabbit** هم الزامی است.

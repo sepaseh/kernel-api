@@ -1,15 +1,16 @@
-# Storage-adapter phase and validation
+# Database and persistence publication phase
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This snapshot is in the **storage-adapters** phase. Its exact inventory is
+This snapshot is in the **database-persistence** phase. Its exact inventory is
 [bootstrap-policy.json](../.github/bootstrap-policy.json), and `applicationReady`
 remains **false**. Pure contracts, core modules, feature ports and the seven
 account, authentication, calendar, files, roles, settings and users services are
 published, together with ten flat API catalogs, their registry, the i18next
 adapter, configuration validation, Pino logging/redaction and fatal process
 handlers, local/MinIO object storage, adapter selection, URL validation and safe
-storage-operation diagnostics. HTTP, DB/migrations, concrete authentication,
+storage-operation diagnostics, database schema/migrations and non-authentication
+persistence. HTTP, database initialization/seeding, concrete authentication/OTP,
 initial-administrator setup and deployment are not included.
 
 Read [README](../README.md) for the source map, [architecture](architecture.md)
@@ -57,13 +58,13 @@ files, all ten language data files and their registry, the declared support
 modules and their data, configuration, engine, logging and lifecycle tests.
 It additionally requires both local-storage modules, the MinIO adapter, factory,
 URL helpers and their filesystem/signed SDK tests. The guard still rejects
-unpublished memory helpers, database and HTTP layers even if a path is added to
+unpublished memory helpers, authentication/OTP, initialization and HTTP layers even if a path is added to
 the inventory.
 Adding a path to the inventory alone cannot admit an unreviewed module,
 concrete adapter or runnable entry point. The **100-file cap applies to each
 PR's GitHub changed-file list**, not the repository's total file count.
 
-Tests need no real environment, database, bucket or running API. Keep secrets and
+Tests need no real environment, existing database, bucket or running API. Keep secrets and
 runtime state outside source and synthetic fixtures.
 
 Local-storage tests create public/private objects only in fresh temporary
@@ -114,6 +115,24 @@ Use the existing [CI](../.github/workflows/ci.yml) and
 Inspect the actual hosted run, analyzed revision and provider quality gate
 before reporting success. See [Sonar setup](sonarqube.md).
 
+## Database evidence
+
+The exact phase additionally requires the database factory/schema, declared
+non-authentication persistence owners, reviewed SQL/snapshot metadata, real DB
+tests and bilingual [schema documentation](database-schema.md). libSQL and
+Drizzle imports are permitted only in exact owned adapters with actual installed
+package identity and contained resolution. Application/contracts/catalog rules
+and the separate owned S3 SDK boundary remain unchanged.
+
+Fresh and populated-upgrade fixtures verify complete columns/foreign keys/indexes,
+migration/snapshot agreement, foreign-key enforcement, transactional rollback,
+user/role/used-logo deletion restrictions, canonical permissions and language/branding
+atomicity. Clients are closed and owned temporary fixtures removed. The logo
+migration preserves settings rows and replaces SET NULL with RESTRICT. No user
+database, secret environment, production service or Docker resource is required.
+These tests do not establish remote database behavior or complete HTTP/auth runtime
+readiness. The canonical full profile still includes every required check.
+
 ## Pull request cycle
 
 1. Work on a focused `codex/<purpose>` branch and inspect its complete base diff.
@@ -155,7 +174,7 @@ and expand the canonical full gate when those implementations arrive. Update
 the inventory, workflows, analysis scope and branch-protection contexts together;
 verify replacement checks before retiring obsolete ones.
 
-Do not set application readiness to true because the storage-adapters gate passes.
+Do not set application readiness to true because the database-persistence gate passes.
 Do not use broad allowlist changes, placeholder behavior or unrelated untracked
 source as evidence that a runnable API works. Preserve the per-PR 100-file cap
 through subsequent phases.
