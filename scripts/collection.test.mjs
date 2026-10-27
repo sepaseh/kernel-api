@@ -4,11 +4,44 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { apiEn } from "../src/infrastructure/localization/catalogs/en.ts";
+import { createLogger } from "../src/infrastructure/logging/logger.ts";
+import { createHttpApp } from "../src/presentation/http/app.ts";
 import { createAccountRoutes } from "../src/presentation/http/routes/account.ts";
 import { createAuthRoutes } from "../src/presentation/http/routes/auth.ts";
 
 const groups = { account: createAccountRoutes, auth: createAuthRoutes };
 const root = path.resolve("collection");
+
+test("collection origin allows cookie-bearing requests through the HTTP guard", async () => {
+  const collection = await readFile(path.join(root, "collection.bru"), "utf8");
+  const header = collection.match(/^\s*Origin:\s*\{\{(\w+)\}\}\s*$/m);
+  assert.equal(header?.[1], "origin");
+  const allowedOrigin = "http://localhost:5173";
+  const app = createHttpApp({
+    logger: createLogger({ level: "silent", pretty: false }, { write() {} }),
+    config: { allowedOrigins: [allowedOrigin] },
+    services: {
+      settings: { getLanguageCode: async () => "en" },
+      auth: {
+        fromRequest: () => ({
+          logout: async () => {},
+          responseCookies: () => [],
+        }),
+      },
+    },
+  });
+  const request = (origin) =>
+    app.request("/auth/logout", {
+      method: "POST",
+      headers: {
+        Cookie: "session=synthetic",
+        ...(origin ? { Origin: origin } : {}),
+      },
+    });
+  assert.equal((await request()).status, 403);
+  assert.equal((await request("https://other.example")).status, 403);
+  assert.equal((await request(allowedOrigin)).status, 200);
+});
 
 test("collection operations match all published auth and account routes", async () => {
   for (const [group, createRoutes] of Object.entries(groups)) {

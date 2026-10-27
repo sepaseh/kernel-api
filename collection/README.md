@@ -4,8 +4,12 @@
 
 This partial Bruno collection covers the published authentication and account
 HTTP routes. Other API areas will be added separately. Open this directory in
-Bruno, create a local environment, and set `base_url` to your local API URL and
-`access_token` to an initially empty value. Do not commit that environment or
+Bruno, create a local environment, and set `base_url` to your local API URL,
+`origin` to an exact origin allowed by the server's `SERVER_ALLOWED_ORIGINS` or
+`SERVER_ALLOWED_ORIGIN` configuration, and `access_token` to an initially empty
+value. The allowed origin may differ from `base_url`; include its scheme and port
+when configured. The collection sends it as `Origin` so requests with session
+cookies pass the server's origin check. Do not commit that environment or
 real credentials. Successful login saves the access token in the active Bruno
 environment. Session cookies are also used by the authentication adapter.
 The exact publication-snapshot check rejects local environment directories; run
