@@ -24,3 +24,10 @@ The current OTP adapter has no delivery provider. Its fixed code is restricted t
 explicit development or test configuration. Issuance without that configuration
 fails; this is not evidence of a production OTP delivery path. A real delivery
 adapter and its operational tests are required before using those flows in production.
+
+New OTP records use a versioned HMAC-SHA256 digest. Unexpired legacy digests
+remain verifiable until expiry, but older versions cannot verify new versioned
+records. Coordinate rollout and rollback across instances; after a rollback,
+request a new OTP using the version currently serving verification. Existing
+records are not rewritten. A new request may be throttled until the existing
+120-second issuance window ends.

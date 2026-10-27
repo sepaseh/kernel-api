@@ -44,6 +44,7 @@ export type AuthProvider = {
 
 export type OtpAttempt = {
   destination: string;
+  legacyValueHash?: string;
   purpose: OtpPurpose;
   subject?: string;
   valueHash: string;

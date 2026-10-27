@@ -128,6 +128,29 @@ test("real Better Auth authenticates bootstrap administrator before and after mo
   );
 });
 
+test("Better Auth accepts a bootstrapped hyphenated username and rejects invalid characters", async (context) => {
+  const { auth, database } = await setup(context);
+  const password = "synthetic-admin-password";
+  await createInitialAdmin(database, auth, {
+    first_name: "Admin",
+    last_name: "Test",
+    mobile: "09120000009",
+    password,
+    username: "synthetic-admin",
+  });
+  const login = await auth.api.signInUsername({
+    body: { username: "synthetic-admin", password },
+  });
+  assert.equal(login.user.username, "synthetic-admin");
+  assert.deepEqual(
+    await auth.api.isUsernameAvailable({ body: { username: "valid-name_1" } }),
+    { available: true },
+  );
+  for (const username of ["invalid+name", "ab", "a".repeat(31)]) {
+    await assert.rejects(auth.api.isUsernameAvailable({ body: { username } }));
+  }
+});
+
 test("real Better Auth supports managed creation after reuse of a legacy mobile", async (context) => {
   const { database, provider, service } = await setup(context);
   const password = "synthetic-password";

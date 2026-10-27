@@ -1,4 +1,9 @@
-import { createHash, randomUUID } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomUUID,
+  timingSafeEqual,
+} from "node:crypto";
 
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
@@ -9,6 +14,26 @@ import type { Database } from "../db/client.ts";
 import { otpCodes } from "../db/schema.ts";
 
 type OtpExecutor = Pick<Database, "query" | "update">;
+
+const digestPattern = /^[0-9a-f]{64}$/;
+
+// Legacy records remain usable until their stored expiry; a v2 record never
+// falls back to the legacy digest, and malformed hashes fail closed.
+const matchesOtpHash = (stored: string, attempt: OtpAttempt): boolean => {
+  const versioned = stored.startsWith("v2:");
+  const storedDigest = versioned ? stored.slice(3) : stored;
+  const candidate = versioned
+    ? attempt.valueHash.startsWith("v2:")
+      ? attempt.valueHash.slice(3)
+      : ""
+    : (attempt.legacyValueHash ?? "");
+  if (!digestPattern.test(storedDigest) || !digestPattern.test(candidate))
+    return false;
+  return timingSafeEqual(
+    Buffer.from(storedDigest, "hex"),
+    Buffer.from(candidate, "hex"),
+  );
+};
 
 // Also used inside the password-reset transaction. A failed credential update
 // must roll this consumption back together with the session revocation.
@@ -31,7 +56,7 @@ export const consumeOtpAttempt = async (
   if (
     record.consumedAt !== null ||
     record.expiresAt <= now ||
-    record.valueHash !== attempt.valueHash
+    !matchesOtpHash(record.valueHash, attempt)
   )
     throw new ApplicationError("invalid", "otpInvalid");
   const consumed = await database
@@ -47,10 +72,14 @@ export const createOtpGateway = (
   config: ServerConfig,
   database: Database,
 ): OtpGateway => {
-  const hash = (destination: string, purpose: string, value: string) =>
+  const legacyHash = (destination: string, purpose: string, value: string) =>
     createHash("sha256")
       .update(`${config.authSecret}:${destination}:${purpose}:${value}`)
       .digest("hex");
+  const hash = (destination: string, purpose: string, value: string) =>
+    `v2:${createHmac("sha256", config.authSecret)
+      .update(JSON.stringify([destination, purpose, value]))
+      .digest("hex")}`;
 
   return {
     consume: (attempt) => consumeOtpAttempt(database, attempt),
@@ -78,6 +107,7 @@ export const createOtpGateway = (
     },
     prepare: (destination, purpose, value, subject) => ({
       destination,
+      legacyValueHash: legacyHash(destination, purpose, value),
       purpose,
       subject,
       valueHash: hash(destination, purpose, value),

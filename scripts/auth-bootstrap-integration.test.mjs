@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash, createHmac } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -15,7 +16,7 @@ import { createAuthGateway } from "../src/infrastructure/auth/gateway.ts";
 import { createOtpGateway } from "../src/infrastructure/auth/otp.ts";
 import { loadConfig } from "../src/infrastructure/config.ts";
 import { createDatabase } from "../src/infrastructure/db/client.ts";
-import { otpCodes } from "../src/infrastructure/db/schema.ts";
+import { account, otpCodes } from "../src/infrastructure/db/schema.ts";
 import { createLogger } from "../src/infrastructure/logging/logger.ts";
 import { createAuthPersistence } from "../src/infrastructure/persistence/auth.ts";
 
@@ -46,6 +47,96 @@ async function setup(context, extra = {}) {
   );
   return { auth, config, database };
 }
+
+test("new OTPs store HMACs and reject wrong codes", async (context) => {
+  const { config, database } = await setup(context, {
+    OTP_FIXED_CODE: "123456",
+  });
+  const otp = createOtpGateway(config, database);
+  const destination = "09120000030";
+  await otp.issue(destination, "register");
+  const [record] = await database.query.otpCodes.findMany();
+  const expected = createHmac("sha256", config.authSecret)
+    .update(JSON.stringify([destination, "register", "123456"]))
+    .digest("hex");
+  assert.equal(record.valueHash, `v2:${expected}`);
+  await assert.rejects(
+    otp.consume(otp.prepare(destination, "register", "654321")),
+    { key: "otpInvalid" },
+  );
+  await otp.consume(otp.prepare(destination, "register", "123456"));
+});
+
+test("legacy OTP hashes remain single-use and respect expiry", async (context) => {
+  const { config, database } = await setup(context, {
+    OTP_FIXED_CODE: "123456",
+  });
+  const otp = createOtpGateway(config, database);
+  const destination = "09120000031";
+  const legacy = createHash("sha256")
+    .update(`${config.authSecret}:${destination}:register:123456`)
+    .digest("hex");
+  await database.insert(otpCodes).values({
+    id: "legacy",
+    destination,
+    purpose: "register",
+    valueHash: legacy,
+    createdAt: new Date(),
+    expiresAt: new Date(Date.now() + 60_000),
+  });
+  const attempt = otp.prepare(destination, "register", "123456");
+  await assert.rejects(
+    otp.consume({ ...attempt, legacyValueHash: undefined }),
+    { key: "otpInvalid" },
+  );
+  await assert.rejects(
+    otp.consume(otp.prepare(destination, "register", "654321")),
+    { key: "otpInvalid" },
+  );
+  await otp.consume(attempt);
+  await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
+
+  await database
+    .update(otpCodes)
+    .set({ consumedAt: null, expiresAt: new Date(Date.now() - 1_000) });
+  await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
+});
+
+test("malformed stored or prepared hashes fail closed", async (context) => {
+  const { config, database } = await setup(context, {
+    OTP_FIXED_CODE: "123456",
+  });
+  const otp = createOtpGateway(config, database);
+  const destination = "09120000032";
+  await otp.issue(destination, "register");
+  const attempt = otp.prepare(destination, "register", "123456");
+  for (const malformed of [
+    "",
+    "ab",
+    "zz".repeat(32),
+    "a".repeat(63),
+    `${"a".repeat(64)}00`,
+    "v2:ab",
+    `v3:${"a".repeat(64)}`,
+  ]) {
+    await database.update(otpCodes).set({ valueHash: malformed });
+    await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
+  }
+  await database.update(otpCodes).set({ valueHash: attempt.valueHash });
+  for (const malformed of [
+    "00",
+    `v2:${"a".repeat(63)}`,
+    `v2:${"z".repeat(64)}`,
+  ]) {
+    await assert.rejects(otp.consume({ ...attempt, valueHash: malformed }), {
+      key: "otpInvalid",
+    });
+  }
+  // An otherwise matching legacy candidate must never validate a v2 record.
+  const legacy = attempt.legacyValueHash;
+  await database.update(otpCodes).set({ valueHash: `v2:${legacy}` });
+  await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
+});
 
 test("bootstrap creates one credential without a session and refuses a rerun", async (context) => {
   const { auth, database } = await setup(context);
@@ -145,7 +236,7 @@ test("concurrent OTP issuance across database connections remains atomic", async
   assert.equal((await first.database.query.otpCodes.findMany()).length, 1);
 });
 
-test("legacy duplicate OTP records do not allow the same code to be reused", async (context) => {
+test("duplicate v2 OTP records do not allow the same code to be reused", async (context) => {
   const { config, database } = await setup(context, {
     OTP_FIXED_CODE: "123456",
   });
@@ -158,6 +249,54 @@ test("legacy duplicate OTP records do not allow the same code to be reused", asy
   const attempt = otp.prepare("09120000013", "register", "123456");
   await otp.consume(attempt);
   await assert.rejects(otp.consume(attempt));
+});
+
+test("mixed legacy and v2 duplicate records cannot be replayed", async (context) => {
+  const { config, database } = await setup(context, {
+    OTP_FIXED_CODE: "123456",
+  });
+  const otp = createOtpGateway(config, database);
+  const destination = "09120000034";
+  const legacy = createHash("sha256")
+    .update(`${config.authSecret}:${destination}:register:123456`)
+    .digest("hex");
+  await database.insert(otpCodes).values({
+    id: "old-legacy",
+    destination,
+    purpose: "register",
+    valueHash: legacy,
+    createdAt: new Date(Date.now() - 121_000),
+    expiresAt: new Date(Date.now() + 60_000),
+  });
+  await otp.issue(destination, "register");
+  const attempt = otp.prepare(destination, "register", "123456");
+  await otp.consume(attempt);
+  await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
+});
+
+test("duplicate legacy records cannot be replayed", async (context) => {
+  const { config, database } = await setup(context, {
+    OTP_FIXED_CODE: "123456",
+  });
+  const otp = createOtpGateway(config, database);
+  const destination = "09120000035";
+  const legacy = createHash("sha256")
+    .update(`${config.authSecret}:${destination}:register:123456`)
+    .digest("hex");
+  const fields = {
+    destination,
+    purpose: "register",
+    valueHash: legacy,
+    createdAt: new Date(),
+    expiresAt: new Date(Date.now() + 60_000),
+  };
+  await database.insert(otpCodes).values([
+    { id: "legacy-a", ...fields },
+    { id: "legacy-b", ...fields },
+  ]);
+  const attempt = otp.prepare(destination, "register", "123456");
+  await otp.consume(attempt);
+  await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
 });
 
 test("OTP throttling is scoped by purpose and subject and expires", async (context) => {
@@ -180,22 +319,72 @@ test("OTP throttling is scoped by purpose and subject and expires", async (conte
 });
 
 test("failed password reset rolls back OTP consumption", async (context) => {
-  const { config, database } = await setup(context, {
+  const { auth, config, database } = await setup(context, {
     OTP_FIXED_CODE: "123456",
   });
+  const { userId } = await createAuthGateway(auth).provider.signUp({
+    authEmail: "reset-v2@synthetic.local",
+    firstName: "Test",
+    lastName: "User",
+    mobile: "09120000003",
+    name: "Test User",
+    password: "synthetic-password",
+  });
+  await database.delete(account).where(eq(account.userId, userId));
   const otp = createOtpGateway(config, database);
   await otp.issue("09120000003", "forgot_password");
   const attempt = otp.prepare("09120000003", "forgot_password", "123456");
   const persistence = createAuthPersistence(database);
   await assert.rejects(
     persistence.resetPasswordWithOtp({
-      userId: "missing",
+      userId,
       newHash: "synthetic",
       otp: attempt,
     }),
+    { key: "passwordResetInvalid" },
   );
   await otp.consume(attempt);
   await assert.rejects(otp.consume(attempt));
+});
+
+test("failed password reset rolls back legacy OTP consumption", async (context) => {
+  const { auth, config, database } = await setup(context, {
+    OTP_FIXED_CODE: "123456",
+  });
+  const otp = createOtpGateway(config, database);
+  const destination = "09120000033";
+  const { userId } = await createAuthGateway(auth).provider.signUp({
+    authEmail: "reset-legacy@synthetic.local",
+    firstName: "Test",
+    lastName: "User",
+    mobile: destination,
+    name: "Test User",
+    password: "synthetic-password",
+  });
+  await database.delete(account).where(eq(account.userId, userId));
+  const legacy = createHash("sha256")
+    .update(`${config.authSecret}:${destination}:forgot_password:123456`)
+    .digest("hex");
+  await database.insert(otpCodes).values({
+    id: "legacy-transaction",
+    destination,
+    purpose: "forgot_password",
+    valueHash: legacy,
+    createdAt: new Date(),
+    expiresAt: new Date(Date.now() + 60_000),
+  });
+  const attempt = otp.prepare(destination, "forgot_password", "123456");
+  const persistence = createAuthPersistence(database);
+  await assert.rejects(
+    persistence.resetPasswordWithOtp({
+      userId,
+      newHash: "synthetic",
+      otp: attempt,
+    }),
+    { key: "passwordResetInvalid" },
+  );
+  await otp.consume(attempt);
+  await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
 });
 
 test("password reset binds OTP destination to the current user mobile", async (context) => {

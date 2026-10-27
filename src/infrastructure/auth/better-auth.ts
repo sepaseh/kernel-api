@@ -24,7 +24,12 @@ export const createAuth = (
       minPasswordLength: 8,
     },
     logger: createAuthLogger(logger),
-    plugins: [bearer(), username()],
+    plugins: [
+      bearer(),
+      username({
+        usernameValidator: (value) => /^[a-zA-Z0-9_.-]+$/.test(value),
+      }),
+    ],
     secret: config.authSecret,
     trustedOrigins: config.allowedOrigins,
     user: {
