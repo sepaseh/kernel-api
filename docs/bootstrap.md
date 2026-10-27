@@ -1,8 +1,8 @@
-# HTTP transport publication phase
+# Local runtime publication phase
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This snapshot is in the **http-transport** phase. Its exact inventory is
+This snapshot is in the **local-runtime** phase. Its exact inventory is
 [bootstrap-policy.json](../.github/bootstrap-policy.json), and `applicationReady`
 remains **false**. Pure contracts, core modules, feature ports and the seven
 account, authentication, calendar, files, roles, settings and users services are
@@ -11,12 +11,14 @@ adapter, configuration validation, Pino logging/redaction and fatal process
 handlers, local/MinIO object storage, adapter selection, URL validation and safe
 storage-operation diagnostics, database schema/migrations, authentication/OTP
 persistence, initialization and initial-administrator setup, plus tested Hono HTTP
-adapters. Composition, startup, production OTP delivery and deployment are not included. See [authentication adapters](auth-adapters.md).
+adapters, application composition and a local Node entry point. Production OTP
+delivery and deployment are not included. See [authentication adapters](auth-adapters.md).
 
 Read [README](../README.md) for the source map, [architecture](architecture.md)
 for ownership and limitations, and [Contributing](../CONTRIBUTING.md) for the
 change workflow. i18next, Pino and `@aws-sdk/client-s3` are runtime dependencies; pino-pretty is a
-development dependency. This snapshot does not start an API.
+development dependency. The local entry point starts an API when explicitly
+configured, but does not establish production readiness.
 
 ## Exact snapshot and complete phase gate
 
@@ -58,8 +60,9 @@ files, all ten language data files and their registry, the declared support
 modules and their data, configuration, engine, logging and lifecycle tests.
 It additionally requires both local-storage modules, the MinIO adapter, factory,
 URL helpers and their filesystem/signed SDK tests. The guard still rejects
-unpublished memory helpers, application composition and server entry points even
-if a path is added to the inventory.
+unpublished memory helpers and unrelated entry points even if a path is added to
+the inventory. The declared composition and server entry point are permitted only
+with their required runtime checks.
 Adding a path to the inventory alone cannot admit an unreviewed module,
 concrete adapter or runnable entry point. The **100-file cap applies to each
 PR's GitHub changed-file list**, not the repository's total file count.
@@ -100,8 +103,9 @@ Configuration tests use synthetic environment objects and validate explicit MinI
 credentials, numeric settings and driver selection without opening external
 services. Pino tests check structured fields, safe error causes/query-shaped
 failures, redaction, request-context concurrency and development pretty output.
-Fatal-handler tests use isolated subprocesses to check logging, flushing and exit;
-the unpublished HTTP entry point's startup-failure behavior remains deferred.
+Fatal-handler tests use isolated subprocesses to check logging, flushing and exit.
+Runtime tests additionally exercise startup failure, cleanup and shutdown in
+isolated subprocesses with synthetic environment values and disposable data.
 
 `npm run test:coverage` produces actual `coverage/lcov.info` from published
 application source, catalog data, infrastructure support and tested repository
@@ -166,15 +170,31 @@ code with read-only permissions, pinned to `github.workflow_sha`. Never execute
 PR-head code or an unreviewed target checkout in that privileged event. Complete
 pagination and stable PR head/base metadata are required for file-count evidence.
 
-## Introducing a runnable phase
+## Limits of the local runtime
 
-Add production composition and server startup through coherent,
-reviewed changes. Introduce the full HTTP, DB, authentication and storage tests
-and expand the canonical full gate when those implementations arrive. Update
-the inventory, workflows, analysis scope and branch-protection contexts together;
-verify replacement checks before retiring obsolete ones.
+The local entry point composes the HTTP, DB, authentication and storage adapters.
+Keep the full runtime checks, inventory, workflows, analysis scope and branch
+protection coordinated; verify replacement checks before retiring obsolete ones.
 
-Do not set application readiness to true because the http-transport gate passes.
-Do not use broad allowlist changes, placeholder behavior or unrelated untracked
-source as evidence that a runnable API works. Preserve the per-PR 100-file cap
-through subsequent phases.
+`npm run dev` starts the local Node entry point with explicitly supplied process
+configuration. It binds the configured port first and returns `503` with
+`Cache-Control: no-store` until database initialization and storage readiness
+finish. An occupied port fails before either initialization starts. Startup runs
+reviewed migrations, so an existing database needs explicit authorization and a
+verified matching backup before launch. Use one instance for development seed:
+the first seed requires an empty business database, and an incomplete seed fails
+explicitly rather than attempting repair. The emptiness check and sample account,
+credential, roles, grants, memberships and calendar entries are in one transaction;
+failure or competing seeds do not leave those records partially created. Migrations
+and initial settings are separate earlier startup operations.
+
+Runtime subprocess tests must use synthetic environment values, a disposable
+database and temporary storage. Signal shutdown is exercised with real signals
+on Unix and a simulated signal message on Windows; neither is deployed-service
+evidence.
+
+Do not set application readiness to true merely because local tests pass.
+The OTP adapter does not deliver production messages, the authentication limiter
+is process-local and the tests do not establish deployed storage or infrastructure.
+Do not use broad allowlist changes, placeholders or unrelated untracked source as
+runtime evidence. Preserve the per-PR 100-file cap through subsequent phases.

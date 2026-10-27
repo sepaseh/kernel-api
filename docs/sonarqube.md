@@ -74,7 +74,7 @@ review, including recent PRs. Respect any later retry time reported by the provi
 
 ## Current scope
 
-During the [http-transport phase](bootstrap.md),
+During the [local-runtime phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
 `src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
 tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
@@ -83,8 +83,9 @@ configuration, translation/logging/lifecycle support, local and MinIO storage,
 adapter selection, URL helpers and tooling. Real local-storage tests use
 disposable filesystem fixtures; MinIO tests exercise the real signed S3 SDK
 against a synthetic loopback server with isolated profiles and external network
-blocked. This does not establish deployed MinIO integration. HTTP and authentication adapters are exercised with synthetic fixtures, but deployed
-network and production behavior still require runnable-phase evidence. Real libSQL/Drizzle tests measure the
+blocked. This does not establish deployed MinIO integration. HTTP and authentication
+adapters and the local Node server are exercised with synthetic fixtures, but this
+does not establish deployed network or production behavior. Real libSQL/Drizzle tests measure the
 published database and persistence modules, fresh/populated-upgrade migrations,
 foreign keys, rollback and business-reference restrictions. This is not production
 or remote-database validation. See [database schema](database-schema.md) and

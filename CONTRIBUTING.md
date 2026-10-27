@@ -2,11 +2,12 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The current [http-transport phase](docs/bootstrap.md) contains contracts,
+The current [local-runtime phase](docs/bootstrap.md) contains contracts,
 application services, ports, ten static catalogs and configuration, translation,
 logging, fatal-lifecycle support, local/MinIO object storage and real database
-schema, migrations, authentication and initial administrator provisioning. It is
-not a runnable API.
+schema, migrations, authentication, initial administrator provisioning, HTTP
+composition and a Node server entry point. Local execution does not establish
+production readiness or provide production OTP delivery.
 Contributions must preserve this declared scope and the independent project
 boundary.
 
@@ -62,7 +63,8 @@ databases; close every client and clean up only those fixtures. Cover populated
 upgrades, schema/metadata parity, active foreign keys, rollback, usage conflicts,
 canonical permission mapping and persisted language/branding. Logo references
 must block file deletion rather than clear themselves. Initialization, OTP/auth persistence and initial administrator provisioning are included;
-HTTP adapters are in scope; production OTP delivery and server startup remain outside this phase.
+HTTP adapters, application composition and local server startup are in scope;
+production OTP delivery remains outside this phase.
 
 ## Development and validation
 
@@ -80,7 +82,7 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
-Each PR runs all nine required checks for the published http-transport
+Each PR runs all nine required checks for the published local-runtime
 snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
 This includes draft and documentation-only PRs; there are no changed-path or
 branch filters. The runner rejects duplicate IDs, omitted required checks and
@@ -95,16 +97,15 @@ Keep tests for authorization boundaries, semantic errors, canonical permissions,
 identity, locale metadata, catalog completeness and object identity, literal-data
 boundaries, validation and repository safety meaningful. Support coverage must
 exercise engine interpolation, structured logging/redaction, configuration and
-fatal log flushing/exits. HTTP startup-failure behavior requires the future
-server entry point and is not established by these subprocess tests. Do not
+fatal log flushing/exits. The runtime tests must additionally exercise the Node
+entry point, startup failures and shutdown with disposable fixtures. Do not
 fabricate LCOV, borrow another project's report or describe foundation coverage as
 full API coverage. See [architecture](docs/architecture.md) for service ownership
 and the limits of fake-port evidence.
 
-A later runnable phase must introduce application composition and server startup
-with the complete HTTP, DB, authentication and storage tests and its full canonical
-validation gate. This support-phase pass cannot replace those tests or establish
-application readiness in advance.
+Local execution must be validated with HTTP, DB, authentication and storage
+integration tests in the canonical full gate. It does not by itself establish
+deployment readiness, production OTP delivery or a healthy deployed service.
 
 ## Before requesting CodeRabbit
 

@@ -2,10 +2,10 @@
 
 [English](http-transport.md) · [فارسی](http-transport.fa.md)
 
-The HTTP transport phase adds Hono route adapters over the existing application
-services. It is not a runnable server: composition, startup, deployment and
-production OTP delivery require later review. Frontends communicate over HTTP
-and incompatible contract changes require coordinated rollout.
+The Hono route adapters call the existing application services. The local-runtime
+phase adds composition and a Node server entry point; local execution does not
+establish deployment readiness or production OTP delivery. Frontends communicate
+over HTTP and incompatible contract changes require coordinated rollout.
 
 Adapters validate input, map semantic errors to localized status responses,
 enforce authorization and origin checks, and log request identifiers without
@@ -57,7 +57,7 @@ File uploads are authenticated before reading multipart data. The transport
 counts actual streamed bytes rather than trusting `Content-Length`, and caps the
 whole multipart body at the configured file limit plus 64 KiB of framing and
 fields. The application independently validates the resulting file bytes.
-Tests exercise synthetic service ports and a local Node HTTP bridge, not the
-future production network adapter or a deployed storage integration. Coordinate
-rollout and rollback with independently deployed HTTP clients; do not infer that
-the endpoint is usable before composition and a server entry point are published.
+Tests exercise synthetic service ports and the local Node adapter with disposable
+fixtures, not a deployed storage integration. Coordinate rollout and rollback
+with independently deployed HTTP clients; a local server test does not establish
+production readiness.

@@ -155,6 +155,13 @@ const httpTransportFiles = [
     (name) => `src/presentation/http/routes/${name}.ts`,
   ),
 ];
+const localRuntimeFiles = [
+  "scripts/runtime-integration.test.mjs",
+  "scripts/runtime-seed.test.mjs",
+  "src/composition.ts",
+  "src/dependencies.ts",
+  "src/index.ts",
+];
 const phaseFiles = {
   governance: [],
   foundation: [],
@@ -205,6 +212,17 @@ const phaseFiles = {
     ...authBootstrapFiles,
     ...httpTransportFiles,
   ],
+  "local-runtime": [
+    ...applicationServicesFiles,
+    ...localizationFiles,
+    ...infrastructureSupportFiles,
+    ...localStorageFiles,
+    ...objectStorageFiles,
+    ...databaseFiles,
+    ...authBootstrapFiles,
+    ...httpTransportFiles,
+    ...localRuntimeFiles,
+  ],
 };
 const isPublishedSource = (file, phase) =>
   phase !== "governance" &&
@@ -219,7 +237,9 @@ export const validateBootstrapPolicy = (policy) => {
     !Array.isArray(policy.allowedFiles) ||
     !policy.allowedFiles.length
   )
-    throw new Error("An explicit non-runnable publication phase is required.");
+    throw new Error(
+      "An explicit publication phase without production readiness is required.",
+    );
   const files = new Set();
   for (const file of policy.allowedFiles) {
     if (
@@ -232,9 +252,12 @@ export const validateBootstrapPolicy = (policy) => {
         file,
       ) ||
       (/^drizzle(?:\/|$)/.test(file) &&
-        (!["database-persistence", "auth-bootstrap", "http-transport"].includes(
-          policy.phase,
-        ) ||
+        (![
+          "database-persistence",
+          "auth-bootstrap",
+          "http-transport",
+          "local-runtime",
+        ].includes(policy.phase) ||
           !databaseFiles.includes(file))) ||
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") && !isPublishedSource(file, policy.phase)) ||
@@ -360,6 +383,8 @@ export const inspectBootstrap = async (root) => {
       "Published database, storage and authentication adapters with synthetic tests and initial administrator provisioning; HTTP, production OTP delivery, deployed services and application composition remain unpublished or unvalidated.",
     "http-transport":
       "Published HTTP route adapters with synthetic service tests; application composition, server startup and production OTP delivery remain unpublished or unvalidated.",
+    "local-runtime":
+      "Published local server composition and startup with synthetic integration tests; production OTP delivery and deployed service readiness remain unvalidated.",
   };
   return {
     applicationReady: false,

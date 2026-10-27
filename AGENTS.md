@@ -1,4 +1,4 @@
-# Kernel API authentication and bootstrap instructions
+# Kernel API local runtime instructions
 
 Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 [publication inventory](.github/bootstrap-policy.json) and the canonical
@@ -7,7 +7,8 @@ Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 This standalone npm project publishes contracts, application services, ports,
 ten flat API catalogs and infrastructure support for configuration, translation,
 logging, fatal process failures, local/MinIO object storage, a database schema,
-reviewed migrations, persistence, authentication adapters and Hono route adapters in the http-transport phase. Keep
+reviewed migrations, persistence, authentication adapters, Hono route adapters
+and local server composition in the local-runtime phase. Keep
 application code framework free and dependencies within this checkout; read
 [architecture](docs/architecture.md). Catalog data belongs in
 src/infrastructure/localization/catalogs; its index exposes each canonical object.
@@ -25,8 +26,9 @@ outside localhost or literal loopback endpoints, owned public/private buckets, e
 creation and unversioned buckets. Reject versioning before writes/deletes;
 never introduce delete markers or silently change versioning. Optional MINIO_REGION
 defaults to us-east-1; validate its literal signing-region label and never follow
-endpoint redirects or use AWS profile/metadata credentials. The HTTP server and application composition belong to later reviewed phases. Keep
-applicationReady false; pure fake-port tests do not establish runtime readiness.
+endpoint redirects or use AWS profile/metadata credentials. The local Node server
+and composition are included. Keep applicationReady false: production OTP delivery,
+deployment and deployed integrations are not established by local tests.
 Soft deletion is prohibited: business references must block hard deletion with a
 semantic conflict, without partial effects. HTTP adapters map that conflict
 to a localized 409; published persistence adapters must enforce atomic invariants.
@@ -41,7 +43,7 @@ settings logo files, use RESTRICT; only owned technical identity records may cas
 Profile patch ports carry changed name/mobile fields, never a stale composed-name hint.
 Persistence derives full names atomically from provided parts and current database
 columns in one bound SQL update. Authentication, OTP persistence, initialization
-and initial administrator provisioning are included; production OTP delivery and HTTP composition remain unpublished.
+and initial administrator provisioning are included; production OTP delivery remains unpublished.
 
 Run `npm run validate -- full` before an authorized commit or PR. Test the exact
 proposed tree. Keep each PR at 100 or fewer changed files, including deletions and
@@ -50,7 +52,7 @@ never read real environment files or credentials, and require explicit user
 authorization for commits, pushes, remote comments and merging.
 
 Every PR, including drafts and documentation-only changes, runs all nine required
-checks for the published http-transport snapshot through that same full
+checks for the published local-runtime snapshot through that same full
 profile. Keep the semantic CI policy check: no PR path/branch filters, conditional
 or advisory full execution, hidden command omissions or implicit runner/job
 transitions. A focused development profile cannot replace the full PR gate.
@@ -59,7 +61,15 @@ flat nonempty values, interpolation placeholders and canonical object identity.
 Engine tests must exercise real resolution and interpolation for all ten languages.
 Logging tests must protect structured context and redact credentials, private fields
 and error details. Subprocess tests establish fatal logging/flush/exit behavior;
-HTTP startup failures remain unvalidated until the server entry point is published.
+runtime tests must also exercise startup failure, cleanup and shutdown using
+disposable local fixtures. The local listener binds before database or storage
+initialization and serves non-cacheable 503 responses until ready; an occupied
+port must fail before those resources are initialized. Exercise real Unix signals
+and the Windows signal-message simulation in their respective environments.
+Run development seeding with one instance; it refuses a nonempty business database
+without the sample administrator and fails explicitly on an incomplete seed from
+an older run. The emptiness check and sample business records share one transaction;
+migrations and initial settings happen separately before that transaction.
 Local-storage tests must use fresh owned temporary directories, remove their own
 fixtures and verify exact bytes, exclusive creation, hard deletion and rejected
 bucket/path escapes. The storage directory must be controlled by the API process;
@@ -70,7 +80,7 @@ an owned loopback HTTP fixture with synthetic credentials and isolated empty AWS
 profiles. Block external network and metadata/profile discovery; verify cleanup,
 conditional writes, versioning refusal, policies and stream failures. This is
 protocol evidence, not a deployed MinIO integration. Do not publish unused memory
-helpers or entry points merely by extending the inventory.
+helpers or unrelated entry points merely by extending the inventory.
 The narrow Sonar duplication exception names only the ten catalog data files;
 locale metadata and the registry retain duplication analysis. Keep source, rule and coverage
 analysis enabled; adding executable catalog logic requires revisiting the exception.
@@ -88,6 +98,6 @@ including current and recent PRs. Honor a later provider retry time; keep an
 in-flight request pending rather than duplicating it.
 
 Keep assistant guidance in English and maintained human documentation in English
-and Persian. Runnable API
-publication must add its complete HTTP, database, authentication, storage and
-architecture validation before declaring application readiness.
+and Persian. Local runtime publication must preserve complete HTTP, database,
+authentication, storage and architecture validation without claiming production
+readiness.
