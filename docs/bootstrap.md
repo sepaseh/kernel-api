@@ -1,20 +1,20 @@
-# Local-storage phase and validation
+# Storage-adapter phase and validation
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This snapshot is in the **storage-local** phase. Its exact inventory is
+This snapshot is in the **storage-adapters** phase. Its exact inventory is
 [bootstrap-policy.json](../.github/bootstrap-policy.json), and `applicationReady`
 remains **false**. Pure contracts, core modules, feature ports and the seven
 account, authentication, calendar, files, roles, settings and users services are
 published, together with ten flat API catalogs, their registry, the i18next
 adapter, configuration validation, Pino logging/redaction and fatal process
-handlers, local filesystem object storage and safe storage-operation diagnostics.
-HTTP, DB/migrations, concrete authentication and MinIO adapters,
+handlers, local/MinIO object storage, adapter selection, URL validation and safe
+storage-operation diagnostics. HTTP, DB/migrations, concrete authentication,
 initial-administrator setup and deployment are not included.
 
 Read [README](../README.md) for the source map, [architecture](architecture.md)
 for ownership and limitations, and [Contributing](../CONTRIBUTING.md) for the
-change workflow. i18next and Pino are runtime dependencies; pino-pretty is a
+change workflow. i18next, Pino and `@aws-sdk/client-s3` are runtime dependencies; pino-pretty is a
 development dependency. This snapshot does not start an API.
 
 ## Exact snapshot and complete phase gate
@@ -55,9 +55,10 @@ ambient untracked source must not make a partial PR appear complete. This phase
 requires all seven service modules, the five declared pure application test
 files, all ten language data files and their registry, the declared support
 modules and their data, configuration, engine, logging and lifecycle tests.
-It additionally requires both local-storage modules and their real filesystem
-tests; the guard still rejects the unpublished MinIO/factory, database and HTTP
-layers even if a path is added to the inventory.
+It additionally requires both local-storage modules, the MinIO adapter, factory,
+URL helpers and their filesystem/signed SDK tests. The guard still rejects
+unpublished memory helpers, database and HTTP layers even if a path is added to
+the inventory.
 Adding a path to the inventory alone cannot admit an unreviewed module,
 concrete adapter or runnable entry point. The **100-file cap applies to each
 PR's GitHub changed-file list**, not the repository's total file count.
@@ -71,6 +72,13 @@ deletion and lexical path containment, then remove those exact directories.
 Pino diagnostics tests verify safe operation metadata and original-error identity
 even when logging fails. Read the [storage trust boundary](architecture.md#local-object-storage)
 before configuring a directory. No real upload directory or external bucket is used.
+
+MinIO tests exercise the real AWS S3 SDK against a fresh loopback HTTP fixture
+using synthetic credentials and isolated empty AWS profiles. They verify signed
+requests, bucket policies, conditional writes, versioning refusal, complete
+reads and hard deletes, with external network access blocked. Read
+[object storage](object-storage.md) for the trust boundary. This is protocol
+coverage, not integration with a deployed MinIO server.
 
 ## What the evidence covers
 
@@ -124,7 +132,9 @@ before reporting success. See [Sonar setup](sonarqube.md).
 6. Only then request one review within an authorized cycle. Read actual findings,
    fix defects and repeat step 5 before re-review. Respect quotas and one
    in-flight request per head. Before a new request, verify at least one hour has
-   elapsed since the repository's latest CodeRabbit review. A skipped status or documented but still-open
+   elapsed since both the latest manual request and latest substantive CodeRabbit
+   review across current and recent repository PRs; honor a later provider retry.
+   A skipped status or documented but still-open
    false positive does not satisfy the prerequisites; do not bypass them through
    automatic triggers, suppressions or weaker requirements.
 7. Merge only after required CI, native CodeRabbit/Sonar checks, an approving
@@ -145,7 +155,7 @@ and expand the canonical full gate when those implementations arrive. Update
 the inventory, workflows, analysis scope and branch-protection contexts together;
 verify replacement checks before retiring obsolete ones.
 
-Do not set application readiness to true because the local-storage gate passes.
+Do not set application readiness to true because the storage-adapters gate passes.
 Do not use broad allowlist changes, placeholder behavior or unrelated untracked
 source as evidence that a runnable API works. Preserve the per-PR 100-file cap
 through subsequent phases.

@@ -187,6 +187,7 @@ export const boundaryViolation = ({
   specifier,
   resolved,
   typeOnly,
+  resolvedPackage,
 }) => {
   if (!specifier)
     return "Use literal module paths so source boundaries can be checked";
@@ -208,6 +209,24 @@ export const boundaryViolation = ({
     return applicationImportViolation({ root, specifier, target, typeOnly });
   if (inside(catalogDirectory(root), file))
     return catalogImportViolation({ root, file, specifier, target, typeOnly });
+
+  const sdkRoot = path.join(root, "node_modules", "@aws-sdk");
+  if (
+    specifier.startsWith("@aws-sdk/") ||
+    resolvedPackage?.startsWith("@aws-sdk/") ||
+    (target && inside(sdkRoot, target))
+  ) {
+    const adapter = path.join(root, "src/infrastructure/storage/minio.ts");
+    const packageRoot = path.join(sdkRoot, "client-s3");
+    if (
+      file !== adapter ||
+      specifier !== "@aws-sdk/client-s3" ||
+      resolvedPackage !== "@aws-sdk/client-s3" ||
+      !target ||
+      !inside(packageRoot, target)
+    )
+      return "The S3 SDK must resolve to its installed package and stay inside the owned MinIO adapter";
+  }
 
   return undefined;
 };
@@ -285,6 +304,7 @@ export const checkBoundaries = async (root = repository) => {
             specifier: edge.specifier,
             resolved,
             typeOnly: edge.typeOnly,
+            resolvedPackage: module?.packageId?.name,
           });
           return violation
             ? `${path.relative(root, file)}:${edge.line}: ${edge.specifier ?? "[computed import]"}: ${violation}`

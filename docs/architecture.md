@@ -2,11 +2,13 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The current [storage-local phase](bootstrap.md) contains a framework-free
+The current [storage-adapters phase](bootstrap.md) contains a framework-free
 application layer, local contracts, feature ports, ten static API catalogs and
 configuration, translation, logging and fatal-lifecycle support.
 `applicationReady:false` is deliberate: there is no HTTP server, composition
-root, database schema, migration, authentication provider or MinIO adapter in this snapshot.
+root, database schema, migration or authentication provider in this snapshot.
+Local and S3-compatible MinIO adapters implement the object-storage port; their
+factory is not an application composition root.
 
 ## Local object storage
 
@@ -31,8 +33,9 @@ against file metadata. Returning a URL is not evidence that this route exists.
 
 `storage/operations.ts` wraps an operation with fixed diagnostic metadata, without
 raw exception details or object paths. It preserves the original failure even if
-the logging destination throws. There is no storage factory, MinIO SDK, memory
-test adapter or HTTP composition in this phase.
+the logging destination throws. The local adapter's reviewed write/cleanup
+behavior is independent of the MinIO adapter. No memory test adapter or HTTP
+composition is published in this phase.
 
 Tests use real writes, reads and hard deletes in a fresh owned temporary directory,
 verify public/private separation, exclusive creation, empty/binary objects,
@@ -41,6 +44,31 @@ test. Fault injection writes real partial bytes and verifies cleanup, retry,
 preservation of existing objects and original-error identity when close or removal
 fails. Actual Pino output proves safe metadata; these tests do not prove external
 object storage, HTTP authorization or host-filesystem isolation.
+
+## S3-compatible object storage
+
+`storage/minio.ts` implements the same port with `@aws-sdk/client-s3`;
+`storage/create.ts` selects it only for the explicit `minio` driver. SDK types
+remain inside infrastructure. The adapter owns `<base>-private` and `<base>-public`
+bucket names derived from the configured `MINIO_BUCKET` base,
+requires explicit credentials, endpoint and signing region (optional `MINIO_REGION`
+defaults to `us-east-1`), enforces TLS outside localhost or literal loopback,
+removes the private bucket's policy and grants public reads only on the public
+bucket. Conditional creation prevents replacing an existing object. Redirects are
+not followed; configured custom regions do not rely on AWS profile defaults.
+
+Unversioned buckets are required at readiness and before writes/deletes. A
+versioning status, including suspended versioning, fails closed; the adapter
+does not change bucket versioning or create soft-delete markers. Configuration
+must remain under operator control: checking then deleting is not atomic against
+a concurrent privileged bucket-policy/versioning change. Read [object storage](object-storage.md)
+for URL rules, namespace assumptions and exact behavior.
+
+Tests use the real SDK against a disposable loopback HTTP server with synthetic
+credentials, independently verified signatures, isolated empty profile files and
+external network blocked. This covers S3 request/response behavior and failures;
+it does not prove compatibility with a deployed MinIO release, service identity
+policy or operational TLS configuration.
 
 ## Ownership and dependencies
 

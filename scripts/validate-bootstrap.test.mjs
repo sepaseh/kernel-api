@@ -116,6 +116,20 @@ const localStoragePolicy = (overrides = {}) =>
     phase: "storage-local",
     ...overrides,
   });
+const objectStorageFiles = [
+  "src/infrastructure/storage/minio.ts",
+  "src/infrastructure/storage/create.ts",
+  "src/infrastructure/storage/url.ts",
+  "src/object-storage.test.ts",
+  "docs/object-storage.md",
+  "docs/object-storage.fa.md",
+];
+const objectStoragePolicy = (overrides = {}) =>
+  localStoragePolicy({
+    allowedFiles: [...localStoragePolicy().allowedFiles, ...objectStorageFiles],
+    phase: "storage-adapters",
+    ...overrides,
+  });
 
 const fixture = async (context, declaredPolicy = policy()) => {
   const parent = path.resolve(os.tmpdir());
@@ -508,6 +522,79 @@ test("storage-local validates only its exact non-runnable snapshot", async (cont
     scope:
       "Published application services, infrastructure support and local filesystem storage; HTTP, database, authentication and MinIO adapters are not published or validated.",
   });
+});
+
+test("storage-adapters requires the complete adapters, protocol tests and bilingual trust-boundary docs", () => {
+  const declared = objectStoragePolicy();
+  assert.equal(
+    validateBootstrapPolicy(declared).size,
+    declared.allowedFiles.length,
+  );
+  for (const file of [
+    ...objectStorageFiles,
+    ...localStorageFiles,
+    ...infrastructureSupportFiles,
+  ])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy(
+          objectStoragePolicy({
+            allowedFiles: declared.allowedFiles.filter((item) => item !== file),
+          }),
+        ),
+      /mandatory/,
+    );
+});
+
+test("storage-adapters does not admit unused helpers, application composition or runtime layers through the inventory", () => {
+  const declared = objectStoragePolicy();
+  for (const file of [
+    "src/infrastructure/storage/memory.ts",
+    "src/infrastructure/storage/unreviewed.ts",
+    "src/infrastructure/db/client.ts",
+    "src/infrastructure/auth/better-auth.ts",
+    "src/presentation/http/app.ts",
+    "src/index.ts",
+    "src/composition.ts",
+    "src/unrelated.test.ts",
+    "apps/api/index.ts",
+    "packages/contracts/index.ts",
+    ".env.local",
+    "credentials.key",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        objectStoragePolicy({
+          allowedFiles: [...declared.allowedFiles, file],
+        }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(objectStoragePolicy({ applicationReady: true })),
+  );
+  assert.throws(() =>
+    validateBootstrapPolicy(objectStoragePolicy({ maximumChangedFiles: 101 })),
+  );
+  assert.throws(() =>
+    validateBootstrapPolicy(objectStoragePolicy({ phase: "storage-local" })),
+  );
+});
+
+test("storage-adapters inspects the exact non-runnable snapshot and rejects ambient unreviewed source", async (context) => {
+  const declared = objectStoragePolicy();
+  const { root, put } = await fixture(context, declared);
+  assert.deepEqual(await inspectBootstrap(root), {
+    applicationReady: false,
+    files: declared.allowedFiles.length,
+    phase: "storage-adapters",
+    scope:
+      "Published application services, infrastructure support, local and S3-compatible MinIO storage, adapter selection and URL helpers; HTTP, database, authentication, deployed MinIO integration and application composition are not published or validated.",
+  });
+  await put(
+    "src/infrastructure/storage/memory.ts",
+    "throw new Error('must not execute');\n",
+  );
+  await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
 });
 
 test("foundation validates its exact source while ignoring only ordinary generated root directories", async (context) => {

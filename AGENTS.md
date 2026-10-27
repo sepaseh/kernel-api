@@ -1,4 +1,4 @@
-# Kernel API local-storage instructions
+# Kernel API storage-adapter instructions
 
 Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 [publication inventory](.github/bootstrap-policy.json) and the canonical
@@ -6,7 +6,7 @@ Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 
 This standalone npm project publishes contracts, application services, ports,
 ten flat API catalogs and infrastructure support for configuration, translation,
-logging, fatal process failures and local filesystem object storage in the storage-local phase. Keep
+logging, fatal process failures and local/MinIO object storage in the storage-adapters phase. Keep
 application code framework free and dependencies within this checkout; read
 [architecture](docs/architecture.md). Catalog data belongs in
 src/infrastructure/localization/catalogs; its index exposes each canonical object.
@@ -17,8 +17,15 @@ i18next; logging uses Pino, with pino-pretty restricted to development. Configur
 parses an explicit environment object or process.env without loading private files.
 Require explicit MinIO credentials when that driver is selected and reject invalid
 driver/numeric settings. Test configuration with synthetic inputs and fatal handlers
-in isolated subprocesses. The HTTP server, database, authentication adapters,
-MinIO and storage composition belong to later reviewed phases. Keep
+in isolated subprocesses. The storage factory selects local or S3-compatible
+MinIO storage; the latter owns the AWS S3 SDK and uses explicit credentials,
+endpoint and region. Read [object storage](docs/object-storage.md). Require TLS
+outside localhost or literal loopback endpoints, owned public/private buckets, exclusive
+creation and unversioned buckets. Reject versioning before writes/deletes;
+never introduce delete markers or silently change versioning. Optional MINIO_REGION
+defaults to us-east-1; validate its literal signing-region label and never follow
+endpoint redirects or use AWS profile/metadata credentials. The HTTP server,
+database, authentication adapters and application composition belong to later reviewed phases. Keep
 applicationReady false; pure fake-port tests do not establish runtime readiness.
 Soft deletion is prohibited: business references must block hard deletion with a
 semantic conflict, without partial effects. Future HTTP adapters map that conflict
@@ -31,7 +38,7 @@ never read real environment files or credentials, and require explicit user
 authorization for commits, pushes, remote comments and merging.
 
 Every PR, including drafts and documentation-only changes, runs all nine required
-checks for the published storage-local snapshot through that same full
+checks for the published storage-adapters snapshot through that same full
 profile. Keep the semantic CI policy check: no PR path/branch filters, conditional
 or advisory full execution, hidden command omissions or implicit runner/job
 transitions. A focused development profile cannot replace the full PR gate.
@@ -46,8 +53,12 @@ fixtures and verify exact bytes, exclusive creation, hard deletion and rejected
 bucket/path escapes. The storage directory must be controlled by the API process;
 lexical containment does not prevent a host user from inserting symlinks. Keep safe
 storage diagnostics free of raw failures and preserve the original failure if
-logging throws. Do not publish the MinIO/factory or unused storage helpers merely
-by extending the inventory.
+logging throws. Object-storage tests must exercise the real signed SDK against
+an owned loopback HTTP fixture with synthetic credentials and isolated empty AWS
+profiles. Block external network and metadata/profile discovery; verify cleanup,
+conditional writes, versioning refusal, policies and stream failures. This is
+protocol evidence, not a deployed MinIO integration. Do not publish unused memory
+helpers, HTTP/database layers or entry points merely by extending the inventory.
 The narrow Sonar duplication exception names only the ten catalog data files;
 locale metadata and the registry retain duplication analysis. Keep source, rule and coverage
 analysis enabled; adding executable catalog logic requires revisiting the exception.
@@ -59,8 +70,10 @@ non-CodeRabbit checks, Sonar scanner and actual quality gate must pass, with zer
 open/unresolved Sonar issues at every severity. A new commit invalidates evidence;
 missing, pending or skipped results block requests. Respect quotas and one
 in-flight request per head; never bypass the order with automatic triggers.
-Verify that at least one hour has elapsed since the latest CodeRabbit review
-before a new request; keep an in-flight request pending rather than duplicating it.
+Before a new request, verify that at least one hour has elapsed since both the
+latest manual request and latest substantive CodeRabbit review in this repository,
+including current and recent PRs. Honor a later provider retry time; keep an
+in-flight request pending rather than duplicating it.
 
 Keep assistant guidance in English and maintained human documentation in English
 and Persian. Runnable API

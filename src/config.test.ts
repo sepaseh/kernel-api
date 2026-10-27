@@ -29,6 +29,43 @@ const production = {
   SERVER_RELEASE_ID: "synthetic-release",
 };
 
+test("MinIO signing regions preserve explicit ASCII custom values and reject whitespace or scope separators", () => {
+  assert.equal(loadConfig(base).minio.region, "us-east-1");
+  for (const region of [
+    "us-east-1",
+    "eu-west-2",
+    "warehouse-region-1",
+    "CUSTOM-Region",
+  ]) {
+    assert.equal(
+      loadConfig({ ...base, MINIO_REGION: region }).minio.region,
+      region,
+    );
+  }
+  for (const region of [
+    "",
+    " ",
+    " us-east-1",
+    "us-east-1 ",
+    "us-east-1\n",
+    "us east",
+    "us/east",
+    "نام",
+    ".region",
+    "-region",
+    "region-",
+    "warehouse_region.1",
+    "fips-us-east-1",
+    "us-east-1-fips",
+    "a".repeat(64),
+  ]) {
+    assert.throws(
+      () => loadConfig({ ...base, MINIO_REGION: region }),
+      /MINIO_REGION/,
+    );
+  }
+});
+
 test("local configuration uses contained repository paths without creating files or default credentials", () => {
   const config = loadConfig(base);
   assert.equal(config.storageDriver, "local");

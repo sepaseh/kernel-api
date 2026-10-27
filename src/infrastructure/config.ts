@@ -54,6 +54,7 @@ export type ServerConfig = {
     endPoint: string;
     port: number;
     publicUrl: string;
+    region?: string;
     secretKey: string;
     useSSL: boolean;
   };
@@ -150,6 +151,22 @@ const requireConfiguration = (
     throw new Error(`Missing required configuration: ${missing.join(", ")}`);
 };
 
+export const resolveMinioRegion = (region = "us-east-1") => {
+  if (
+    !region ||
+    region.length > 63 ||
+    /[^A-Za-z0-9-]/.test(region) ||
+    !/^[A-Za-z0-9]/.test(region) ||
+    !/[A-Za-z0-9]$/.test(region) ||
+    region.startsWith("fips-") ||
+    region.endsWith("-fips")
+  )
+    throw new Error(
+      "MINIO_REGION must be a 1-63 character ASCII signing-region label without FIPS aliases.",
+    );
+  return region;
+};
+
 const minioUsesSSL = (environment: NodeJS.ProcessEnv) => {
   if (
     environment.MINIO_USE_SSL !== undefined &&
@@ -231,6 +248,7 @@ export const loadConfig = (
         environment.MINIO_PUBLIC_URL ??
         `${minioProtocol}://${minioEndpoint}:${minioPort}`,
       secretKey: environment.MINIO_SECRET_KEY ?? "",
+      region: resolveMinioRegion(environment.MINIO_REGION),
       useSSL: minioUseSSL,
     },
     otpCode: environment.OTP_FIXED_CODE,

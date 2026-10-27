@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "storage-local",
+  "phase": "storage-adapters",
   "applicationReady": false,
   "checks": [
     {
@@ -12,7 +12,8 @@
         "application-services",
         "localization-data",
         "infrastructure-support",
-        "storage-local"
+        "storage-local",
+        "storage-adapters"
       ]
     },
     {
@@ -25,7 +26,8 @@
         "tooling",
         "localization-data",
         "infrastructure-support",
-        "storage-local"
+        "storage-local",
+        "storage-adapters"
       ]
     },
     {
@@ -37,7 +39,8 @@
         "application-services",
         "localization-data",
         "infrastructure-support",
-        "storage-local"
+        "storage-local",
+        "storage-adapters"
       ]
     },
     {
@@ -49,7 +52,8 @@
         "application-services",
         "localization-data",
         "infrastructure-support",
-        "storage-local"
+        "storage-local",
+        "storage-adapters"
       ]
     },
     {
@@ -61,7 +65,8 @@
         "application-services",
         "localization-data",
         "infrastructure-support",
-        "storage-local"
+        "storage-local",
+        "storage-adapters"
       ]
     },
     {
@@ -73,7 +78,8 @@
         "application-services",
         "localization-data",
         "infrastructure-support",
-        "storage-local"
+        "storage-local",
+        "storage-adapters"
       ]
     },
     {
@@ -85,7 +91,8 @@
         "application-services",
         "localization-data",
         "infrastructure-support",
-        "storage-local"
+        "storage-local",
+        "storage-adapters"
       ]
     },
     {
@@ -97,7 +104,8 @@
         "application-services",
         "localization-data",
         "infrastructure-support",
-        "storage-local"
+        "storage-local",
+        "storage-adapters"
       ]
     },
     {
@@ -109,7 +117,8 @@
         "application-services",
         "localization-data",
         "infrastructure-support",
-        "storage-local"
+        "storage-local",
+        "storage-adapters"
       ]
     }
   ],
