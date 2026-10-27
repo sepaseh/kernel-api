@@ -1,9 +1,10 @@
 import type { UserRecord } from "../models.ts";
 
 export type UserRole = { id: string; name: string };
+// Persistence composes the full name atomically from patched and current parts.
 export type UserUpdate = Partial<
   Pick<UserRecord, "firstName" | "lastName" | "mobile">
-> & { name: string };
+>;
 type UsersQuery = {
   email?: string;
   firstName?: string;

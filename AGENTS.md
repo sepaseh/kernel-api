@@ -1,4 +1,4 @@
-# Kernel API storage-adapter instructions
+# Kernel API database and persistence instructions
 
 Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 [publication inventory](.github/bootstrap-policy.json) and the canonical
@@ -6,7 +6,8 @@ Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 
 This standalone npm project publishes contracts, application services, ports,
 ten flat API catalogs and infrastructure support for configuration, translation,
-logging, fatal process failures and local/MinIO object storage in the storage-adapters phase. Keep
+logging, fatal process failures, local/MinIO object storage, a database schema,
+reviewed migrations and non-authentication persistence in the database-persistence phase. Keep
 application code framework free and dependencies within this checkout; read
 [architecture](docs/architecture.md). Catalog data belongs in
 src/infrastructure/localization/catalogs; its index exposes each canonical object.
@@ -25,11 +26,23 @@ creation and unversioned buckets. Reject versioning before writes/deletes;
 never introduce delete markers or silently change versioning. Optional MINIO_REGION
 defaults to us-east-1; validate its literal signing-region label and never follow
 endpoint redirects or use AWS profile/metadata credentials. The HTTP server,
-database, authentication adapters and application composition belong to later reviewed phases. Keep
+authentication adapters and application composition belong to later reviewed phases. Keep
 applicationReady false; pure fake-port tests do not establish runtime readiness.
 Soft deletion is prohibited: business references must block hard deletion with a
 semantic conflict, without partial effects. Future HTTP adapters map that conflict
-to a localized 409; future persistence adapters must enforce atomic invariants.
+to a localized 409; published persistence adapters must enforce atomic invariants.
+
+Database SDKs belong only in their exact owned database and persistence modules;
+never expose their types in application ports. Read [database schema](docs/database-schema.md).
+Use real libSQL/Drizzle tests against fresh owned temporary or in-memory databases,
+close clients and remove only owned fixtures. Verify fresh and populated-upgrade
+migrations, schema/metadata parity, foreign-key enforcement, transactional rollback,
+reference conflicts and system-language preservation. Business references, including
+settings logo files, use RESTRICT; only owned technical identity records may cascade.
+Profile patch ports carry changed name/mobile fields, never a stale composed-name hint.
+Persistence derives full names atomically from provided parts and current database
+columns in one bound SQL update. Initialization/seeding, OTP/authentication
+persistence and HTTP composition remain unpublished.
 
 Run `npm run validate -- full` before an authorized commit or PR. Test the exact
 proposed tree. Keep each PR at 100 or fewer changed files, including deletions and
@@ -38,7 +51,7 @@ never read real environment files or credentials, and require explicit user
 authorization for commits, pushes, remote comments and merging.
 
 Every PR, including drafts and documentation-only changes, runs all nine required
-checks for the published storage-adapters snapshot through that same full
+checks for the published database-persistence snapshot through that same full
 profile. Keep the semantic CI policy check: no PR path/branch filters, conditional
 or advisory full execution, hidden command omissions or implicit runner/job
 transitions. A focused development profile cannot replace the full PR gate.

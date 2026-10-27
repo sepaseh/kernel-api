@@ -130,6 +130,48 @@ const objectStoragePolicy = (overrides = {}) =>
     phase: "storage-adapters",
     ...overrides,
   });
+const databaseFiles = [
+  "src/infrastructure/db/client.ts",
+  "src/infrastructure/db/schema.ts",
+  ...[
+    "account",
+    "calendar",
+    "errors",
+    "files",
+    "identity",
+    "roles",
+    "settings",
+    "users",
+  ].map((name) => `src/infrastructure/persistence/${name}.ts`),
+  "src/management-services.test.ts",
+  "src/users-lifecycle.test.ts",
+  "src/persistence.test.ts",
+  "docs/database-schema.md",
+  "docs/database-schema.fa.md",
+  ...[
+    "0000_init_backend",
+    "0001_optional_profile_email",
+    "0002_bind_otp_subject",
+    "0003_outgoing_mauler",
+    "0004_protect_referenced_users",
+    "0005_protect_referenced_logos",
+  ].map((name) => `drizzle/${name}.sql`),
+  ...[
+    "0000_snapshot",
+    "0001_snapshot",
+    "0002_snapshot",
+    "0003_snapshot",
+    "0004_snapshot",
+    "0005_snapshot",
+    "_journal",
+  ].map((name) => `drizzle/meta/${name}.json`),
+];
+const databasePolicy = (overrides = {}) =>
+  objectStoragePolicy({
+    allowedFiles: [...objectStoragePolicy().allowedFiles, ...databaseFiles],
+    phase: "database-persistence",
+    ...overrides,
+  });
 
 const fixture = async (context, declaredPolicy = policy()) => {
   const parent = path.resolve(os.tmpdir());
@@ -594,6 +636,83 @@ test("storage-adapters inspects the exact non-runnable snapshot and rejects ambi
     "src/infrastructure/storage/memory.ts",
     "throw new Error('must not execute');\n",
   );
+  await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
+});
+
+test("database-persistence requires all declared adapters, migration history, real tests and bilingual schema documentation", () => {
+  const declared = databasePolicy();
+  assert.equal(
+    validateBootstrapPolicy(declared).size,
+    declared.allowedFiles.length,
+  );
+  for (const file of [
+    ...databaseFiles,
+    ...objectStorageFiles,
+    ...infrastructureSupportFiles,
+  ])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy(
+          databasePolicy({
+            allowedFiles: declared.allowedFiles.filter((item) => item !== file),
+          }),
+        ),
+      /mandatory/,
+    );
+});
+
+test("database-persistence cannot admit undeclared migrations or unpublished authentication, initialization and HTTP through the inventory", () => {
+  const declared = databasePolicy();
+  for (const file of [
+    "drizzle/0006_unreviewed.sql",
+    "drizzle/meta/0006_snapshot.json",
+    "drizzle/extra/_journal.json",
+    "drizzle.config.ts",
+    "src/infrastructure/persistence/auth.ts",
+    "src/infrastructure/db/initialize.ts",
+    "src/infrastructure/auth/otp.ts",
+    "src/infrastructure/auth/better-auth.ts",
+    "src/infrastructure/admin/bootstrap.ts",
+    "src/presentation/http/app.ts",
+    "src/index.ts",
+    "src/composition.ts",
+    "src/infrastructure/storage/memory.ts",
+    "src/unrelated.test.ts",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        databasePolicy({ allowedFiles: [...declared.allowedFiles, file] }),
+      ),
+    );
+  for (const phase of [
+    "governance",
+    "foundation",
+    "application-services",
+    "localization-data",
+    "infrastructure-support",
+    "storage-local",
+    "storage-adapters",
+  ])
+    assert.throws(() => validateBootstrapPolicy(databasePolicy({ phase })));
+  assert.throws(() =>
+    validateBootstrapPolicy(databasePolicy({ applicationReady: true })),
+  );
+  assert.throws(() =>
+    validateBootstrapPolicy(databasePolicy({ maximumChangedFiles: 101 })),
+  );
+});
+
+test("database-persistence inspects its complete non-runnable snapshot and rejects ambient migration files", async (context) => {
+  const declared = databasePolicy();
+  const { root, put } = await fixture(context, declared);
+  assert.deepEqual(await inspectBootstrap(root), {
+    applicationReady: false,
+    files: declared.allowedFiles.length,
+    phase: "database-persistence",
+    scope:
+      "Published application services, infrastructure support, storage adapters and concrete libsql/Drizzle schema, migrations and non-authentication persistence with disposable local-database tests; HTTP, authentication/OTP, initialization, deployed database/storage services and application composition are not published or validated.",
+  });
+  await put("drizzle/0006_ambient.sql", "-- must not execute\n");
   await assert.rejects(inspectBootstrap(root), /Unexpected bootstrap path/);
 });
 

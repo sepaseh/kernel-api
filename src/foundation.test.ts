@@ -122,10 +122,11 @@ test("permission validation accepts only canonical string keys", () => {
     assert.equal(isPermissionKey(value), false);
 });
 
-test("internal authentication identity preserves leading mobile digits and remains account-specific", () => {
-  assert.equal(internalEmail("09120000001"), "09120000001@kernel.local");
-  assert.equal(internalEmail("09120000002"), "09120000002@kernel.local");
-  assert.notEqual(internalEmail("09120000001"), internalEmail("9120000001"));
+test("internal authentication identities are independent and unique", () => {
+  const first = internalEmail("09120000001");
+  const second = internalEmail("09120000001");
+  assert.match(first, /^[0-9a-f-]{36}@kernel\.local$/);
+  assert.notEqual(first, second);
 });
 
 test("the ten supported locales retain complete direction and calendar metadata", () => {

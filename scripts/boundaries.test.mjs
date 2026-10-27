@@ -191,6 +191,86 @@ test("the S3 SDK belongs only to the owned MinIO adapter with its real contained
   }
 });
 
+test("database SDKs resolve to exact real packages only in their declared infrastructure owners", () => {
+  const sdk = (owner, expectedPackage, typeOnly) => ({
+    file: path.join(root, owner),
+    resolved: path.join(root, "node_modules", expectedPackage, "index.d.ts"),
+    resolvedPackage: expectedPackage,
+    typeOnly,
+  });
+  const allowed = [
+    ["@libsql/client", "src/infrastructure/db/client.ts", "@libsql/client"],
+    ["drizzle-orm/libsql", "src/infrastructure/db/client.ts", "drizzle-orm"],
+    ["drizzle-orm", "src/infrastructure/db/schema.ts", "drizzle-orm"],
+    [
+      "drizzle-orm/sqlite-core",
+      "src/infrastructure/db/schema.ts",
+      "drizzle-orm",
+    ],
+    ...[
+      "account",
+      "calendar",
+      "files",
+      "identity",
+      "roles",
+      "settings",
+      "users",
+    ].map((name) => [
+      "drizzle-orm",
+      `src/infrastructure/persistence/${name}.ts`,
+      "drizzle-orm",
+    ]),
+  ];
+  for (const [specifier, owner, expectedPackage] of allowed) {
+    for (const typeOnly of [false, true]) {
+      const options = sdk(owner, expectedPackage, typeOnly);
+      assert.equal(check(specifier, options), undefined);
+      for (const file of [
+        "src/application/ports/users.ts",
+        "src/application/users.ts",
+        "src/contracts/account.ts",
+        "src/infrastructure/localization/catalogs/en.ts",
+        "src/infrastructure/storage/minio.ts",
+        "src/infrastructure/persistence/errors.ts",
+      ])
+        assert.ok(
+          check(specifier, { ...options, file: path.join(root, file) }),
+        );
+      for (const changes of [
+        { resolvedPackage: undefined },
+        { resolvedPackage: "different-package" },
+        { resolved: path.join(root, "src/infrastructure/fake-sdk.ts") },
+        {
+          resolved: path.resolve(
+            root,
+            "../another/node_modules",
+            expectedPackage,
+            "index.d.ts",
+          ),
+        },
+      ])
+        assert.ok(check(specifier, { ...options, ...changes }));
+      assert.ok(check("sdk-alias", options));
+    }
+  }
+  const client = sdk(
+    "src/infrastructure/db/client.ts",
+    "@libsql/client",
+    false,
+  );
+  assert.ok(check("@libsql/client/node", client));
+  assert.ok(check("@libsql/hrana-client", client));
+  assert.ok(
+    check("drizzle-orm", {
+      ...client,
+      file: path.join(root, "src/infrastructure/db/schema.ts"),
+    }),
+  );
+  const schema = sdk("src/infrastructure/db/schema.ts", "drizzle-orm", false);
+  assert.ok(check("@libsql/client", schema));
+  assert.ok(check("drizzle-orm/unreviewed", schema));
+});
+
 test("fully erased message types remain valid while module-loading import and re-export forms fail", () => {
   const file = path.join(root, "src/application/service.ts");
   const erased = [

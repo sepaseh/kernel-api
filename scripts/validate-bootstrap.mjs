@@ -83,6 +83,42 @@ const objectStorageFiles = [
   "docs/object-storage.md",
   "docs/object-storage.fa.md",
 ];
+const databaseFiles = [
+  "src/infrastructure/db/client.ts",
+  "src/infrastructure/db/schema.ts",
+  ...[
+    "account",
+    "calendar",
+    "errors",
+    "files",
+    "identity",
+    "roles",
+    "settings",
+    "users",
+  ].map((name) => `src/infrastructure/persistence/${name}.ts`),
+  "src/management-services.test.ts",
+  "src/users-lifecycle.test.ts",
+  "src/persistence.test.ts",
+  "docs/database-schema.md",
+  "docs/database-schema.fa.md",
+  ...[
+    "0000_init_backend",
+    "0001_optional_profile_email",
+    "0002_bind_otp_subject",
+    "0003_outgoing_mauler",
+    "0004_protect_referenced_users",
+    "0005_protect_referenced_logos",
+  ].map((name) => `drizzle/${name}.sql`),
+  ...[
+    "0000_snapshot",
+    "0001_snapshot",
+    "0002_snapshot",
+    "0003_snapshot",
+    "0004_snapshot",
+    "0005_snapshot",
+    "_journal",
+  ].map((name) => `drizzle/meta/${name}.json`),
+];
 const phaseFiles = {
   governance: [],
   foundation: [],
@@ -105,6 +141,14 @@ const phaseFiles = {
     ...infrastructureSupportFiles,
     ...localStorageFiles,
     ...objectStorageFiles,
+  ],
+  "database-persistence": [
+    ...applicationServicesFiles,
+    ...localizationFiles,
+    ...infrastructureSupportFiles,
+    ...localStorageFiles,
+    ...objectStorageFiles,
+    ...databaseFiles,
   ],
 };
 const isPublishedSource = (file, phase) =>
@@ -129,9 +173,12 @@ export const validateBootstrapPolicy = (policy) => {
       file.includes("\\") ||
       file.split("/").some((part) => !part || part === "." || part === "..") ||
       /[*?[\]{}:\r\n]/.test(file) ||
-      /^(?:apps|packages|drizzle|collection|deploy|node_modules|server|coverage)(?:\/|$)/.test(
+      /^(?:apps|packages|collection|deploy|node_modules|server|coverage)(?:\/|$)/.test(
         file,
       ) ||
+      (/^drizzle(?:\/|$)/.test(file) &&
+        (policy.phase !== "database-persistence" ||
+          !databaseFiles.includes(file))) ||
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") && !isPublishedSource(file, policy.phase)) ||
       (policy.phase === "governance" &&
@@ -250,6 +297,8 @@ export const inspectBootstrap = async (root) => {
       "Published application services, infrastructure support and local filesystem storage; HTTP, database, authentication and MinIO adapters are not published or validated.",
     "storage-adapters":
       "Published application services, infrastructure support, local and S3-compatible MinIO storage, adapter selection and URL helpers; HTTP, database, authentication, deployed MinIO integration and application composition are not published or validated.",
+    "database-persistence":
+      "Published application services, infrastructure support, storage adapters and concrete libsql/Drizzle schema, migrations and non-authentication persistence with disposable local-database tests; HTTP, authentication/OTP, initialization, deployed database/storage services and application composition are not published or validated.",
   };
   return {
     applicationReady: false,

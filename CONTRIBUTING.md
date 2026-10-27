@@ -2,9 +2,10 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The current [storage-adapters phase](docs/bootstrap.md) contains contracts,
+The current [database-persistence phase](docs/bootstrap.md) contains contracts,
 application services, ports, ten static catalogs and configuration, translation,
-logging, fatal-lifecycle support and local/MinIO object storage. It is
+logging, fatal-lifecycle support, local/MinIO object storage and real database
+schema, migrations and non-authentication persistence. It is
 not a runnable API.
 Contributions must preserve this declared scope and the independent project
 boundary.
@@ -54,6 +55,15 @@ these protocol tests do not establish a deployed MinIO integration.
 Use real i18next/Pino for support tests and isolated child processes for fatal
 handlers. Never use real databases, uploads or production services to validate this phase.
 
+Database SDK imports are restricted to their exact owned adapters; application
+ports stay framework free. Read [database schema](docs/database-schema.md). Test
+real libSQL/Drizzle migrations and repositories with owned temporary/in-memory
+databases; close every client and clean up only those fixtures. Cover populated
+upgrades, schema/metadata parity, active foreign keys, rollback, usage conflicts,
+canonical permission mapping and persisted language/branding. Logo references
+must block file deletion rather than clear themselves. Initialization/seeding,
+OTP/auth persistence and HTTP remain outside this phase.
+
 ## Development and validation
 
 Use [`.nvmrc`](.nvmrc), the Node range in [`package.json`](package.json) and the npm bundled with that Node release, matching CI:
@@ -70,7 +80,7 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
-Each PR runs all nine required checks for the published storage-adapters
+Each PR runs all nine required checks for the published database-persistence
 snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
 This includes draft and documentation-only PRs; there are no changed-path or
 branch filters. The runner rejects duplicate IDs, omitted required checks and

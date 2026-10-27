@@ -188,8 +188,8 @@ export const createUsersService = ({
       });
     },
     async update(id: string, input: Record<string, unknown>) {
-      const existing = await find(id);
-      const changes: Partial<Omit<UserUpdate, "name">> = {};
+      await find(id);
+      const changes: UserUpdate = {};
       const firstName = optionalString(
         input.first_name,
         "first_name",
@@ -206,10 +206,7 @@ export const createUsersService = ({
         changes.mobile = input.mobile;
       if (!Object.keys(changes).length)
         throw new ApplicationError("invalid", "updateFieldsRequired");
-      const updated = await repository.update(id, {
-        ...changes,
-        name: `${changes.firstName ?? existing.firstName} ${changes.lastName ?? existing.lastName}`,
-      });
+      const updated = await repository.update(id, changes);
       if (!updated) throw new ApplicationError("not-found", "userNotFound");
       const roles = await repository.getRoles([id]);
       return serialize(updated, roles.get(id) ?? []);

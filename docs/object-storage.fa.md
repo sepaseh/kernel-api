@@ -2,7 +2,7 @@
 
 [English](object-storage.md) · [فارسی](object-storage.fa.md)
 
-مرحلهٔ `storage-adapters` رابط کاربردی `ObjectStorage` را با فایل محلی و MinIO
+آداپترهای ذخیره‌سازی، رابط کاربردی `ObjectStorage` را با فایل محلی و MinIO
 سازگار با S3 پیاده می‌کند. فایل `storage/create.ts` آداپتر را از روی
 `ServerConfig.storageDriver` انتخاب و درایور ناشناخته را صریحاً رد می‌کند.
 ساخت آداپتر، API را راه‌اندازی و `ensureReady` را فراخوانی نمی‌کند. نقطهٔ اتصال
