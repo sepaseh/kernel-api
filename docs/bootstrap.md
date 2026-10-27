@@ -1,14 +1,15 @@
-# Infrastructure-support phase and validation
+# Local-storage phase and validation
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This snapshot is in the **infrastructure-support** phase. Its exact inventory is
+This snapshot is in the **storage-local** phase. Its exact inventory is
 [bootstrap-policy.json](../.github/bootstrap-policy.json), and `applicationReady`
 remains **false**. Pure contracts, core modules, feature ports and the seven
 account, authentication, calendar, files, roles, settings and users services are
 published, together with ten flat API catalogs, their registry, the i18next
 adapter, configuration validation, Pino logging/redaction and fatal process
-handlers. HTTP, DB/migrations, concrete authentication/storage adapters,
+handlers, local filesystem object storage and safe storage-operation diagnostics.
+HTTP, DB/migrations, concrete authentication and MinIO adapters,
 initial-administrator setup and deployment are not included.
 
 Read [README](../README.md) for the source map, [architecture](architecture.md)
@@ -54,12 +55,22 @@ ambient untracked source must not make a partial PR appear complete. This phase
 requires all seven service modules, the five declared pure application test
 files, all ten language data files and their registry, the declared support
 modules and their data, configuration, engine, logging and lifecycle tests.
+It additionally requires both local-storage modules and their real filesystem
+tests; the guard still rejects the unpublished MinIO/factory, database and HTTP
+layers even if a path is added to the inventory.
 Adding a path to the inventory alone cannot admit an unreviewed module,
 concrete adapter or runnable entry point. The **100-file cap applies to each
 PR's GitHub changed-file list**, not the repository's total file count.
 
 Tests need no real environment, database, bucket or running API. Keep secrets and
 runtime state outside source and synthetic fixtures.
+
+Local-storage tests create public/private objects only in fresh temporary
+directories owned by the test, verify immutable creation, byte preservation,
+deletion and lexical path containment, then remove those exact directories.
+Pino diagnostics tests verify safe operation metadata and original-error identity
+even when logging fails. Read the [storage trust boundary](architecture.md#local-object-storage)
+before configuring a directory. No real upload directory or external bucket is used.
 
 ## What the evidence covers
 
@@ -134,7 +145,7 @@ and expand the canonical full gate when those implementations arrive. Update
 the inventory, workflows, analysis scope and branch-protection contexts together;
 verify replacement checks before retiring obsolete ones.
 
-Do not set application readiness to true because the infrastructure-support gate passes.
+Do not set application readiness to true because the local-storage gate passes.
 Do not use broad allowlist changes, placeholder behavior or unrelated untracked
 source as evidence that a runnable API works. Preserve the per-PR 100-file cap
 through subsequent phases.

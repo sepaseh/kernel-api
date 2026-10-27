@@ -3,8 +3,9 @@
 [English](README.md) · [فارسی](README.fa.md)
 
 Kernel API is a standalone TypeScript project. The current
-**infrastructure-support** phase provides contracts, application services,
-feature ports, ten API catalogs and configuration, translation and logging support.
+**storage-local** phase provides contracts, application services,
+feature ports, ten API catalogs, configuration, translation and logging support,
+and local filesystem object storage.
 `applicationReady` remains **false**: this
 snapshot does not start an HTTP API.
 
@@ -18,7 +19,7 @@ snapshot does not start an HTTP API.
   roles, settings and users.
 - [`src/application/ports/`](src/application/ports/) contains eight feature ports
   for persistence, authentication, OTP and object storage. Concrete adapters for
-  these ports are not included.
+  persistence and authentication ports are not included; the local object-storage adapter is published.
 - [`src/infrastructure/localization/catalogs/`](src/infrastructure/localization/catalogs/)
   contains flat, complete API catalogs for Arabic, German, English, Spanish,
   Persian, French, Italian, Portuguese, Russian and Turkish. Its `index.ts`
@@ -35,10 +36,16 @@ snapshot does not start an HTTP API.
   Support tests use real i18next/Pino and isolated subprocesses for fatal failures.
   Governance tests cover source boundaries, exact publication scope,
   PR size, audit handling and validation execution.
+- [`src/infrastructure/storage/local.ts`](src/infrastructure/storage/local.ts)
+  stores exact bytes in separate local public/private buckets, creates objects
+  exclusively and exposes public API content URLs. The
+  [`operations.ts`](src/infrastructure/storage/operations.ts) wrapper logs safe
+  failure metadata while preserving the original storage error. Filesystem tests
+  use fresh temporary directories and remove their own fixtures after every test.
 
 [Architecture](docs/architecture.md) explains ownership, language authority,
 hard-deletion policy and what fake-port tests can establish. HTTP routes,
-cookies, concrete authentication, database/migrations, storage adapters and
+cookies, concrete authentication, database/migrations, MinIO, storage composition and
 deployment are not published or validated in this phase. Runtime dependencies are
 i18next and Pino; pino-pretty is a development dependency for readable local logs.
 
@@ -61,7 +68,8 @@ existing database or running API.
 
 Tests generate real `coverage/lcov.info` for published application source, catalog data, infrastructure support and
 repository tooling in this checkout. This is not coverage of concrete HTTP, DB,
-authentication or storage implementations. Generated coverage is not committed.
+authentication or MinIO implementations. It includes real local filesystem storage tests.
+Generated coverage is not committed.
 See [Sonar setup](docs/sonarqube.md) for scanner and provider-gate evidence.
 
 ## Contribute

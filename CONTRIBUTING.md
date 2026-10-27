@@ -2,9 +2,9 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The current [infrastructure-support phase](docs/bootstrap.md) contains contracts,
+The current [storage-local phase](docs/bootstrap.md) contains contracts,
 application services, ports, ten static catalogs and configuration, translation,
-logging and fatal-lifecycle support. It is
+logging, fatal-lifecycle support and local filesystem object storage. It is
 not a runnable API.
 Contributions must preserve this declared scope and the independent project
 boundary.
@@ -42,6 +42,11 @@ Preserve unrelated work, private environment files, credentials and runtime data
 Application tests use synthetic fake ports and local fixtures. Configuration tests
 pass synthetic environment objects; never load private environment files. MinIO
 selection requires explicit credentials; invalid numeric or driver settings fail.
+Local-storage tests must use fresh owned temporary directories, verify bucket/key
+containment, exclusive writes, byte preservation and hard deletion, and clean up
+their exact fixtures. Never use an existing upload directory. This adapter assumes
+the API process controls its storage root; lexical path checks are not a symlink
+sandbox. MinIO, its factory and external integration are still unpublished.
 Use real i18next/Pino for support tests and isolated child processes for fatal
 handlers. Never use real databases, uploads or production services to validate this phase.
 
@@ -61,7 +66,7 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
-Each PR runs all nine required checks for the published infrastructure-support
+Each PR runs all nine required checks for the published storage-local
 snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
 This includes draft and documentation-only PRs; there are no changed-path or
 branch filters. The runner rejects duplicate IDs, omitted required checks and

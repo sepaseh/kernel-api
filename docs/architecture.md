@@ -2,11 +2,38 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The current [infrastructure-support phase](bootstrap.md) contains a framework-free
+The current [storage-local phase](bootstrap.md) contains a framework-free
 application layer, local contracts, feature ports, ten static API catalogs and
 configuration, translation, logging and fatal-lifecycle support.
 `applicationReady:false` is deliberate: there is no HTTP server, composition
-root, database schema, migration, authentication provider or storage adapter in this snapshot.
+root, database schema, migration, authentication provider or MinIO adapter in this snapshot.
+
+## Local object storage
+
+`src/infrastructure/storage/local.ts` implements the existing object-storage port
+with Node's filesystem. Public and private objects use separate fixed buckets;
+`put` creates missing directories and uses exclusive creation (`wx`), so a repeated
+key fails without replacing the original bytes. Reads and deletes propagate a
+missing-object failure. Keys must resolve below their bucket; Windows absolute
+paths and backslash-shaped keys are rejected on every host.
+
+This is lexical containment, not a sandbox against a host user who can alter the
+storage directory or insert symlinks. The configured directory must be controlled
+by the API process. Object keys and visibility come from the application service;
+the local adapter's public URL targets the future API content route and does not
+publish the storage directory. The future HTTP route must authorize content reads
+against file metadata. Returning a URL is not evidence that this route exists.
+
+`storage/operations.ts` wraps an operation with fixed diagnostic metadata, without
+raw exception details or object paths. It preserves the original failure even if
+the logging destination throws. There is no storage factory, MinIO SDK, memory
+test adapter or HTTP composition in this phase.
+
+Tests use real writes, reads and hard deletes in a fresh owned temporary directory,
+verify public/private separation, exclusive creation, empty/binary objects,
+invalid buckets and escaping/absolute keys, and remove their fixtures after each
+test. Actual Pino output proves safe metadata; these tests do not prove external
+object storage, HTTP authorization or host-filesystem isolation.
 
 ## Ownership and dependencies
 

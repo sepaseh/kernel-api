@@ -102,6 +102,20 @@ const infrastructureSupportPolicy = (overrides = {}) =>
     phase: "infrastructure-support",
     ...overrides,
   });
+const localStorageFiles = [
+  "src/infrastructure/storage/local.ts",
+  "src/infrastructure/storage/operations.ts",
+  "src/local-storage.test.ts",
+];
+const localStoragePolicy = (overrides = {}) =>
+  infrastructureSupportPolicy({
+    allowedFiles: [
+      ...infrastructureSupportPolicy().allowedFiles,
+      ...localStorageFiles,
+    ],
+    phase: "storage-local",
+    ...overrides,
+  });
 
 const fixture = async (context, declaredPolicy = policy()) => {
   const parent = path.resolve(os.tmpdir());
@@ -437,6 +451,63 @@ test("the 100-file limit applies to a PR delta rather than the total published i
   assert.throws(() =>
     validateBootstrapPolicy(foundationPolicy({ maximumChangedFiles: 101 })),
   );
+});
+
+test("storage-local requires its adapters and actual filesystem tests without admitting unpublished infrastructure", () => {
+  const declared = localStoragePolicy();
+  assert.equal(
+    validateBootstrapPolicy(declared).size,
+    declared.allowedFiles.length,
+  );
+  for (const file of [...localStorageFiles, ...infrastructureSupportFiles]) {
+    assert.throws(
+      () =>
+        validateBootstrapPolicy(
+          localStoragePolicy({
+            allowedFiles: declared.allowedFiles.filter((item) => item !== file),
+          }),
+        ),
+      /mandatory/,
+    );
+  }
+  for (const file of [
+    "src/infrastructure/storage/minio.ts",
+    "src/infrastructure/storage/create.ts",
+    "src/infrastructure/storage/memory.ts",
+    "src/infrastructure/storage/url.ts",
+    "src/infrastructure/db/client.ts",
+    "src/infrastructure/auth/better-auth.ts",
+    "src/presentation/http/app.ts",
+    "src/index.ts",
+    "src/composition.ts",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        localStoragePolicy({
+          allowedFiles: [...declared.allowedFiles, file],
+        }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(localStoragePolicy({ applicationReady: true })),
+  );
+  assert.throws(() =>
+    validateBootstrapPolicy(
+      localStoragePolicy({ phase: "infrastructure-support" }),
+    ),
+  );
+});
+
+test("storage-local validates only its exact non-runnable snapshot", async (context) => {
+  const declared = localStoragePolicy();
+  const { root } = await fixture(context, declared);
+  assert.deepEqual(await inspectBootstrap(root), {
+    applicationReady: false,
+    files: declared.allowedFiles.length,
+    phase: "storage-local",
+    scope:
+      "Published application services, infrastructure support and local filesystem storage; HTTP, database, authentication and MinIO adapters are not published or validated.",
+  });
 });
 
 test("foundation validates its exact source while ignoring only ordinary generated root directories", async (context) => {
