@@ -155,7 +155,7 @@ const httpTransportFiles = [
     (name) => `src/presentation/http/routes/${name}.ts`,
   ),
 ];
-const collectionFiles = [
+const collectionFiles = new Set([
   "collection/README.fa.md",
   "collection/README.md",
   "collection/account/folder.bru",
@@ -206,7 +206,7 @@ const collectionFiles = [
   "collection/bruno.json",
   "collection/collection.bru",
   "scripts/collection.test.mjs",
-];
+]);
 const localRuntimeFiles = [
   ...collectionFiles,
   "scripts/runtime-integration.test.mjs",
@@ -305,8 +305,7 @@ export const validateBootstrapPolicy = (policy) => {
         file,
       ) ||
       (/^collection(?:\/|$)/.test(file) &&
-        (policy.phase !== "local-runtime" ||
-          !collectionFiles.includes(file))) ||
+        (policy.phase !== "local-runtime" || !collectionFiles.has(file))) ||
       (/^drizzle(?:\/|$)/.test(file) &&
         (![
           "database-persistence",
