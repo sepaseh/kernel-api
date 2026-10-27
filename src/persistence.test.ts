@@ -904,6 +904,34 @@ test("role assignment replacement commits exactly and restores previous assignme
   assert.deepEqual(await repository.getRoles(["first"]), new Map());
 });
 
+test("role writes return permission keys in a stable order", async (context) => {
+  const { database } = await fixture(context);
+  const repository = createDrizzleRolesRepository(database);
+  const created = await repository.create({
+    id: "ordered",
+    name: "Ordered",
+    permissions: ["users.update", "roles.read", "users.read"],
+  });
+  assert.deepEqual(created.permissions, [
+    "roles.read",
+    "users.read",
+    "users.update",
+  ]);
+  const updated = await repository.update("ordered", {
+    name: "Updated",
+    permissions: ["users.read", "roles.update", "roles.create"],
+  });
+  assert.deepEqual(updated?.permissions, [
+    "roles.create",
+    "roles.update",
+    "users.read",
+  ]);
+  assert.deepEqual(
+    (await repository.find("ordered"))?.permissions,
+    updated?.permissions,
+  );
+});
+
 test("roles expose empty/missing states without bypassing references or partial replacement", async (context) => {
   const { database } = await fixture(context);
   const repository = createDrizzleRolesRepository(database);

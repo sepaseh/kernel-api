@@ -19,6 +19,12 @@ const mapNameConflict = (error: unknown): never => {
   throw error;
 };
 
+const comparePermissionKeys = (left: string, right: string): number => {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+};
+
 export const createDrizzleRolesRepository = (
   database: Database,
 ): RolesRepository => {
@@ -83,7 +89,10 @@ export const createDrizzleRolesRepository = (
       } catch (error) {
         mapNameConflict(error);
       }
-      return { ...role, permissions: [...role.permissions].sort() };
+      return {
+        ...role,
+        permissions: [...role.permissions].sort(comparePermissionKeys),
+      };
     },
     deleteIfUnassigned: async (id) => {
       try {
@@ -130,7 +139,11 @@ export const createDrizzleRolesRepository = (
           return true;
         });
         return saved
-          ? { id, name: role.name, permissions: [...role.permissions].sort() }
+          ? {
+              id,
+              name: role.name,
+              permissions: [...role.permissions].sort(comparePermissionKeys),
+            }
           : undefined;
       } catch (error) {
         mapNameConflict(error);

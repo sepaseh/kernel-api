@@ -181,7 +181,7 @@ export const catalogDataViolation = (content, filename) => {
   return undefined;
 };
 
-const databasePackages = ["@libsql/client", "drizzle-orm"];
+const databasePackages = new Set(["@libsql/client", "drizzle-orm"]);
 const databaseImports = {
   "src/infrastructure/db/client.ts": ["@libsql/client", "drizzle-orm/libsql"],
   "src/infrastructure/db/schema.ts": ["drizzle-orm", "drizzle-orm/sqlite-core"],
@@ -215,14 +215,14 @@ const databaseImportViolation = ({
     specifier.startsWith("drizzle-orm/") ||
     specifier.startsWith("@libsql/") ||
     resolvedPackage?.startsWith("@libsql/") ||
-    databasePackages.includes(resolvedPackage) ||
+    databasePackages.has(resolvedPackage) ||
     (target &&
       packageDirectories.some((directory) => inside(directory, target)));
   if (!isDatabaseReference) return undefined;
   const owner = path.relative(root, file).split(path.sep).join("/");
   const expectedPackage =
     specifier === "@libsql/client" ? "@libsql/client" : "drizzle-orm";
-  const packageRoot = databasePackages.includes(resolvedPackage)
+  const packageRoot = databasePackages.has(resolvedPackage)
     ? path.join(root, "node_modules", expectedPackage)
     : undefined;
   if (
