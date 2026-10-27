@@ -3,7 +3,7 @@
 [English](README.md) · [فارسی](README.fa.md)
 
 Kernel API is a standalone TypeScript project. The current
-**auth-bootstrap** phase provides contracts, application services,
+**http-transport** phase provides contracts, application services,
 feature ports, ten API catalogs, configuration, translation and logging support,
 local filesystem plus S3-compatible MinIO object storage, and real libSQL/Drizzle
 database schema, migrations, authentication/OTP persistence and initial administrator provisioning.
@@ -59,8 +59,9 @@ snapshot does not start an HTTP API.
 
 [Architecture](docs/architecture.md) explains ownership, language authority,
 hard-deletion policy and what fake-port tests can establish. HTTP routes,
-cookies, application composition, production OTP delivery and deployment are not
-published or validated in this phase. See [authentication adapters](docs/auth-adapters.md). Runtime dependencies are
+cookies and HTTP route adapters are exercised with synthetic services and databases.
+Application composition, server startup, production OTP delivery and deployment are not
+published or validated in this phase. See [HTTP transport](docs/http-transport.md). See [authentication adapters](docs/auth-adapters.md). Runtime dependencies are Hono,
 i18next, Pino, Better Auth, `@aws-sdk/client-s3`, `@libsql/client` and `drizzle-orm`; pino-pretty is a development dependency for readable local logs.
 
 ## Install and validate
@@ -82,7 +83,7 @@ existing database or running API.
 
 Tests generate real `coverage/lcov.info` for published application source, catalog data, infrastructure support and
 repository tooling in this checkout. Real database tests measure the published
-persistence adapters, migration behavior and synthetic authentication flows. This is not coverage of concrete HTTP
+persistence adapters, migration behavior and synthetic authentication flows. This includes in-process HTTP adapter coverage, not a deployed HTTP server
 or a deployed MinIO service. It includes real filesystem storage
 and signed S3 SDK tests against a synthetic loopback HTTP server.
 Generated coverage is not committed.

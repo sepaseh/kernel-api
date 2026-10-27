@@ -7,7 +7,7 @@ Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 This standalone npm project publishes contracts, application services, ports,
 ten flat API catalogs and infrastructure support for configuration, translation,
 logging, fatal process failures, local/MinIO object storage, a database schema,
-reviewed migrations, persistence and authentication adapters in the auth-bootstrap phase. Keep
+reviewed migrations, persistence, authentication adapters and Hono route adapters in the http-transport phase. Keep
 application code framework free and dependencies within this checkout; read
 [architecture](docs/architecture.md). Catalog data belongs in
 src/infrastructure/localization/catalogs; its index exposes each canonical object.
@@ -28,7 +28,7 @@ defaults to us-east-1; validate its literal signing-region label and never follo
 endpoint redirects or use AWS profile/metadata credentials. The HTTP server and application composition belong to later reviewed phases. Keep
 applicationReady false; pure fake-port tests do not establish runtime readiness.
 Soft deletion is prohibited: business references must block hard deletion with a
-semantic conflict, without partial effects. Future HTTP adapters map that conflict
+semantic conflict, without partial effects. HTTP adapters map that conflict
 to a localized 409; published persistence adapters must enforce atomic invariants.
 
 Database SDKs belong only in their exact owned database and persistence modules;
@@ -50,7 +50,7 @@ never read real environment files or credentials, and require explicit user
 authorization for commits, pushes, remote comments and merging.
 
 Every PR, including drafts and documentation-only changes, runs all nine required
-checks for the published auth-bootstrap snapshot through that same full
+checks for the published http-transport snapshot through that same full
 profile. Keep the semantic CI policy check: no PR path/branch filters, conditional
 or advisory full execution, hidden command omissions or implicit runner/job
 transitions. A focused development profile cannot replace the full PR gate.
@@ -70,7 +70,7 @@ an owned loopback HTTP fixture with synthetic credentials and isolated empty AWS
 profiles. Block external network and metadata/profile discovery; verify cleanup,
 conditional writes, versioning refusal, policies and stream failures. This is
 protocol evidence, not a deployed MinIO integration. Do not publish unused memory
-helpers, HTTP/database layers or entry points merely by extending the inventory.
+helpers or entry points merely by extending the inventory.
 The narrow Sonar duplication exception names only the ten catalog data files;
 locale metadata and the registry retain duplication analysis. Keep source, rule and coverage
 analysis enabled; adding executable catalog logic requires revisiting the exception.

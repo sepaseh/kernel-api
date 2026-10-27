@@ -1,4 +1,5 @@
 import type { UserRecord } from "../models.ts";
+import type { OtpAttempt } from "./auth.ts";
 
 export type UserRole = { id: string; name: string };
 // Persistence composes the full name atomically from patched and current parts.
@@ -23,11 +24,22 @@ export type UsersWritePort = {
   deleteSessions: (userId: string) => Promise<void>;
   existingRoleIds: (ids: string[]) => Promise<string[]>;
   find: (id: string) => Promise<UserRecord | undefined>;
+  hasActiveSession: (sessionId: string, userId: string) => Promise<boolean>;
+  hasPermission: (
+    userId: string,
+    permission: "users.update",
+  ) => Promise<boolean>;
+  consumeOtp: (attempt: OtpAttempt) => Promise<void>;
   remove: (id: string) => Promise<"deleted" | "in-use">;
   replaceRoles: (userId: string, roleIds: string[]) => Promise<void>;
   resetCredentialPassword: (userId: string, hash: string) => Promise<boolean>;
   setStatus: (id: string, status: UserRecord["status"]) => Promise<void>;
   setSystemAdmin: (id: string, value: boolean) => Promise<void>;
+  update: (
+    id: string,
+    update: UserUpdate,
+    actorId: string,
+  ) => Promise<UserRecord | undefined>;
 };
 
 export type UsersRepository = {
@@ -38,5 +50,12 @@ export type UsersRepository = {
   transaction: <T>(
     work: (transaction: UsersWritePort) => Promise<T>,
   ) => Promise<T>;
-  update: (id: string, update: UserUpdate) => Promise<UserRecord | undefined>;
+  // A mobile change requires an active actor changing their own account or an
+  // active system administrator. Check live state in the conditional write;
+  // rejection must not apply any part of the update.
+  update: (
+    id: string,
+    update: UserUpdate,
+    actorId: string,
+  ) => Promise<UserRecord | undefined>;
 };

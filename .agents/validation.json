@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "auth-bootstrap",
+  "phase": "http-transport",
   "applicationReady": false,
   "checks": [
     {
@@ -15,7 +15,8 @@
         "storage-local",
         "storage-adapters",
         "database-persistence",
-        "auth-bootstrap"
+        "auth-bootstrap",
+        "http-transport"
       ]
     },
     {
@@ -31,7 +32,8 @@
         "storage-local",
         "storage-adapters",
         "database-persistence",
-        "auth-bootstrap"
+        "auth-bootstrap",
+        "http-transport"
       ]
     },
     {
@@ -46,7 +48,8 @@
         "storage-local",
         "storage-adapters",
         "database-persistence",
-        "auth-bootstrap"
+        "auth-bootstrap",
+        "http-transport"
       ]
     },
     {
@@ -61,7 +64,8 @@
         "storage-local",
         "storage-adapters",
         "database-persistence",
-        "auth-bootstrap"
+        "auth-bootstrap",
+        "http-transport"
       ]
     },
     {
@@ -76,7 +80,8 @@
         "storage-local",
         "storage-adapters",
         "database-persistence",
-        "auth-bootstrap"
+        "auth-bootstrap",
+        "http-transport"
       ]
     },
     {
@@ -91,7 +96,8 @@
         "storage-local",
         "storage-adapters",
         "database-persistence",
-        "auth-bootstrap"
+        "auth-bootstrap",
+        "http-transport"
       ]
     },
     {
@@ -106,7 +112,8 @@
         "storage-local",
         "storage-adapters",
         "database-persistence",
-        "auth-bootstrap"
+        "auth-bootstrap",
+        "http-transport"
       ]
     },
     {
@@ -121,7 +128,8 @@
         "storage-local",
         "storage-adapters",
         "database-persistence",
-        "auth-bootstrap"
+        "auth-bootstrap",
+        "http-transport"
       ]
     },
     {
@@ -136,7 +144,8 @@
         "storage-local",
         "storage-adapters",
         "database-persistence",
-        "auth-bootstrap"
+        "auth-bootstrap",
+        "http-transport"
       ]
     }
   ],

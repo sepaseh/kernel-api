@@ -67,6 +67,50 @@ test("new OTPs store HMACs and reject wrong codes", async (context) => {
   await otp.consume(otp.prepare(destination, "register", "123456"));
 });
 
+test("mobile-change OTPs cryptographically bind the subject and cannot use legacy hashes", async (context) => {
+  const { config, database } = await setup(context, {
+    OTP_FIXED_CODE: "123456",
+  });
+  const otp = createOtpGateway(config, database);
+  const destination = "09120000030";
+  const subject = JSON.stringify(["actor", "session", "target", "09120000001"]);
+  assert.throws(() => otp.prepare(destination, "change_mobile", "123456"), {
+    key: "otpInvalid",
+  });
+  await assert.rejects(otp.issue(destination, "change_mobile"), {
+    key: "otpInvalid",
+  });
+  await otp.issue(destination, "change_mobile", subject);
+  await assert.rejects(
+    otp.issue(destination, "change_mobile", "different-actor-and-session"),
+    { key: "otpThrottled" },
+  );
+  const [record] = await database.query.otpCodes.findMany();
+  const expected = createHmac("sha256", config.authSecret)
+    .update(JSON.stringify([destination, "change_mobile", "123456", subject]))
+    .digest("hex");
+  assert.equal(record.valueHash, `v3:${expected}`);
+  await assert.rejects(
+    otp.consume(
+      otp.prepare(
+        destination,
+        "change_mobile",
+        "123456",
+        JSON.stringify(["actor", "other-session", "target", "09120000001"]),
+      ),
+    ),
+    { key: "otpInvalid" },
+  );
+  const attempt = otp.prepare(destination, "change_mobile", "123456", subject);
+  await database
+    .update(otpCodes)
+    .set({ valueHash: `v2:${attempt.legacyValueHash}` });
+  await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
+  await database.update(otpCodes).set({ valueHash: `v3:${expected}` });
+  await otp.consume(attempt);
+  await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
+});
+
 test("legacy OTP hashes remain single-use and respect expiry", async (context) => {
   const { config, database } = await setup(context, {
     OTP_FIXED_CODE: "123456",

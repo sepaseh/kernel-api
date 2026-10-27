@@ -194,6 +194,71 @@ const authBootstrapPolicy = (overrides = {}) =>
     ...overrides,
   });
 
+const httpTransportFiles = [
+  "docs/http-transport.md",
+  "docs/http-transport.fa.md",
+  "scripts/http-upload-loopback.test.mjs",
+  "src/http-transport.test.ts",
+  "src/upload-body-limit.test.ts",
+  "src/app.test.ts",
+  "src/input-validation-http.test.ts",
+  "src/deletion-lifecycle-http.test.ts",
+  "src/request-logging.test.ts",
+  "src/architecture.test.ts",
+  "src/test/create-app-fixture.ts",
+  "src/test/composition-dependencies.ts",
+  "src/test/logging.ts",
+  "src/test/memory-object-storage.ts",
+  ...["app", "auth-attempts", "dependencies", "http", "request-logging"].map(
+    (name) => `src/presentation/http/${name}.ts`,
+  ),
+  ...["account", "auth", "calendar", "files", "roles", "settings", "users"].map(
+    (name) => `src/presentation/http/routes/${name}.ts`,
+  ),
+];
+const httpTransportPolicy = (overrides = {}) =>
+  authBootstrapPolicy({
+    allowedFiles: [
+      ...authBootstrapPolicy().allowedFiles,
+      ...httpTransportFiles,
+    ],
+    phase: "http-transport",
+    ...overrides,
+  });
+
+test("HTTP transport requires every route and excludes runnable composition", () => {
+  const complete = httpTransportPolicy();
+  assert.equal(
+    validateBootstrapPolicy(complete).size,
+    complete.allowedFiles.length,
+  );
+  for (const required of httpTransportFiles)
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        httpTransportPolicy({
+          allowedFiles: complete.allowedFiles.filter(
+            (file) => file !== required,
+          ),
+        }),
+      ),
+    );
+  for (const excluded of [
+    "src/index.ts",
+    "src/composition.ts",
+    "src/dependencies.ts",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        httpTransportPolicy({
+          allowedFiles: [...complete.allowedFiles, excluded],
+        }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(httpTransportPolicy({ applicationReady: true })),
+  );
+});
+
 test("auth-bootstrap requires every adapter and test while excluding HTTP and production runtime", () => {
   const complete = authBootstrapPolicy();
   assert.equal(

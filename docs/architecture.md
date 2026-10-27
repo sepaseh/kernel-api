@@ -2,10 +2,11 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The current [auth-bootstrap phase](bootstrap.md) contains a framework-free
+The current [http-transport phase](bootstrap.md) contains a framework-free
 application layer, local contracts, feature ports, ten static API catalogs and
 configuration, translation, logging, fatal-lifecycle support and real database
-schema, migrations, authentication/OTP persistence and administrator provisioning.
+schema, migrations, authentication/OTP persistence, administrator provisioning
+and Hono HTTP route adapters.
 `applicationReady:false` is deliberate: there is no HTTP server, application composition
 root or production OTP delivery in this snapshot. See [authentication adapters](auth-adapters.md).
 Local and S3-compatible MinIO adapters implement the object-storage port; their
@@ -53,15 +54,15 @@ if removal itself fails, the partial object remains for operator cleanup.
 This is lexical containment, not a sandbox against a host user who can alter the
 storage directory or insert symlinks. The configured directory must be controlled
 by the API process. Object keys and visibility come from the application service;
-the local adapter's public URL targets the future API content route and does not
-publish the storage directory. The future HTTP route must authorize content reads
-against file metadata. Returning a URL is not evidence that this route exists.
+the local adapter's public URL targets the API content route and does not
+publish the storage directory. The HTTP adapter delegates content access to the
+application service, which authorizes against file metadata.
 
 `storage/operations.ts` wraps an operation with fixed diagnostic metadata, without
 raw exception details or object paths. It preserves the original failure even if
 the logging destination throws. The local adapter's reviewed write/cleanup
-behavior is independent of the MinIO adapter. No memory test adapter or HTTP
-composition is published in this phase.
+behavior is independent of the MinIO adapter. A memory object-storage adapter is
+published for tests; application composition is not published in this phase.
 
 Tests use real writes, reads and hard deletes in a fresh owned temporary directory,
 verify public/private separation, exclusive creation, empty/binary objects,
@@ -107,8 +108,8 @@ Application services never import framework, ORM, authentication/storage SDK or
 HTTP request/response types. The localization module supplies erased message-key
 types. Static translated strings live in
 `src/infrastructure/localization/catalogs/`; the separate `localization/i18n.ts`
-adapter owns translation execution through i18next. HTTP status mapping belongs
-to the future transport. Each language module exports one flat literal
+adapter owns translation execution through i18next. The published HTTP transport
+maps semantic errors to status codes. Each language module exports one flat literal
 object and may import the application vocabulary only as a fully erased type.
 The registry in `catalogs/index.ts` consumes those original objects and the
 erased locale contract type. Application code cannot import catalog data or
@@ -145,7 +146,7 @@ support modules composes or starts an HTTP server.
 | `settings.ts` | Public branding/language serialization, settings-update authorization and system-administrator language authority.                                                                |
 | `users.ts`    | User validation/pagination, role assignment, credential/status operations and self/final-administrator deletion protection.                                                       |
 
-Several administrative services expect authorization at the future HTTP
+Several administrative services expect authorization at the HTTP
 boundary rather than accepting an actor for every method. A service method's
 presence does not make an endpoint or establish transport authorization. The
 future composition root must inject concrete adapters and the transport must
@@ -166,20 +167,20 @@ flat key space per language. The registry preserves canonical object identity
 without copying data or choosing a fallback. The separate engine resolves supported
 codes and interpolates messages from every catalog, with English fallback for
 unsupported codes. That fallback does not authorize a separate user language choice:
-the future HTTP adapter must use the API-owned active-language setting. Engine tests
+the HTTP adapter uses the API-owned active-language setting. Engine tests
 establish translation execution; catalog-data tests establish data integrity.
 Persisted-language reads and branding-only writes are tested against the database;
-HTTP response localization and session-language integration remain unvalidated.
+HTTP localization is tested with synthetic fixtures; deployed session-language integration remains unvalidated.
 
 Soft deletion is prohibited. Role deletion uses the port's atomic
 `deleteIfUnassigned` result and reports a semantic conflict when assigned. User
 deletion re-reads state through its transaction port, protects self/final active
 administrator and reports a conflict for a record still in business use.
 Dependents must be resolved first; do not silently unlink them or cascade away
-business records. Future HTTP mapping must return a localized 409 for conflicts.
+business records. HTTP mapping returns a localized 409 for conflicts.
 The published persistence adapters and foreign keys enforce reference checks,
 allowed technical cleanup and writes atomically. Populated-upgrade and rollback
-tests verify these database invariants; HTTP conflict mapping remains future work.
+tests verify these database invariants; synthetic HTTP tests verify conflict mapping.
 
 ## Test evidence and remaining integration
 
@@ -204,12 +205,10 @@ actual byte length. File event callbacks are best-effort synchronous diagnostics
 their exceptions cannot fail a committed upload, prevent cleanup or replace the
 original storage/metadata error.
 
-Before runnable publication, complete concrete HTTP/auth adapters around the published
-database and storage adapters,
-manual composition and full HTTP contract, permission, session/cookie,
-translation, transaction/concurrency, OTP and storage integration tests using
-fresh disposable fixtures. The file-size check occurs after the boundary has
-provided an upload source; it is not a bounded pre-parse HTTP stream guarantee.
+Before runnable publication, compose the concrete HTTP/auth adapters around the published
+database and storage adapters, and validate the actual entry point with full HTTP
+contract, permission, session/cookie, translation, transaction/concurrency, OTP
+and storage integration tests using fresh disposable fixtures. The HTTP adapter counts actual request bytes before multipart parsing, with a bounded 64 KiB framing allowance; the application separately checks file bytes. Network adapter behavior still needs runnable-phase tests.
 
 The [canonical full gate](../.agents/validation.json) validates only the published
 scope and produces actual coverage from this checkout. Preserve that evidence's

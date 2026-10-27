@@ -2,7 +2,7 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The current [auth-bootstrap phase](docs/bootstrap.md) contains contracts,
+The current [http-transport phase](docs/bootstrap.md) contains contracts,
 application services, ports, ten static catalogs and configuration, translation,
 logging, fatal-lifecycle support, local/MinIO object storage and real database
 schema, migrations, authentication and initial administrator provisioning. It is
@@ -62,7 +62,7 @@ databases; close every client and clean up only those fixtures. Cover populated
 upgrades, schema/metadata parity, active foreign keys, rollback, usage conflicts,
 canonical permission mapping and persisted language/branding. Logo references
 must block file deletion rather than clear themselves. Initialization, OTP/auth persistence and initial administrator provisioning are included;
-HTTP and production OTP delivery remain outside this phase.
+HTTP adapters are in scope; production OTP delivery and server startup remain outside this phase.
 
 ## Development and validation
 
@@ -80,7 +80,7 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
-Each PR runs all nine required checks for the published auth-bootstrap
+Each PR runs all nine required checks for the published http-transport
 snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
 This includes draft and documentation-only PRs; there are no changed-path or
 branch filters. The runner rejects duplicate IDs, omitted required checks and
@@ -101,7 +101,7 @@ fabricate LCOV, borrow another project's report or describe foundation coverage 
 full API coverage. See [architecture](docs/architecture.md) for service ownership
 and the limits of fake-port evidence.
 
-A later runnable phase must introduce coherent HTTP transport and concrete adapters
+A later runnable phase must introduce application composition and server startup
 with the complete HTTP, DB, authentication and storage tests and its full canonical
 validation gate. This support-phase pass cannot replace those tests or establish
 application readiness in advance.

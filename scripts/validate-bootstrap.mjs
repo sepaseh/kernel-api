@@ -133,6 +133,28 @@ const authBootstrapFiles = [
   "src/infrastructure/db/initialize.ts",
   "src/infrastructure/persistence/auth.ts",
 ];
+const httpTransportFiles = [
+  "docs/http-transport.md",
+  "docs/http-transport.fa.md",
+  "scripts/http-upload-loopback.test.mjs",
+  "src/http-transport.test.ts",
+  "src/upload-body-limit.test.ts",
+  "src/app.test.ts",
+  "src/input-validation-http.test.ts",
+  "src/deletion-lifecycle-http.test.ts",
+  "src/request-logging.test.ts",
+  "src/architecture.test.ts",
+  "src/test/create-app-fixture.ts",
+  "src/test/composition-dependencies.ts",
+  "src/test/logging.ts",
+  "src/test/memory-object-storage.ts",
+  ...["app", "auth-attempts", "dependencies", "http", "request-logging"].map(
+    (name) => `src/presentation/http/${name}.ts`,
+  ),
+  ...["account", "auth", "calendar", "files", "roles", "settings", "users"].map(
+    (name) => `src/presentation/http/routes/${name}.ts`,
+  ),
+];
 const phaseFiles = {
   governance: [],
   foundation: [],
@@ -173,6 +195,16 @@ const phaseFiles = {
     ...databaseFiles,
     ...authBootstrapFiles,
   ],
+  "http-transport": [
+    ...applicationServicesFiles,
+    ...localizationFiles,
+    ...infrastructureSupportFiles,
+    ...localStorageFiles,
+    ...objectStorageFiles,
+    ...databaseFiles,
+    ...authBootstrapFiles,
+    ...httpTransportFiles,
+  ],
 };
 const isPublishedSource = (file, phase) =>
   phase !== "governance" &&
@@ -200,7 +232,9 @@ export const validateBootstrapPolicy = (policy) => {
         file,
       ) ||
       (/^drizzle(?:\/|$)/.test(file) &&
-        (!["database-persistence", "auth-bootstrap"].includes(policy.phase) ||
+        (!["database-persistence", "auth-bootstrap", "http-transport"].includes(
+          policy.phase,
+        ) ||
           !databaseFiles.includes(file))) ||
       file === "drizzle.config.ts" ||
       (file.startsWith("src/") && !isPublishedSource(file, policy.phase)) ||
@@ -324,6 +358,8 @@ export const inspectBootstrap = async (root) => {
       "Published application services, infrastructure support, storage adapters and concrete libsql/Drizzle schema, migrations and non-authentication persistence with disposable local-database tests; HTTP, authentication/OTP, initialization, deployed database/storage services and application composition are not published or validated.",
     "auth-bootstrap":
       "Published database, storage and authentication adapters with synthetic tests and initial administrator provisioning; HTTP, production OTP delivery, deployed services and application composition remain unpublished or unvalidated.",
+    "http-transport":
+      "Published HTTP route adapters with synthetic service tests; application composition, server startup and production OTP delivery remain unpublished or unvalidated.",
   };
   return {
     applicationReady: false,

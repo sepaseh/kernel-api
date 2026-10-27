@@ -1,14 +1,16 @@
-import { and, asc, count, eq, inArray, like, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, like, or, sql } from "drizzle-orm";
 
 import { ApplicationError } from "../../application/errors.ts";
 import type {
   UsersRepository,
   UsersWritePort,
 } from "../../application/ports/users.ts";
+import { consumeOtpAttempt } from "../auth/otp.ts";
 import type { Database } from "../db/client.ts";
 import {
   account,
   files,
+  rolePermissions,
   roles,
   session,
   user,
@@ -26,6 +28,9 @@ type WriteExecutor = Pick<
 >;
 
 const writePort = (database: WriteExecutor): UsersWritePort => ({
+  async consumeOtp(attempt) {
+    await consumeOtpAttempt(database, attempt);
+  },
   async countActiveAdmins() {
     const [value] = await database
       .select({ total: count() })
@@ -49,6 +54,26 @@ const writePort = (database: WriteExecutor): UsersWritePort => ({
       where: eq(user.id, id),
     });
     return value ? mapUserRecord(value) : undefined;
+  },
+  async hasActiveSession(sessionId, userId) {
+    const value = await database.query.session.findFirst({
+      where: and(eq(session.id, sessionId), eq(session.userId, userId)),
+    });
+    return !!value && value.expiresAt > new Date();
+  },
+  async hasPermission(userId, permission) {
+    const rows = await database
+      .select({ permission: rolePermissions.permission })
+      .from(userRoles)
+      .innerJoin(rolePermissions, eq(rolePermissions.roleId, userRoles.roleId))
+      .where(
+        and(
+          eq(userRoles.userId, userId),
+          eq(rolePermissions.permission, permission),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
   },
   async remove(id) {
     const uploadedFile = await database
@@ -102,6 +127,38 @@ const writePort = (database: WriteExecutor): UsersWritePort => ({
       .set({ isSystemAdmin, updatedAt: new Date() })
       .where(eq(user.id, id));
   },
+  async update(id, update, actorId) {
+    try {
+      if (typeof actorId !== "string" || !actorId)
+        throw new ApplicationError("forbidden", "systemAdminRequired");
+      const where = update.mobile
+        ? and(
+            eq(user.id, id),
+            or(
+              eq(user.mobile, update.mobile),
+              and(eq(user.id, actorId), eq(user.status, "active")),
+              sql`EXISTS (SELECT 1 FROM user AS acting_user WHERE acting_user.id = ${actorId} AND acting_user.is_system_admin = 1 AND acting_user.status = 'active')`,
+            ),
+          )
+        : eq(user.id, id);
+      const [value] = await database
+        .update(user)
+        .set({
+          ...update,
+          name: sql`${update.firstName ?? user.firstName} || ' ' || ${update.lastName ?? user.lastName}`,
+          updatedAt: new Date(),
+        })
+        .where(where)
+        .returning();
+      if (!value && update.mobile && (await writePort(database).find(id)))
+        throw new ApplicationError("forbidden", "systemAdminRequired");
+      return value ? mapUserRecord(value) : undefined;
+    } catch (error) {
+      if (isUniqueConstraintError(error))
+        throw new ApplicationError("invalid", "mobileInUse");
+      throw error;
+    }
+  },
 });
 
 export const createDrizzleUsersRepository = (
@@ -137,22 +194,5 @@ export const createDrizzleUsersRepository = (
   },
   transaction: (work) =>
     database.transaction((transaction) => work(writePort(transaction))),
-  async update(id, update) {
-    try {
-      const [value] = await database
-        .update(user)
-        .set({
-          ...update,
-          name: sql`${update.firstName ?? user.firstName} || ' ' || ${update.lastName ?? user.lastName}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(user.id, id))
-        .returning();
-      return value ? mapUserRecord(value) : undefined;
-    } catch (error) {
-      if (isUniqueConstraintError(error))
-        throw new ApplicationError("invalid", "mobileInUse");
-      throw error;
-    }
-  },
+  update: writePort(database).update,
 });
