@@ -62,12 +62,15 @@ explicit authorization and fresh evidence of zero open/unresolved issues. Do not
 exclude code, suppress findings, weaken rules/gates, hide severities or waive
 issues merely to request review or consume quota.
 
-After preflight passes, request review only within an authorized cycle, respect
-provider quotas and keep at most one request in flight per head. Do not send
-duplicate requests or enable automatic triggers to bypass this order. After
+The repository's `.coderabbit.yaml` disables automatic and incremental reviews,
+including drafts. Native review and automatic approval remain enabled; request
+review manually only after this preflight passes. Within an authorized cycle,
+respect provider quotas and keep at most one request in flight per head. Do not
+send duplicate requests or enable automatic triggers to bypass this order. After
 review fixes create a new commit, run the preflight again.
-Before each new request, also verify that at least one hour has elapsed since
-this repository's latest CodeRabbit review.
+Before each new request, verify that at least one hour has elapsed since both
+this repository's latest manual request and its latest substantive CodeRabbit
+review, including recent PRs. Respect any later retry time reported by the provider.
 
 ## Current scope
 

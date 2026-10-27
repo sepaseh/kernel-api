@@ -5,12 +5,12 @@ reviews:
     allow_author_approval: false
     enabled: true
   auto_review:
-    auto_incremental_review: true
+    auto_incremental_review: false
     auto_pause_after_reviewed_commits: 0
     base_branches:
       - "^codex/.*$"
-    drafts: true
-    enabled: true
+    drafts: false
+    enabled: false
   high_level_summary: true
   poem: false
   profile: chill

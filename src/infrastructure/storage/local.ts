@@ -1,4 +1,4 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
 
 import type { ObjectStorage } from "../../application/ports/object-storage.ts";
@@ -43,7 +43,23 @@ export class LocalFileStorage implements ObjectStorage {
     const bucket = buckets[input.visibility];
     const target = this.#resolve(bucket, input.objectKey);
     await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, input.data, { flag: "wx" });
+    const handle = await open(target, "wx");
+    try {
+      await handle.writeFile(input.data);
+      await handle.close();
+    } catch (error) {
+      try {
+        await handle.close();
+      } catch {
+        // Cleanup must preserve the original write or close failure.
+      }
+      try {
+        await unlink(target);
+      } catch {
+        // A cleanup failure must not replace the original operation failure.
+      }
+      throw error;
+    }
     return { bucket, objectKey: input.objectKey };
   }
 

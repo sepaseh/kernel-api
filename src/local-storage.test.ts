@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import fsPromises, { mkdtemp, readFile, rm } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
@@ -34,6 +35,51 @@ const upload = (
   objectKey,
   visibility,
 });
+
+const injectStorageFailures = (
+  context: TestContext,
+  failures: { write?: Error; close?: Error; cleanup?: Error },
+) => {
+  const originalOpen = fsPromises.open;
+  const originalUnlink = fsPromises.unlink;
+  const remove = context.mock.method(
+    fsPromises,
+    "unlink",
+    async (target: Parameters<typeof fsPromises.unlink>[0]) => {
+      if (failures.cleanup) throw failures.cleanup;
+      await originalUnlink(target);
+    },
+  );
+  context.mock.method(
+    fsPromises,
+    "open",
+    async (...args: Parameters<typeof fsPromises.open>) => {
+      const handle = await originalOpen(...args);
+      if (failures.write) {
+        const write = handle.writeFile.bind(handle);
+        context.mock.method(handle, "writeFile", async (data: Uint8Array) => {
+          await write(data.subarray(0, 2));
+          throw failures.write;
+        });
+      }
+      if (failures.close) {
+        const close = handle.close.bind(handle);
+        context.mock.method(handle, "close", async () => {
+          await close();
+          throw failures.close;
+        });
+      }
+      return handle;
+    },
+  );
+  const restore = () => {
+    context.mock.restoreAll();
+    syncBuiltinESMExports();
+  };
+  context.after(restore);
+  syncBuiltinESMExports();
+  return { remove, restore };
+};
 
 test("local storage prepares isolated buckets repeatedly and persists exact bytes", async (context) => {
   const { root, storage } = await fixture(context);
@@ -85,6 +131,76 @@ test("put creates missing directories and exclusive creation never overwrites an
     (await storage.get(empty.bucket, empty.objectKey)).byteLength,
     0,
   );
+});
+
+test("a partial failed write is removed and the same object key can be retried", async (context) => {
+  const { storage } = await fixture(context);
+  const failure = new Error("synthetic-partial-write");
+  const { restore } = injectStorageFailures(context, { write: failure });
+  const input = upload("private");
+  await assert.rejects(storage.put(input), (error) => error === failure);
+  await assert.rejects(storage.get("local-private", input.objectKey), {
+    code: "ENOENT",
+  });
+  restore();
+  const stored = await storage.put(input);
+  assert.deepEqual(
+    new Uint8Array(await storage.get(stored.bucket, stored.objectKey)),
+    input.data,
+  );
+});
+
+test("exclusive creation failure never attempts to remove a pre-existing object", async (context) => {
+  const { storage } = await fixture(context);
+  const input = upload("public");
+  const stored = await storage.put(input);
+  const { remove } = injectStorageFailures(context, {});
+  await assert.rejects(storage.put(input), { code: "EEXIST" });
+  assert.equal(remove.mock.callCount(), 0);
+  assert.deepEqual(
+    new Uint8Array(await storage.get(stored.bucket, stored.objectKey)),
+    input.data,
+  );
+});
+
+test("a cleanup failure preserves the original write error and the partial bytes", async (context) => {
+  const { storage } = await fixture(context);
+  const failure = new Error("synthetic-partial-write");
+  injectStorageFailures(context, {
+    write: failure,
+    cleanup: new Error("synthetic-unlink-failure"),
+  });
+  const input = upload("private");
+  await assert.rejects(storage.put(input), (error) => error === failure);
+  assert.deepEqual(
+    new Uint8Array(await storage.get("local-private", input.objectKey)),
+    input.data.subarray(0, 2),
+  );
+});
+
+test("a close failure during cleanup cannot replace the original write error", async (context) => {
+  const { storage } = await fixture(context);
+  const failure = new Error("synthetic-partial-write");
+  injectStorageFailures(context, {
+    write: failure,
+    close: new Error("synthetic-close-failure"),
+  });
+  const input = upload("private");
+  await assert.rejects(storage.put(input), (error) => error === failure);
+  await assert.rejects(storage.get("local-private", input.objectKey), {
+    code: "ENOENT",
+  });
+});
+
+test("a failed final close removes this call's object and preserves the close error", async (context) => {
+  const { storage } = await fixture(context);
+  const failure = new Error("synthetic-close-failure");
+  injectStorageFailures(context, { close: failure });
+  const input = upload("public");
+  await assert.rejects(storage.put(input), (error) => error === failure);
+  await assert.rejects(storage.get("local-public", input.objectKey), {
+    code: "ENOENT",
+  });
 });
 
 test("missing reads and deletes expose a failure rather than a fabricated success", async (context) => {

@@ -17,6 +17,11 @@ key fails without replacing the original bytes. Reads and deletes propagate a
 missing-object failure. Keys must resolve below their bucket; Windows absolute
 paths and backslash-shaped keys are rejected on every host.
 
+After exclusive creation, a write or close failure triggers a best-effort close
+and removal of only that call's new target. An `EEXIST` failure never removes an
+existing object. Cleanup failures cannot replace the original operation error;
+if removal itself fails, the partial object remains for operator cleanup.
+
 This is lexical containment, not a sandbox against a host user who can alter the
 storage directory or insert symlinks. The configured directory must be controlled
 by the API process. Object keys and visibility come from the application service;
@@ -32,7 +37,9 @@ test adapter or HTTP composition in this phase.
 Tests use real writes, reads and hard deletes in a fresh owned temporary directory,
 verify public/private separation, exclusive creation, empty/binary objects,
 invalid buckets and escaping/absolute keys, and remove their fixtures after each
-test. Actual Pino output proves safe metadata; these tests do not prove external
+test. Fault injection writes real partial bytes and verifies cleanup, retry,
+preservation of existing objects and original-error identity when close or removal
+fails. Actual Pino output proves safe metadata; these tests do not prove external
 object storage, HTTP authorization or host-filesystem isolation.
 
 ## Ownership and dependencies
