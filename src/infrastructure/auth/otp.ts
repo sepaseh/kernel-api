@@ -22,11 +22,11 @@ const digestPattern = /^[0-9a-f]{64}$/;
 const matchesOtpHash = (stored: string, attempt: OtpAttempt): boolean => {
   const versioned = stored.startsWith("v2:");
   const storedDigest = versioned ? stored.slice(3) : stored;
-  const candidate = versioned
-    ? attempt.valueHash.startsWith("v2:")
+  let candidate = attempt.legacyValueHash ?? "";
+  if (versioned)
+    candidate = attempt.valueHash.startsWith("v2:")
       ? attempt.valueHash.slice(3)
-      : ""
-    : (attempt.legacyValueHash ?? "");
+      : "";
   if (!digestPattern.test(storedDigest) || !digestPattern.test(candidate))
     return false;
   return timingSafeEqual(
