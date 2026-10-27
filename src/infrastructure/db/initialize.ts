@@ -1,18 +1,20 @@
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/libsql/migrator";
 
+import { internalEmail } from "../../application/identity.ts";
 import { permissionKeys } from "../../application/permissions.ts";
 import type { Auth } from "../auth/better-auth.ts";
 import type { ServerConfig } from "../config.ts";
 import { getTranslator } from "../localization/i18n.ts";
 import type { Database } from "./client.ts";
 import {
+  account,
   calendarDates,
   rolePermissions,
   roles,
-  session,
   settings,
   user,
   userRoles,
@@ -43,55 +45,81 @@ const seed = async (database: Database, auth: Auth) => {
     where: eq(settings.id, 1),
   });
   const translate = getTranslator(configuredSettings?.languageCode ?? "en");
-  const existingAdmin = await database.query.user.findFirst({
-    where: eq(user.mobile, "09123456789"),
-  });
-  let adminId = existingAdmin?.id;
-  if (!existingAdmin) {
-    const result = await auth.api.signUpEmail({
-      body: {
-        email: "admin@kernel.local",
-        firstName: translate("seedAdminFirstName"),
-        lastName: translate("seedAdminLastName"),
-        mobile: "09123456789",
-        name: translate("seedAdminName"),
-        password: "password123",
-        username: "admin",
-      },
-    });
-    adminId = result.user.id;
-    await database
-      .update(user)
-      .set({ isSystemAdmin: true })
-      .where(eq(user.id, adminId));
-    await database.delete(session).where(eq(session.userId, adminId));
-  }
-
-  await database
-    .insert(calendarDates)
-    .values([{ date: "2026-09-15" }, { date: "2026-09-23" }])
-    .onConflictDoNothing();
-
   const defaultRoleId = "3ecb1f52-6d6e-43b9-a8fb-4e0772c9f863";
-  await database
-    .insert(roles)
-    .values({ id: defaultRoleId, name: translate("seedDefaultRole") })
-    .onConflictDoNothing();
-  await database
-    .insert(rolePermissions)
-    .values(
+  const alreadySeeded = await database.transaction(async (transaction) => {
+    const existingAdmin = await transaction.query.user.findFirst({
+      where: eq(user.mobile, "09123456789"),
+    });
+    if (!existingAdmin?.isSystemAdmin) return false;
+    const assignment = await transaction.query.userRoles.findFirst({
+      where: and(
+        eq(userRoles.roleId, defaultRoleId),
+        eq(userRoles.userId, existingAdmin.id),
+      ),
+    });
+    const credential = await transaction.query.account.findFirst({
+      where: and(
+        eq(account.userId, existingAdmin.id),
+        eq(account.accountId, existingAdmin.id),
+        eq(account.providerId, "credential"),
+      ),
+    });
+    if (!assignment || !credential?.password?.trim())
+      throw new Error("Development seed is incomplete.");
+    return true;
+  });
+  if (alreadySeeded) return;
+  const passwordHash = await (await auth.$context).password.hash("password123");
+  const adminId = randomUUID();
+  const now = new Date();
+  await database.transaction(async (transaction) => {
+    if (
+      (await transaction.query.user.findFirst()) ||
+      (await transaction.query.roles.findFirst()) ||
+      (await transaction.query.calendarDates.findFirst()) ||
+      (await transaction.query.files.findFirst())
+    )
+      throw new Error("Development seed requires an empty business database.");
+    await transaction.insert(user).values({
+      id: adminId,
+      email: internalEmail("09123456789"),
+      emailVerified: false,
+      firstName: translate("seedAdminFirstName"),
+      lastName: translate("seedAdminLastName"),
+      mobile: "09123456789",
+      name: translate("seedAdminName"),
+      isSystemAdmin: true,
+      status: "active",
+      username: "admin",
+      displayUsername: "admin",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await transaction.insert(account).values({
+      id: randomUUID(),
+      accountId: adminId,
+      userId: adminId,
+      providerId: "credential",
+      password: passwordHash,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await transaction
+      .insert(calendarDates)
+      .values([{ date: "2026-09-15" }, { date: "2026-09-23" }]);
+    await transaction
+      .insert(roles)
+      .values({ id: defaultRoleId, name: translate("seedDefaultRole") });
+    await transaction.insert(rolePermissions).values(
       permissionKeys.map((permission) => ({
         permission,
         roleId: defaultRoleId,
       })),
-    )
-    .onConflictDoNothing();
-  if (adminId) {
-    await database
+    );
+    await transaction
       .insert(userRoles)
-      .values({ roleId: defaultRoleId, userId: adminId })
-      .onConflictDoNothing();
-  }
+      .values({ roleId: defaultRoleId, userId: adminId });
+  });
 };
 
 export const initializeDatabase = async (

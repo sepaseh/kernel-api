@@ -5,8 +5,8 @@
 The local and MinIO adapters implement the application `ObjectStorage` port
 with local files and S3-compatible MinIO. `storage/create.ts` selects the adapter
 from `ServerConfig.storageDriver`; an unsupported driver fails explicitly.
-Creating an adapter does not start the API or call `ensureReady`. The future
-application composition must await readiness before accepting uploads. See
+Creating an adapter does not start the API or call `ensureReady`. Local server
+startup must await storage readiness before accepting uploads. See
 [architecture](architecture.md) and the [phase gate](bootstrap.md).
 
 ## Local files

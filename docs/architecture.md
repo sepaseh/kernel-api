@@ -2,15 +2,25 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The current [http-transport phase](bootstrap.md) contains a framework-free
+The current [local-runtime phase](bootstrap.md) contains a framework-free
 application layer, local contracts, feature ports, ten static API catalogs and
 configuration, translation, logging, fatal-lifecycle support and real database
 schema, migrations, authentication/OTP persistence, administrator provisioning
-and Hono HTTP route adapters.
-`applicationReady:false` is deliberate: there is no HTTP server, application composition
-root or production OTP delivery in this snapshot. See [authentication adapters](auth-adapters.md).
+Hono HTTP route adapters, application composition and a local Node server.
+`applicationReady:false` is deliberate: local execution does not establish
+production OTP delivery or deployed service readiness. See [authentication adapters](auth-adapters.md).
 Local and S3-compatible MinIO adapters implement the object-storage port; their
 factory is not an application composition root.
+
+The Node entry point binds the configured listener before opening the database
+or preparing storage. While initialization is incomplete it serves a 503 with
+`Cache-Control: no-store`; an occupied port fails before database or storage side
+effects. On successful startup, composition passes the configured upload limit
+to HTTP. Startup runs reviewed migrations, so an existing database requires
+explicit authorization and a verified matching backup. Development seeding is
+intended for a single instance; its emptiness check and sample business records
+are transactional. Incomplete state from an older run fails without automatic
+repair. Migrations and default settings are separate earlier startup operations.
 
 ## Database and persistence
 
@@ -62,7 +72,7 @@ application service, which authorizes against file metadata.
 raw exception details or object paths. It preserves the original failure even if
 the logging destination throws. The local adapter's reviewed write/cleanup
 behavior is independent of the MinIO adapter. A memory object-storage adapter is
-published for tests; application composition is not published in this phase.
+published for tests; runtime composition uses concrete configured adapters.
 
 Tests use real writes, reads and hard deletes in a fresh owned temporary directory,
 verify public/private separation, exclusive creation, empty/binary objects,
@@ -116,7 +126,7 @@ erased locale contract type. Application code cannot import catalog data or
 other infrastructure.
 `scripts/check-boundaries.mjs` checks source containment, local dependency
 resolution, contract purity and forbidden application dependencies. The exact
-publication guard separately rejects undeclared source and runnable layers.
+publication guard separately rejects undeclared source and unrelated entry points.
 Catalog AST checks reject executable logic, engine imports and fallback spreads;
 the only catalog runtime dependencies are the registry's local data imports.
 
@@ -149,8 +159,8 @@ support modules composes or starts an HTTP server.
 Several administrative services expect authorization at the HTTP
 boundary rather than accepting an actor for every method. A service method's
 presence does not make an endpoint or establish transport authorization. The
-future composition root must inject concrete adapters and the transport must
-perform the required authentication/permission checks.
+composition root injects concrete adapters and the transport must perform the
+required authentication/permission checks.
 
 ## Language and deletion policies
 
@@ -196,8 +206,8 @@ Separate engine tests load real i18next for all ten languages. Configuration tes
 use synthetic environment objects. Logging tests exercise real Pino output,
 redaction, safe causes/query-shaped errors, request-context isolation and pretty
 printing. Fatal-handler tests run in isolated subprocesses and check bounded
-flush/exit behavior without installing handlers in the test runner. Server startup
-failure handling is deferred until the HTTP entry point is published.
+flush/exit behavior without installing handlers in the test runner. Runtime tests
+must cover server startup failures, cleanup and shutdown with disposable fixtures.
 
 Uploads reject oversized declared sizes before reading, then validate the actual
 read bytes before any object write. Metadata and upload diagnostics use the
@@ -205,10 +215,12 @@ actual byte length. File event callbacks are best-effort synchronous diagnostics
 their exceptions cannot fail a committed upload, prevent cleanup or replace the
 original storage/metadata error.
 
-Before runnable publication, compose the concrete HTTP/auth adapters around the published
-database and storage adapters, and validate the actual entry point with full HTTP
-contract, permission, session/cookie, translation, transaction/concurrency, OTP
-and storage integration tests using fresh disposable fixtures. The HTTP adapter counts actual request bytes before multipart parsing, with a bounded 64 KiB framing allowance; the application separately checks file bytes. Network adapter behavior still needs runnable-phase tests.
+The composition root wires concrete HTTP/auth, database and storage adapters.
+Validate the actual Node entry point with HTTP contract, permission, session/cookie,
+translation, transaction/concurrency, OTP and storage tests using disposable
+fixtures. The HTTP adapter counts actual request bytes before multipart parsing,
+with a bounded 64 KiB framing allowance; the application separately checks file
+bytes. Local network tests do not establish a deployed service or OTP delivery.
 
 The [canonical full gate](../.agents/validation.json) validates only the published
 scope and produces actual coverage from this checkout. Preserve that evidence's

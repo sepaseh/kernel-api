@@ -3,12 +3,12 @@
 [English](README.md) · [فارسی](README.fa.md)
 
 Kernel API is a standalone TypeScript project. The current
-**http-transport** phase provides contracts, application services,
+**local-runtime** phase provides contracts, application services,
 feature ports, ten API catalogs, configuration, translation and logging support,
 local filesystem plus S3-compatible MinIO object storage, and real libSQL/Drizzle
 database schema, migrations, authentication/OTP persistence and initial administrator provisioning.
-`applicationReady` remains **false**: this
-snapshot does not start an HTTP API.
+`applicationReady` remains **false**: a local server entry point is included,
+but production OTP delivery and deployment readiness remain outside this phase.
 
 ## Current scope
 
@@ -60,8 +60,12 @@ snapshot does not start an HTTP API.
 [Architecture](docs/architecture.md) explains ownership, language authority,
 hard-deletion policy and what fake-port tests can establish. HTTP routes,
 cookies and HTTP route adapters are exercised with synthetic services and databases.
-Application composition, server startup, production OTP delivery and deployment are not
-published or validated in this phase. See [HTTP transport](docs/http-transport.md). See [authentication adapters](docs/auth-adapters.md). Runtime dependencies are Hono,
+The composition root connects the concrete services and adapters to the Hono
+routes, and the Node entry point starts the local API. The server binds its port
+before initializing the configured database or storage. Until initialization
+completes it returns non-cacheable 503 responses. A port conflict therefore fails
+before database or storage initialization; use only disposable fixtures in tests.
+Production OTP delivery and deployment remain outside this phase. See [HTTP transport](docs/http-transport.md) and [authentication adapters](docs/auth-adapters.md). Runtime dependencies are Hono, `@hono/node-server`,
 i18next, Pino, Better Auth, `@aws-sdk/client-s3`, `@libsql/client` and `drizzle-orm`; pino-pretty is a development dependency for readable local logs.
 
 ## Install and validate
@@ -75,6 +79,20 @@ npm ci
 npm run validate -- full
 ```
 
+For local execution, supply the required configuration explicitly and run
+`npm run dev`. The command does not load an environment file. Startup applies
+the reviewed database migrations and may create storage resources, so use only
+intended local data and obtain authorization and a verified backup before
+migrating an existing database. Use a single instance for optional development
+seeding. The first seed requires an empty business database; an existing sample
+administrator is accepted only with its expected role assignment and a credential
+for the same account with a nonempty password hash; otherwise the incomplete seed fails without repair.
+Role permissions and calendar entries remain editable after seeding and are not
+restored or required to retain their initial values. The seed's business records and
+emptiness check share one transaction, so failure or competing seed attempts do
+not leave a partially created sample account or grants. Migrations and initial
+settings happen separately before that transaction.
+
 The [validation manifest](.agents/validation.json) owns all nine required checks
 in the complete current-phase gate: exact source snapshot, semantic CI policy, dependency audit,
 source boundaries, types, lint, formatting, measured test coverage and audit-helper
@@ -83,8 +101,9 @@ existing database or running API.
 
 Tests generate real `coverage/lcov.info` for published application source, catalog data, infrastructure support and
 repository tooling in this checkout. Real database tests measure the published
-persistence adapters, migration behavior and synthetic authentication flows. This includes in-process HTTP adapter coverage, not a deployed HTTP server
-or a deployed MinIO service. It includes real filesystem storage
+persistence adapters, migration behavior and synthetic authentication flows.
+Local server tests exercise the Node adapter with disposable data; they do not
+prove a deployed HTTP server or a deployed MinIO service. Coverage includes real filesystem storage
 and signed S3 SDK tests against a synthetic loopback HTTP server.
 Generated coverage is not committed.
 See [Sonar setup](docs/sonarqube.md) for scanner and provider-gate evidence.

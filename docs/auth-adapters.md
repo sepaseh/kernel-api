@@ -2,10 +2,10 @@
 
 [English](auth-adapters.md) · [فارسی](auth-adapters.fa.md)
 
-This proposed phase adds Better Auth, credential persistence, OTP persistence,
-database initialization and initial administrator provisioning. The API HTTP
-server and application composition remain unpublished; this phase alone does not
-make the application deployable.
+The authentication adapters provide Better Auth, credential and OTP persistence,
+database initialization and initial administrator provisioning. The local Node
+server composes these adapters; local execution alone does not make the
+application deployable.
 
 Better Auth uses the database-owned user, account and session records. The
 stored internal email identifies the credential and does not change with a mobile

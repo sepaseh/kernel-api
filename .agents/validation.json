@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "http-transport",
+  "phase": "local-runtime",
   "applicationReady": false,
   "checks": [
     {
@@ -16,7 +16,8 @@
         "storage-adapters",
         "database-persistence",
         "auth-bootstrap",
-        "http-transport"
+        "http-transport",
+        "local-runtime"
       ]
     },
     {
@@ -33,7 +34,8 @@
         "storage-adapters",
         "database-persistence",
         "auth-bootstrap",
-        "http-transport"
+        "http-transport",
+        "local-runtime"
       ]
     },
     {
@@ -49,7 +51,8 @@
         "storage-adapters",
         "database-persistence",
         "auth-bootstrap",
-        "http-transport"
+        "http-transport",
+        "local-runtime"
       ]
     },
     {
@@ -65,7 +68,8 @@
         "storage-adapters",
         "database-persistence",
         "auth-bootstrap",
-        "http-transport"
+        "http-transport",
+        "local-runtime"
       ]
     },
     {
@@ -81,7 +85,8 @@
         "storage-adapters",
         "database-persistence",
         "auth-bootstrap",
-        "http-transport"
+        "http-transport",
+        "local-runtime"
       ]
     },
     {
@@ -97,7 +102,8 @@
         "storage-adapters",
         "database-persistence",
         "auth-bootstrap",
-        "http-transport"
+        "http-transport",
+        "local-runtime"
       ]
     },
     {
@@ -113,7 +119,8 @@
         "storage-adapters",
         "database-persistence",
         "auth-bootstrap",
-        "http-transport"
+        "http-transport",
+        "local-runtime"
       ]
     },
     {
@@ -129,7 +136,8 @@
         "storage-adapters",
         "database-persistence",
         "auth-bootstrap",
-        "http-transport"
+        "http-transport",
+        "local-runtime"
       ]
     },
     {
@@ -145,7 +153,8 @@
         "storage-adapters",
         "database-persistence",
         "auth-bootstrap",
-        "http-transport"
+        "http-transport",
+        "local-runtime"
       ]
     }
   ],

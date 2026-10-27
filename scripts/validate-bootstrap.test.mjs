@@ -226,6 +226,48 @@ const httpTransportPolicy = (overrides = {}) =>
     ...overrides,
   });
 
+const localRuntimeFiles = [
+  "scripts/runtime-integration.test.mjs",
+  "scripts/runtime-seed.test.mjs",
+  "src/composition.ts",
+  "src/dependencies.ts",
+  "src/index.ts",
+];
+const localRuntimePolicy = (overrides = {}) =>
+  httpTransportPolicy({
+    allowedFiles: [...httpTransportPolicy().allowedFiles, ...localRuntimeFiles],
+    phase: "local-runtime",
+    ...overrides,
+  });
+
+test("local runtime requires server, composition and independent lifecycle tests without asserting production readiness", () => {
+  const complete = localRuntimePolicy();
+  assert.equal(
+    validateBootstrapPolicy(complete).size,
+    complete.allowedFiles.length,
+  );
+  for (const required of localRuntimeFiles)
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        localRuntimePolicy({
+          allowedFiles: complete.allowedFiles.filter(
+            (file) => file !== required,
+          ),
+        }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(localRuntimePolicy({ applicationReady: true })),
+  );
+  assert.throws(() =>
+    validateBootstrapPolicy(
+      localRuntimePolicy({
+        allowedFiles: [...complete.allowedFiles, "src/unreviewed.ts"],
+      }),
+    ),
+  );
+});
+
 test("HTTP transport requires every route and excludes runnable composition", () => {
   const complete = httpTransportPolicy();
   assert.equal(
