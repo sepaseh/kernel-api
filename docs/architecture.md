@@ -61,8 +61,8 @@ application service, which authorizes against file metadata.
 `storage/operations.ts` wraps an operation with fixed diagnostic metadata, without
 raw exception details or object paths. It preserves the original failure even if
 the logging destination throws. The local adapter's reviewed write/cleanup
-behavior is independent of the MinIO adapter. No memory test adapter or HTTP
-composition is published in this phase.
+behavior is independent of the MinIO adapter. A memory object-storage adapter is
+published for tests; application composition is not published in this phase.
 
 Tests use real writes, reads and hard deletes in a fresh owned temporary directory,
 verify public/private separation, exclusive creation, empty/binary objects,
@@ -108,8 +108,8 @@ Application services never import framework, ORM, authentication/storage SDK or
 HTTP request/response types. The localization module supplies erased message-key
 types. Static translated strings live in
 `src/infrastructure/localization/catalogs/`; the separate `localization/i18n.ts`
-adapter owns translation execution through i18next. HTTP status mapping belongs
-to the future transport. Each language module exports one flat literal
+adapter owns translation execution through i18next. The published HTTP transport
+maps semantic errors to status codes. Each language module exports one flat literal
 object and may import the application vocabulary only as a fully erased type.
 The registry in `catalogs/index.ts` consumes those original objects and the
 erased locale contract type. Application code cannot import catalog data or

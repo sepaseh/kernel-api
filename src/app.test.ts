@@ -257,7 +257,10 @@ test("persists role and user management operations", async () => {
   const roleResponse = await request(
     "/roles",
     authenticated({
-      body: JSON.stringify({ name: "بازبین", permissions: ["users.read"] }),
+      body: JSON.stringify({
+        name: "بازبین",
+        permissions: ["users.read", "users.update"],
+      }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
     }),
@@ -352,8 +355,209 @@ test("persists role and user management operations", async () => {
   assert.equal(login.status, 200);
   const userHeaders = { Authorization: `Bearer ${loginBody.access_token}` };
 
+  const otherResponse = await request(
+    "/users",
+    authenticated({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: "Other",
+        last_name: "User",
+        mobile: "09120000007",
+        password: "password123",
+      }),
+    }),
+  );
+  assert.equal(otherResponse.status, 201);
+  const other = (await otherResponse.json()) as { id: string };
+
   const allowed = await request("/users", { headers: userHeaders });
   assert.equal(allowed.status, 200);
+  const deniedChallenge = await request(
+    `/users/${other.id}/request-mobile-verification`,
+    {
+      method: "POST",
+      headers: { ...userHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ mobile: "09120000009" }),
+    },
+  );
+  assert.equal(deniedChallenge.status, 403);
+  const deniedUpdate = await request(`/users/${other.id}`, {
+    method: "PATCH",
+    headers: { ...userHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      mobile: "09120000009",
+      otp: "123456",
+      first_name: "Denied",
+    }),
+  });
+  assert.equal(deniedUpdate.status, 403);
+  const otherUnchanged = await database.query.user.findFirst({
+    where: eq(user.id, other.id),
+  });
+  assert.equal(otherUnchanged?.mobile, "09120000007");
+  assert.equal(otherUnchanged?.firstName, "Other");
+  const attemptedTakeover = await request(`/users/${administrator.id}`, {
+    method: "PATCH",
+    headers: { ...userHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ mobile: "09120000001", first_name: "Unauthorized" }),
+  });
+  assert.equal(attemptedTakeover.status, 403);
+  const unchangedAdmin = await database.query.user.findFirst({
+    where: eq(user.id, administrator.id),
+  });
+  assert.equal(unchangedAdmin?.mobile, administrator.mobile);
+  assert.equal(unchangedAdmin?.firstName, administrator.firstName);
+  const nameOnly = await request(`/users/${administrator.id}`, {
+    method: "PATCH",
+    headers: { ...userHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ first_name: administrator.firstName }),
+  });
+  assert.equal(nameOnly.status, 200);
+  for (const target of [
+    { id: administrator.id, mobile: administrator.mobile },
+    { id: other.id, mobile: "09120000007" },
+  ]) {
+    const unchangedMobile = await request(`/users/${target.id}`, {
+      method: "PATCH",
+      headers: { ...userHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ first_name: "Updated", mobile: target.mobile }),
+    });
+    assert.equal(unchangedMobile.status, 200);
+    const saved = await database.query.user.findFirst({
+      where: eq(user.id, target.id),
+    });
+    assert.equal(saved?.firstName, "Updated");
+    assert.equal(saved?.mobile, target.mobile);
+  }
+  const ordinaryAccount = await request(`/users/${created.id}`, {
+    method: "PATCH",
+    headers: { ...userHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ first_name: "سارا" }),
+  });
+  assert.equal(ordinaryAccount.status, 200);
+  const requestSelfOtp = await request("/account/request-mobile-verification", {
+    method: "POST",
+    headers: { ...userHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ mobile: "09120000004" }),
+  });
+  assert.equal(requestSelfOtp.status, 200);
+  const secondLogin = await request("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      identifier: "09120000000",
+      password: "password123",
+    }),
+  });
+  assert.equal(secondLogin.status, 200);
+  const secondSession = (await secondLogin.json()) as { access_token: string };
+  const wrongSession = await request("/account/update-profile", {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${secondSession.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ mobile: "09120000004", otp: "123456" }),
+  });
+  assert.equal(wrongSession.status, 400);
+  const wrongOtp = await request("/account/update-profile", {
+    method: "PATCH",
+    headers: { ...userHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      mobile: "09120000004",
+      otp: "654321",
+      first_name: "Not Applied",
+    }),
+  });
+  assert.equal(wrongOtp.status, 400);
+  assert.equal(
+    (await database.query.user.findFirst({ where: eq(user.id, created.id) }))
+      ?.firstName,
+    "سارا",
+  );
+  const updatedSelf = await request("/account/update-profile", {
+    method: "PATCH",
+    headers: { ...userHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ mobile: "09120000004", otp: "123456" }),
+  });
+  assert.equal(updatedSelf.status, 200);
+  assert.equal(
+    ((await updatedSelf.json()) as { mobile: string }).mobile,
+    "09120000004",
+  );
+  const unauthorizedManage = await request(
+    `/users/${administrator.id}/request-mobile-verification`,
+    {
+      method: "POST",
+      headers: { ...userHeaders, "Content-Type": "application/json" },
+      body: JSON.stringify({ mobile: "09120000005" }),
+    },
+  );
+  assert.equal(unauthorizedManage.status, 403);
+  const requestManagedOtp = await request(
+    `/users/${created.id}/request-mobile-verification`,
+    authenticated({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mobile: "09120000006" }),
+    }),
+  );
+  assert.equal(requestManagedOtp.status, 200);
+  const changedByAdmin = await request(
+    `/users/${created.id}`,
+    authenticated({
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mobile: "09120000006", otp: "123456" }),
+    }),
+  );
+  assert.equal(changedByAdmin.status, 200);
+  assert.equal(
+    ((await changedByAdmin.json()) as { mobile: string }).mobile,
+    "09120000006",
+  );
+  const duplicateChallenge = await request(
+    `/users/${created.id}/request-mobile-verification`,
+    authenticated({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mobile: "09120000007" }),
+    }),
+  );
+  assert.equal(duplicateChallenge.status, 200);
+  const duplicatePayload = {
+    mobile: "09120000007",
+    otp: "123456",
+    first_name: "Committed",
+  };
+  const duplicateAttempt = await request(
+    `/users/${created.id}`,
+    authenticated({
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(duplicatePayload),
+    }),
+  );
+  assert.equal(duplicateAttempt.status, 400);
+  const unchanged = await database.query.user.findFirst({
+    where: eq(user.id, created.id),
+  });
+  assert.equal(unchanged?.firstName, "سارا");
+  assert.equal(unchanged?.mobile, "09120000006");
+  await database
+    .update(user)
+    .set({ mobile: "09120000008" })
+    .where(eq(user.id, other.id));
+  const retry = await request(
+    `/users/${created.id}`,
+    authenticated({
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(duplicatePayload),
+    }),
+  );
+  assert.equal(retry.status, 200);
   const forbidden = await request("/roles", {
     body: JSON.stringify({ name: "غیرمجاز", permissions: [] }),
     headers: { ...userHeaders, "Content-Type": "application/json" },
@@ -450,6 +654,12 @@ test("stores uploaded bytes in object storage and only metadata in SQLite", asyn
 });
 
 test("registers a new persisted account after OTP verification", async () => {
+  const protectedPurpose = await request("/auth/otp-request", {
+    body: JSON.stringify({ mobile: "09121111111", purpose: "change_mobile" }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+  assert.equal(protectedPurpose.status, 400);
   const otp = await request("/auth/otp-request", {
     body: JSON.stringify({ mobile: "09121111111", purpose: "register" }),
     headers: { "Content-Type": "application/json" },

@@ -75,9 +75,13 @@ test("real Better Auth keeps a legacy identity across a mobile change and allows
     (await service.login({ identifier: oldMobile, password })).userId,
     oldAccount.userId,
   );
-  await createDrizzleUsersRepository(database).update(oldAccount.userId, {
-    mobile: newMobile,
-  });
+  await createDrizzleUsersRepository(database).update(
+    oldAccount.userId,
+    {
+      mobile: newMobile,
+    },
+    oldAccount.userId,
+  );
   assert.equal(
     (await auth.api.getSession({ headers: sessionHeaders }))?.user.id,
     oldAccount.userId,
@@ -119,9 +123,13 @@ test("real Better Auth authenticates bootstrap administrator before and after mo
     username: "synthetic-admin",
   });
   const before = await service.login({ identifier: "09120000003", password });
-  await createDrizzleUsersRepository(database).update(before.userId, {
-    mobile: "09120000004",
-  });
+  await createDrizzleUsersRepository(database).update(
+    before.userId,
+    {
+      mobile: "09120000004",
+    },
+    before.userId,
+  );
   assert.equal(
     (await service.login({ identifier: "09120000004", password })).userId,
     before.userId,
@@ -163,7 +171,11 @@ test("real Better Auth supports managed creation after reuse of a legacy mobile"
     password,
   });
   const repository = createDrizzleUsersRepository(database);
-  await repository.update(legacy.userId, { mobile: "09120000006" });
+  await repository.update(
+    legacy.userId,
+    { mobile: "09120000006" },
+    legacy.userId,
+  );
   const managed = await createUsersService({ provider, repository }).create({
     first_name: "Managed",
     last_name: "User",
@@ -192,9 +204,13 @@ test("real Better Auth preserves an arbitrary legacy email on a mobile change", 
     name: "Old Admin",
     password,
   });
-  await createDrizzleUsersRepository(database).update(legacy.userId, {
-    mobile: "09120000008",
-  });
+  await createDrizzleUsersRepository(database).update(
+    legacy.userId,
+    {
+      mobile: "09120000008",
+    },
+    legacy.userId,
+  );
   assert.equal(
     (await service.login({ identifier: "09120000008", password })).userId,
     legacy.userId,

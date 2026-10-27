@@ -61,6 +61,7 @@ export const createApp = ({
     users: createUsersService({
       provider: createAuthGateway(auth).provider,
       repository: createDrizzleUsersRepository(database),
+      otp,
     }),
   };
   return createHttpApp({

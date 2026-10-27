@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 
+import { enforceAuthAttempt } from "../auth-attempts.ts";
 import { type AppEnvironment, authenticate, parseJson } from "../http.ts";
 
 export const createUserRoutes = () => {
@@ -30,13 +31,38 @@ export const createUserRoutes = () => {
     );
   });
   app.patch("/:userId", async (context) => {
-    await authenticate(context, { permission: "users.update" });
+    const actor = await authenticate(context, { permission: "users.update" });
+    const body = await parseJson(context);
+    if (body.mobile !== undefined)
+      enforceAuthAttempt(
+        context,
+        "mobile-change-confirm",
+        `${actor.account.id}:${context.req.param("userId")}`,
+        10,
+      );
     return context.json(
       await context
         .get("dependencies")
-        .services.users.update(
-          context.req.param("userId"),
+        .services.users.update(actor, context.req.param("userId"), body),
+    );
+  });
+  app.post("/:userId/request-mobile-verification", async (context) => {
+    const actor = await authenticate(context, { permission: "users.update" });
+    const id = context.req.param("userId");
+    enforceAuthAttempt(
+      context,
+      "mobile-change-issue",
+      `${actor.account.id}:${id}`,
+      10,
+    );
+    return context.json(
+      await context
+        .get("dependencies")
+        .services.users.requestMobileVerification(
+          actor,
+          id,
           await parseJson(context),
+          "management",
         ),
     );
   });

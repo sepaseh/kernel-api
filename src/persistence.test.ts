@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test, type TestContext } from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { eq, getTableName } from "drizzle-orm";
@@ -18,8 +19,10 @@ import { getTableConfig } from "drizzle-orm/sqlite-core";
 
 import { ApplicationError } from "./application/errors.ts";
 import { internalEmail } from "./application/identity.ts";
+import type { Actor } from "./application/models.ts";
 import type { AuthProvider } from "./application/ports/auth.ts";
 import { createUsersService } from "./application/users.ts";
+import { createOtpGateway } from "./infrastructure/auth/otp.ts";
 import { loadConfig } from "./infrastructure/config.ts";
 import { createDatabase } from "./infrastructure/db/client.ts";
 import * as schema from "./infrastructure/db/schema.ts";
@@ -46,6 +49,10 @@ const environment = {
   DATABASE_URL: "file::memory:",
 };
 const now = new Date("2026-01-01T00:00:00Z");
+const actor = {
+  account: { id: "first" },
+  session: { id: "synthetic-session" },
+} as Actor;
 const fixture = async (context: TestContext) => {
   const value = createDatabase(loadConfig(environment));
   context.after(() => value.client.close());
@@ -91,9 +98,17 @@ test("mobile changes preserve authentication identities and allow reuse of old n
     updatedAt: now,
   });
   const repository = createDrizzleUsersRepository(database);
-  const nameOnly = await repository.update("first", { firstName: "Augusta" });
+  const nameOnly = await repository.update(
+    "first",
+    { firstName: "Augusta" },
+    "first",
+  );
   assert.equal(nameOnly?.authEmail, "09120000001@kernel.local");
-  const updated = await repository.update("first", { mobile: "09120000002" });
+  const updated = await repository.update(
+    "first",
+    { mobile: "09120000002" },
+    "first",
+  );
   assert.equal(updated?.authEmail, "09120000001@kernel.local");
   const newIdentity = internalEmail("09120000001");
   await database.insert(schema.user).values({
@@ -106,15 +121,191 @@ test("mobile changes preserve authentication identities and allow reuse of old n
     name: "Grace Hopper",
     updatedAt: now,
   });
-  await assert.rejects(repository.update("second", { mobile: "09120000002" }), {
-    key: "mobileInUse",
-  });
+  await assert.rejects(
+    repository.update("second", { mobile: "09120000002" }, "second"),
+    {
+      key: "mobileInUse",
+    },
+  );
   const second = await repository.find("second");
   assert.equal(second?.mobile, "09120000001");
   assert.equal(second?.authEmail, newIdentity);
   await insertUser(database, "legacy", "09120000003");
-  const legacy = await repository.update("legacy", { mobile: "09120000004" });
+  const legacy = await repository.update(
+    "legacy",
+    { mobile: "09120000004" },
+    "legacy",
+  );
   assert.equal(legacy?.authEmail, "legacy@synthetic.local");
+});
+
+test("mobile changes guard the target and actor at the atomic write", async (context) => {
+  const { database } = await fixture(context);
+  await insertUser(database, "editor", "09120000001");
+  await insertUser(database, "victim", "09120000002");
+  const repository = createDrizzleUsersRepository(database);
+  await assert.rejects(
+    repository.update(
+      "victim",
+      { mobile: "09120000003", firstName: "Denied" },
+      "editor",
+    ),
+    { kind: "forbidden", key: "systemAdminRequired" },
+  );
+  assert.equal((await repository.find("victim"))?.firstName, "Ada");
+  assert.equal((await repository.find("victim"))?.mobile, "09120000002");
+  // Simulate promotion after a request's earlier read but before its write.
+  await database
+    .update(schema.user)
+    .set({ isSystemAdmin: true })
+    .where(eq(schema.user.id, "victim"));
+  await assert.rejects(
+    repository.update("victim", { mobile: "09120000003" }, "editor"),
+    {
+      kind: "forbidden",
+      key: "systemAdminRequired",
+    },
+  );
+  assert.equal((await repository.find("victim"))?.mobile, "09120000002");
+  assert.equal(
+    (await repository.update("victim", { firstName: "Grace" }, "editor"))
+      ?.firstName,
+    "Grace",
+  );
+  await database
+    .update(schema.user)
+    .set({ isSystemAdmin: true })
+    .where(eq(schema.user.id, "editor"));
+  assert.equal(
+    (await repository.update("victim", { mobile: "09120000003" }, "editor"))
+      ?.mobile,
+    "09120000003",
+  );
+  await database
+    .update(schema.user)
+    .set({ isSystemAdmin: false })
+    .where(eq(schema.user.id, "editor"));
+  await assert.rejects(
+    repository.update("victim", { mobile: "09120000004" }, "editor"),
+    {
+      kind: "forbidden",
+      key: "systemAdminRequired",
+    },
+  );
+  await database
+    .update(schema.user)
+    .set({ isSystemAdmin: true, status: "inactive" })
+    .where(eq(schema.user.id, "editor"));
+  await assert.rejects(
+    repository.update("victim", { mobile: "09120000004" }, "editor"),
+    { kind: "forbidden", key: "systemAdminRequired" },
+  );
+  assert.equal((await repository.find("victim"))?.mobile, "09120000003");
+});
+
+test("concurrent target promotion and actor revocation cannot bypass the mobile guard", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "kernel-user-race-"));
+  const databaseUrl = `file:${path.join(root, "fixture.sqlite").replaceAll("\\", "/")}`;
+  const first = createDatabase(
+    loadConfig({ ...environment, DATABASE_URL: databaseUrl }),
+  );
+  const second = createDatabase(
+    loadConfig({ ...environment, DATABASE_URL: databaseUrl }),
+  );
+  context.after(async () => {
+    await second.client.close();
+    await first.client.close();
+    await delay(250);
+    assert.ok(path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep));
+    assert.ok(path.basename(root).startsWith("kernel-user-race-"));
+    await rm(root, {
+      recursive: true,
+      force: true,
+      maxRetries: 20,
+      retryDelay: 250,
+    });
+  });
+  await migrate(first.database, { migrationsFolder: migrations });
+  await insertUser(first.database, "editor", "09120000001");
+  await insertUser(first.database, "victim", "09120000002");
+  await first.database.insert(schema.session).values({
+    id: "editor-session",
+    userId: "editor",
+    token: "synthetic-token",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    expiresAt: new Date(Date.now() + 60_000),
+  });
+  const real = createDrizzleUsersRepository(first.database);
+  const provider: AuthProvider = {
+    getSession: async () => {
+      throw new Error("unused");
+    },
+    hashPassword: async () => {
+      throw new Error("unused");
+    },
+    passwordBounds: async () => {
+      throw new Error("unused");
+    },
+    signIn: async () => {
+      throw new Error("unused");
+    },
+    signOut: async () => {
+      throw new Error("unused");
+    },
+    signUp: async () => {
+      throw new Error("unused");
+    },
+    verifyPassword: async () => {
+      throw new Error("unused");
+    },
+  };
+  const editor = {
+    account: { id: "editor", isSystemAdmin: true, status: "active" },
+    session: { id: "editor-session" },
+  } as Actor;
+  let revoke = false;
+  const service = createUsersService({
+    provider,
+    repository: {
+      ...real,
+      async find(id) {
+        const value = await real.find(id);
+        if (id === "victim") {
+          if (revoke)
+            await second.database
+              .update(schema.user)
+              .set({ isSystemAdmin: false })
+              .where(eq(schema.user.id, "editor"));
+          else
+            await second.database
+              .update(schema.user)
+              .set({ isSystemAdmin: true })
+              .where(eq(schema.user.id, "victim"));
+        }
+        return value;
+      },
+    },
+  });
+  await assert.rejects(
+    service.update(editor, "victim", {
+      mobile: "09120000003",
+      first_name: "Denied",
+    }),
+    { kind: "forbidden", key: "systemAdminRequired" },
+  );
+  assert.equal((await real.find("victim"))?.mobile, "09120000002");
+  assert.equal((await real.find("victim"))?.firstName, "Ada");
+  await first.database
+    .update(schema.user)
+    .set({ isSystemAdmin: true })
+    .where(eq(schema.user.id, "editor"));
+  revoke = true;
+  await assert.rejects(
+    service.update(editor, "victim", { mobile: "09120000003" }),
+    { kind: "forbidden", key: "systemAdminRequired" },
+  );
+  assert.equal((await real.find("victim"))?.mobile, "09120000002");
 });
 
 test("fresh migrations match the ORM's complete columns, keys and declared indexes", async (context) => {
@@ -672,6 +863,30 @@ test("overlapping profile patches derive untouched name parts atomically from cu
 test("managed user patches stay consistent across stale parallel name and mobile reads", async (context) => {
   const { database } = await fixture(context);
   await insertUser(database);
+  await database.insert(schema.session).values({
+    id: "synthetic-session",
+    userId: "first",
+    token: "synthetic-session-token",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    expiresAt: new Date(Date.now() + 60_000),
+  });
+  const otp = createOtpGateway(
+    loadConfig({ ...environment, NODE_ENV: "test", OTP_FIXED_CODE: "123456" }),
+    database,
+  );
+  await otp.issue(
+    "09120000003",
+    "change_mobile",
+    JSON.stringify([
+      "profile",
+      "first",
+      "synthetic-session",
+      "first",
+      "09120000001",
+      "09120000003",
+    ]),
+  );
   const real = createDrizzleUsersRepository(database);
   const unexpected = async (): Promise<never> => {
     throw new Error("Unexpected authentication operation");
@@ -697,6 +912,7 @@ test("managed user patches stay consistent across stale parallel name and mobile
     });
     return createUsersService({
       provider,
+      otp,
       repository: {
         ...real,
         async find(id) {
@@ -706,19 +922,26 @@ test("managed user patches stay consistent across stale parallel name and mobile
           await bothRead;
           return value;
         },
-        async update(id, update) {
-          if (delayMobile && update.mobile) await firstNameCommitted;
-          const value = await real.update(id, update);
-          if (update.firstName) releaseFirstName();
+        async update(id, update, actorId) {
+          const value = await real.update(id, update, actorId);
           return value;
+        },
+        async getRoles(ids) {
+          const roles = await real.getRoles(ids);
+          if (delayMobile) releaseFirstName();
+          return roles;
+        },
+        async transaction(work) {
+          if (delayMobile) await firstNameCommitted;
+          return real.transaction(work);
         },
       },
     });
   };
   const names = concurrentService(false);
   await Promise.all([
-    names.update("first", { first_name: "Grace" }),
-    names.update("first", { last_name: "Hopper" }),
+    names.update(actor, "first", { first_name: "Grace" }),
+    names.update(actor, "first", { last_name: "Hopper" }),
   ]);
   const afterNames = await database.query.user.findFirst({
     where: eq(schema.user.id, "first"),
@@ -728,8 +951,13 @@ test("managed user patches stay consistent across stale parallel name and mobile
   assert.equal(afterNames?.name, "Grace Hopper");
   const mobile = concurrentService(true);
   await Promise.all([
-    mobile.update("first", { first_name: "Marie" }),
-    mobile.update("first", { mobile: "09120000003" }),
+    mobile.update(actor, "first", { first_name: "Marie" }),
+    mobile.update(
+      actor,
+      "first",
+      { mobile: "09120000003", otp: "123456" },
+      "profile",
+    ),
   ]);
   const afterMobile = await database.query.user.findFirst({
     where: eq(schema.user.id, "first"),
@@ -753,9 +981,13 @@ test("unrelated native write failures propagate without false semantic conflicts
     () => persistence.updateUsername(first.id, "new-name"),
     () => persistence.verifyEmail(first.id, "new@synthetic.local"),
     () =>
-      createDrizzleUsersRepository(database).update(first.id, {
-        firstName: "Changed",
-      }),
+      createDrizzleUsersRepository(database).update(
+        first.id,
+        {
+          firstName: "Changed",
+        },
+        "first",
+      ),
   ])
     await assert.rejects(
       run(),
@@ -776,21 +1008,28 @@ test("user repository filters and updates map optional profiles and report real 
   await insertUser(database, "second", "09120000002");
   const repository = createDrizzleUsersRepository(database);
   assert.equal(await repository.find("missing"), undefined);
-  const updated = await repository.update("first", {
-    firstName: "Grace",
-    lastName: "Hopper",
-    mobile: "09120000003",
-  });
+  const updated = await repository.update(
+    "first",
+    {
+      firstName: "Grace",
+      lastName: "Hopper",
+      mobile: "09120000003",
+    },
+    "first",
+  );
   assert.ok(updated);
   assert.equal(updated.name, "Grace Hopper");
   assert.equal(
-    await repository.update("missing", { firstName: "Missing" }),
+    await repository.update("missing", { firstName: "Missing" }, "first"),
     undefined,
   );
-  await assert.rejects(repository.update("second", { mobile: "09120000003" }), {
-    kind: "invalid",
-    key: "mobileInUse",
-  });
+  await assert.rejects(
+    repository.update("second", { mobile: "09120000003" }, "second"),
+    {
+      kind: "invalid",
+      key: "mobileInUse",
+    },
+  );
   await createAccountPersistence(database).updateUsername("first", "grace");
   await createAccountPersistence(database).verifyEmail(
     "first",

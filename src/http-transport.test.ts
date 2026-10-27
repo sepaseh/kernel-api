@@ -16,6 +16,7 @@ const fixture = (permissions: string[] = ["users.delete"]) => {
   const output: string[] = [];
   let deleted = 0;
   let active = true;
+  let updateActor: unknown;
   const logger = createLogger(loadLoggingConfig({ NODE_ENV: "test" }), {
     write: (value) => output.push(value),
   });
@@ -54,6 +55,10 @@ const fixture = (permissions: string[] = ["users.delete"]) => {
         }),
       },
       users: {
+        update: async (actor: unknown, id: string, input: unknown) => {
+          updateActor = actor;
+          return { id, input };
+        },
         remove: async () => {
           deleted++;
           throw new ApplicationError("conflict", "userInUse");
@@ -65,6 +70,7 @@ const fixture = (permissions: string[] = ["users.delete"]) => {
     app: createHttpApp(dependencies),
     output,
     getDeleted: () => deleted,
+    getUpdateActor: () => updateActor,
   };
 };
 
@@ -92,7 +98,80 @@ test("authentication attempt windows enforce limits and expire", (t) => {
   enforceAuthAttempt(context, "login", "alice", 2);
 });
 
-test("authentication attempt storage is bounded and reclaims expired windows", (t) => {
+test("user update forwards the authenticated actor to the service", async () => {
+  const value = fixture(["users.update"]);
+  const response = await value.app.request("/users/target", {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mobile: "09120000002" }),
+  });
+  assert.equal(response.status, 200);
+  assert.equal(
+    (value.getUpdateActor() as { account: { id: string } }).account.id,
+    "actor",
+  );
+});
+
+test("profile mobile response uses the updated account instead of stale authenticated fields", async () => {
+  const logger = createLogger(loadLoggingConfig({ NODE_ENV: "test" }), {
+    write() {},
+  });
+  const dependencies = {
+    logger,
+    config: {
+      allowedOrigins: [],
+      storageDriver: "local",
+      uploadLimitBytes: 1024,
+    },
+    services: {
+      settings: { getLanguageCode: async () => "en" },
+      auth: {
+        fromRequest: () => ({
+          authenticate: async () => ({
+            account: {
+              id: "actor",
+              isSystemAdmin: true,
+              username: "stale",
+              profileEmail: "stale@example.com",
+            },
+            session: { id: "session" },
+            permissions: [],
+          }),
+        }),
+      },
+      users: {
+        update: async () => ({
+          id: "actor",
+          first_name: "New",
+          last_name: "Name",
+          mobile: "09120000002",
+          is_system_admin: false,
+          status: "active",
+          roles: [],
+        }),
+      },
+      account: {
+        getAccount: async (actor: { account: unknown }) => actor.account,
+      },
+    },
+  } as unknown as HttpDependencies;
+  const response = await createHttpApp(dependencies).request(
+    "/account/update-profile",
+    {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mobile: "09120000002", otp: "123456" }),
+    },
+  );
+  assert.equal(response.status, 200);
+  const account = (await response.json()) as Record<string, unknown>;
+  assert.equal(account.isSystemAdmin, false);
+  assert.equal(account.username, undefined);
+  assert.equal(account.profileEmail, undefined);
+  assert.equal(account.mobile, "09120000002");
+});
+
+test("identity churn has no global budget and cannot evict active identity windows", (t) => {
   let now = 1_000;
   t.mock.method(Date, "now", () => now);
   const dependencies = {} as HttpDependencies;
@@ -101,16 +180,47 @@ test("authentication attempt storage is bounded and reclaims expired windows", (
     header: () => undefined,
   } as unknown as Context<AppEnvironment>;
 
-  for (let index = 0; index < 5_000; index++)
-    enforceAuthAttempt(context, `scope-${index}`, "identity");
+  for (let attempt = 0; attempt < 19; attempt++)
+    enforceAuthAttempt(context, "login", "victim");
+  for (let index = 0; index < 9_999; index++)
+    enforceAuthAttempt(context, "login", `identity-${index}`);
+  assert.throws(() => enforceAuthAttempt(context, "login", "fresh-user"), {
+    kind: "rate-limited",
+  });
+  enforceAuthAttempt(context, "login", "victim");
   assert.throws(
-    () => enforceAuthAttempt(context, "new-scope", "identity"),
+    () => enforceAuthAttempt(context, "login", "victim"),
     (error: unknown) =>
       error instanceof ApplicationError && error.kind === "rate-limited",
   );
 
   now += 15 * 60 * 1_000;
-  enforceAuthAttempt(context, "new-scope", "identity");
+  enforceAuthAttempt(context, "login", "victim");
+});
+
+test("all-blocked saturation fails closed until a window expires", (t) => {
+  let now = 1_000;
+  t.mock.method(Date, "now", () => now);
+  const headers = new Map<string, string>();
+  const context = {
+    get: () => dependencies,
+    header: (name: string, value: string) => headers.set(name, value),
+  } as unknown as Context<AppEnvironment>;
+  const dependencies = {} as HttpDependencies;
+  for (let index = 0; index < 10_000; index++)
+    enforceAuthAttempt(context, "login", `locked-${index}`, 1);
+  assert.throws(() => enforceAuthAttempt(context, "login", "new-user", 1), {
+    kind: "rate-limited",
+  });
+  assert.equal(headers.get("Retry-After"), "900");
+  assert.throws(() => enforceAuthAttempt(context, "login", "locked-0", 1), {
+    kind: "rate-limited",
+  });
+  now += 15 * 60 * 1_000;
+  enforceAuthAttempt(context, "login", "new-user", 1);
+  assert.throws(() => enforceAuthAttempt(context, "login", "new-user", 1), {
+    kind: "rate-limited",
+  });
 });
 
 test("health and credentialed CORS distinguish allowed origins", async () => {
