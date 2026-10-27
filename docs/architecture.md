@@ -49,7 +49,8 @@ object storage, HTTP authorization or host-filesystem isolation.
 
 `storage/minio.ts` implements the same port with `@aws-sdk/client-s3`;
 `storage/create.ts` selects it only for the explicit `minio` driver. SDK types
-remain inside infrastructure. The adapter owns two configured bucket names,
+remain inside infrastructure. The adapter owns `<base>-private` and `<base>-public`
+bucket names derived from the configured `MINIO_BUCKET` base,
 requires explicit credentials, endpoint and signing region (optional `MINIO_REGION`
 defaults to `us-east-1`), enforces TLS outside localhost or literal loopback,
 removes the private bucket's policy and grants public reads only on the public
