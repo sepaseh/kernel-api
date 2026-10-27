@@ -41,7 +41,7 @@ const closeResources = async () => {
     errors.push(error);
   }
   try {
-    await client?.close();
+    client?.close();
   } catch (error) {
     errors.push(error);
   }
