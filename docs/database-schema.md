@@ -43,8 +43,8 @@ independent of their mobile number. A mobile change preserves the stored email,
 including legacy mobile-derived or custom values; migrations do not rewrite it.
 The authentication layer must look up the user by mobile and use the stored
 identity when signing in. A new account can therefore reuse a released mobile
-without taking over a legacy internal email. Auth adapters and end-to-end
-authentication are not published in this phase and must be verified before rollout.
+without taking over a legacy internal email. Auth adapters are tested against synthetic
+databases; end-to-end HTTP authentication and rollback require separate verification before rollout.
 
 If the account disappears before a profile, username or verified-email write,
 the adapter reports the authentication-required error instead of succeeding or
@@ -117,10 +117,11 @@ user payload text cannot mask unrelated database failures.
 
 Run `npm run validate -- full` for the complete current-phase gate. Actual LCOV
 comes from this checkout's tests; do not treat these local SQLite results as
-remote database, production rollout, HTTP, OTP delivery or authentication evidence.
-Initialization/seeding, first-admin bootstrap, Drizzle generation tooling and
-server entry points are not published in this phase. Do not run migrations on
-existing data without explicit authorization and a verified matching backup.
+remote database, production rollout, HTTP, OTP delivery or complete authentication
+runtime evidence. Database initialization, optional development seeding and initial
+administrator provisioning are published; Drizzle generation tooling and server
+entry points are not. Do not run migrations on existing data without explicit
+authorization and a verified matching backup.
 
 See [architecture](architecture.md), [publication gate](bootstrap.md) and
 [Contributing](../CONTRIBUTING.md).

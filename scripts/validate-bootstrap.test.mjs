@@ -173,6 +173,60 @@ const databasePolicy = (overrides = {}) =>
     ...overrides,
   });
 
+const authBootstrapFiles = [
+  "docs/auth-adapters.md",
+  "docs/auth-adapters.fa.md",
+  "scripts/auth-bootstrap-integration.test.mjs",
+  "scripts/auth-identity-integration.test.mjs",
+  "src/auth-gateway.test.ts",
+  "src/bootstrap-admin.ts",
+  "src/infrastructure/admin/bootstrap.ts",
+  "src/infrastructure/auth/better-auth.ts",
+  "src/infrastructure/auth/gateway.ts",
+  "src/infrastructure/auth/otp.ts",
+  "src/infrastructure/db/initialize.ts",
+  "src/infrastructure/persistence/auth.ts",
+];
+const authBootstrapPolicy = (overrides = {}) =>
+  databasePolicy({
+    allowedFiles: [...databasePolicy().allowedFiles, ...authBootstrapFiles],
+    phase: "auth-bootstrap",
+    ...overrides,
+  });
+
+test("auth-bootstrap requires every adapter and test while excluding HTTP and production runtime", () => {
+  const complete = authBootstrapPolicy();
+  assert.equal(
+    validateBootstrapPolicy(complete).size,
+    complete.allowedFiles.length,
+  );
+  for (const required of authBootstrapFiles)
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        authBootstrapPolicy({
+          allowedFiles: complete.allowedFiles.filter(
+            (file) => file !== required,
+          ),
+        }),
+      ),
+    );
+  for (const extra of [
+    "src/index.ts",
+    "src/composition.ts",
+    "src/presentation/http/app.ts",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        authBootstrapPolicy({
+          allowedFiles: [...complete.allowedFiles, extra],
+        }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(authBootstrapPolicy({ applicationReady: true })),
+  );
+});
+
 const fixture = async (context, declaredPolicy = policy()) => {
   const parent = path.resolve(os.tmpdir());
   const root = await mkdtemp(path.join(parent, "kernel-bootstrap-test-"));

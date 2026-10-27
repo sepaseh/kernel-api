@@ -202,6 +202,14 @@ test("database SDKs resolve to exact real packages only in their declared infras
     ["@libsql/client", "src/infrastructure/db/client.ts", "@libsql/client"],
     ["drizzle-orm/libsql", "src/infrastructure/db/client.ts", "drizzle-orm"],
     ["drizzle-orm", "src/infrastructure/db/schema.ts", "drizzle-orm"],
+    ["drizzle-orm", "src/infrastructure/admin/bootstrap.ts", "drizzle-orm"],
+    ["drizzle-orm", "src/infrastructure/auth/otp.ts", "drizzle-orm"],
+    ["drizzle-orm", "src/infrastructure/db/initialize.ts", "drizzle-orm"],
+    [
+      "drizzle-orm/libsql/migrator",
+      "src/infrastructure/db/initialize.ts",
+      "drizzle-orm",
+    ],
     [
       "drizzle-orm/sqlite-core",
       "src/infrastructure/db/schema.ts",
@@ -209,6 +217,7 @@ test("database SDKs resolve to exact real packages only in their declared infras
     ],
     ...[
       "account",
+      "auth",
       "calendar",
       "files",
       "identity",

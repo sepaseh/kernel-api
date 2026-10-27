@@ -3,10 +3,10 @@
 [English](README.md) · [فارسی](README.fa.md)
 
 Kernel API is a standalone TypeScript project. The current
-**database-persistence** phase provides contracts, application services,
+**auth-bootstrap** phase provides contracts, application services,
 feature ports, ten API catalogs, configuration, translation and logging support,
 local filesystem plus S3-compatible MinIO object storage, and real libSQL/Drizzle
-database schema, migrations and non-authentication persistence.
+database schema, migrations, authentication/OTP persistence and initial administrator provisioning.
 `applicationReady` remains **false**: this
 snapshot does not start an HTTP API.
 
@@ -20,8 +20,7 @@ snapshot does not start an HTTP API.
   roles, settings and users.
 - [`src/application/ports/`](src/application/ports/) contains eight feature ports
   for persistence, authentication, OTP and object storage. Concrete adapters for
-  non-authentication persistence and local/MinIO storage are published; concrete
-  authentication and OTP persistence remain outside this phase.
+  database persistence, authentication, OTP persistence and local/MinIO storage are published.
 - [`src/infrastructure/localization/catalogs/`](src/infrastructure/localization/catalogs/)
   contains flat, complete API catalogs for Arabic, German, English, Spanish,
   Persian, French, Italian, Portuguese, Russian and Turkish. Its `index.ts`
@@ -60,9 +59,9 @@ snapshot does not start an HTTP API.
 
 [Architecture](docs/architecture.md) explains ownership, language authority,
 hard-deletion policy and what fake-port tests can establish. HTTP routes,
-cookies, concrete authentication/OTP, database initialization/seeding, application composition and
-deployment are not published or validated in this phase. Runtime dependencies are
-i18next, Pino, `@aws-sdk/client-s3`, `@libsql/client` and `drizzle-orm`; pino-pretty is a development dependency for readable local logs.
+cookies, application composition, production OTP delivery and deployment are not
+published or validated in this phase. See [authentication adapters](docs/auth-adapters.md). Runtime dependencies are
+i18next, Pino, Better Auth, `@aws-sdk/client-s3`, `@libsql/client` and `drizzle-orm`; pino-pretty is a development dependency for readable local logs.
 
 ## Install and validate
 
@@ -83,8 +82,8 @@ existing database or running API.
 
 Tests generate real `coverage/lcov.info` for published application source, catalog data, infrastructure support and
 repository tooling in this checkout. Real database tests measure the published
-persistence adapters and migration behavior. This is not coverage of concrete HTTP,
-authentication or a deployed MinIO service. It includes real filesystem storage
+persistence adapters, migration behavior and synthetic authentication flows. This is not coverage of concrete HTTP
+or a deployed MinIO service. It includes real filesystem storage
 and signed S3 SDK tests against a synthetic loopback HTTP server.
 Generated coverage is not committed.
 See [Sonar setup](docs/sonarqube.md) for scanner and provider-gate evidence.
