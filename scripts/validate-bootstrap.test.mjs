@@ -82,6 +82,26 @@ const localizationPolicy = (overrides = {}) =>
     phase: "localization-data",
     ...overrides,
   });
+const infrastructureSupportFiles = [
+  "src/infrastructure/config.ts",
+  "src/infrastructure/lifecycle.ts",
+  "src/infrastructure/localization/i18n.ts",
+  "src/infrastructure/logging/logger.ts",
+  "src/infrastructure/logging/sanitization.ts",
+  "src/config.test.ts",
+  "src/lifecycle.test.ts",
+  "src/localization.test.ts",
+  "src/logger.test.ts",
+];
+const infrastructureSupportPolicy = (overrides = {}) =>
+  localizationPolicy({
+    allowedFiles: [
+      ...localizationPolicy().allowedFiles,
+      ...infrastructureSupportFiles,
+    ],
+    phase: "infrastructure-support",
+    ...overrides,
+  });
 
 const fixture = async (context, declaredPolicy = policy()) => {
   const parent = path.resolve(os.tmpdir());
@@ -337,6 +357,71 @@ test("localization-data inspects its complete non-runnable snapshot", async (con
     phase: "localization-data",
     scope:
       "Published contracts, application services and static translation catalogs; translation engine, HTTP, database and concrete adapters are not published or validated.",
+  });
+});
+
+test("infrastructure-support requires each support module and its genuine tests", () => {
+  const declared = infrastructureSupportPolicy();
+  assert.equal(
+    validateBootstrapPolicy(declared).size,
+    declared.allowedFiles.length,
+  );
+  for (const file of [
+    ...infrastructureSupportFiles,
+    ...localizationFiles,
+    ...serviceFiles,
+    ...serviceTests,
+  ])
+    assert.throws(
+      () =>
+        validateBootstrapPolicy(
+          infrastructureSupportPolicy({
+            allowedFiles: declared.allowedFiles.filter((item) => item !== file),
+          }),
+        ),
+      /mandatory/,
+    );
+});
+
+test("support publication does not admit a server, concrete adapters or arbitrary infrastructure", () => {
+  for (const file of [
+    "src/index.ts",
+    "src/composition.ts",
+    "src/infrastructure/db/client.ts",
+    "src/infrastructure/auth/better-auth.ts",
+    "src/infrastructure/storage/local.ts",
+    "src/presentation/http/app.ts",
+    "src/infrastructure/logging/unreviewed.ts",
+    "src/unrelated.test.ts",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        infrastructureSupportPolicy({
+          allowedFiles: [...infrastructureSupportPolicy().allowedFiles, file],
+        }),
+      ),
+    );
+  assert.throws(() =>
+    validateBootstrapPolicy(
+      infrastructureSupportPolicy({ applicationReady: true }),
+    ),
+  );
+  assert.throws(() =>
+    validateBootstrapPolicy(
+      infrastructureSupportPolicy({ phase: "localization-data" }),
+    ),
+  );
+});
+
+test("infrastructure-support validates its complete non-runnable snapshot", async (context) => {
+  const declared = infrastructureSupportPolicy();
+  const { root } = await fixture(context, declared);
+  assert.deepEqual(await inspectBootstrap(root), {
+    applicationReady: false,
+    files: declared.allowedFiles.length,
+    phase: "infrastructure-support",
+    scope:
+      "Published contracts, application services, translation engine, configuration and logging/lifecycle support; HTTP, database and authentication/storage adapters are not published or validated.",
   });
 });
 

@@ -2,11 +2,11 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The current [localization-data phase](bootstrap.md) contains a framework-free
-application layer, local contracts, feature-specific dependency ports and ten
-static API message catalogs.
+The current [infrastructure-support phase](bootstrap.md) contains a framework-free
+application layer, local contracts, feature ports, ten static API catalogs and
+configuration, translation, logging and fatal-lifecycle support.
 `applicationReady:false` is deliberate: there is no HTTP server, composition
-root, database schema, migration or concrete adapter in this snapshot.
+root, database schema, migration, authentication provider or storage adapter in this snapshot.
 
 ## Ownership and dependencies
 
@@ -18,8 +18,9 @@ there is no workspace or shared-package dependency.
 Application services never import framework, ORM, authentication/storage SDK or
 HTTP request/response types. The localization module supplies erased message-key
 types. Static translated strings live in
-`src/infrastructure/localization/catalogs/`; translation execution and HTTP status
-mapping belong to future adapters. Each language module exports one flat literal
+`src/infrastructure/localization/catalogs/`; the separate `localization/i18n.ts`
+adapter owns translation execution through i18next. HTTP status mapping belongs
+to the future transport. Each language module exports one flat literal
 object and may import the application vocabulary only as a fully erased type.
 The registry in `catalogs/index.ts` consumes those original objects and the
 erased locale contract type. Application code cannot import catalog data or
@@ -29,6 +30,22 @@ resolution, contract purity and forbidden application dependencies. The exact
 publication guard separately rejects undeclared source and runnable layers.
 Catalog AST checks reject executable logic, engine imports and fallback spreads;
 the only catalog runtime dependencies are the registry's local data imports.
+
+`src/infrastructure/config.ts` parses supplied environment settings without loading
+environment files or opening services. It validates numeric settings and driver
+selection and requires explicit credentials for MinIO.
+Fixed OTP codes and development seeding require an explicit `NODE_ENV` of
+`development` or `test`; an unset or other environment rejects fixed codes and
+keeps seeding disabled. This does not change logging's development default.
+`logging/logger.ts` owns
+Pino JSON logging and asynchronous request context; `logging/sanitization.ts`
+removes private fields and raw error/SDK details, including credential assignments
+inside serialized JSON text. Development pretty output uses
+pino-pretty with the same redaction policy. `lifecycle.ts` installs fatal-error
+handlers only when called and keeps them active while flushing, so repeated fatal
+failures cannot fall through to raw process diagnostics. Flushing is bounded
+before process exit. None of these
+support modules composes or starts an HTTP server.
 
 | Service       | Responsibility                                                                                                                                                                    |
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -58,9 +75,12 @@ independent user language choice.
 All ten catalog files have the complete application message vocabulary and
 matching interpolation variables. Values are genuine translations, with one
 flat key space per language. The registry preserves canonical object identity
-without copying data or choosing a fallback. This phase supplies data only;
-language resolution, interpolation execution and HTTP localization are not
-implemented or validated by a catalog-data test.
+without copying data or choosing a fallback. The separate engine resolves supported
+codes and interpolates messages from every catalog, with English fallback for
+unsupported codes. That fallback does not authorize a separate user language choice:
+the future HTTP adapter must use the API-owned active-language setting. Engine tests
+establish translation execution; catalog-data tests establish data integrity.
+HTTP response localization and persisted-language selection remain unvalidated.
 
 Soft deletion is prohibited. Role deletion uses the port's atomic
 `deleteIfUnassigned` result and reports a semantic conflict when assigned. User
@@ -82,6 +102,12 @@ read inside the callback; they do not prove database isolation or rollback.
 Data-only catalog tests cover language and message-key parity, flat strings,
 interpolation variables and canonical object identity without loading a translation
 engine.
+Separate engine tests load real i18next for all ten languages. Configuration tests
+use synthetic environment objects. Logging tests exercise real Pino output,
+redaction, safe causes/query-shaped errors, request-context isolation and pretty
+printing. Fatal-handler tests run in isolated subprocesses and check bounded
+flush/exit behavior without installing handlers in the test runner. Server startup
+failure handling is deferred until the HTTP entry point is published.
 
 Uploads reject oversized declared sizes before reading, then validate the actual
 read bytes before any object write. Metadata and upload diagnostics use the

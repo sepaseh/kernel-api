@@ -2,9 +2,9 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The current [localization-data phase](docs/bootstrap.md) contains pure
-contracts, application primitives, feature services, adapter interfaces and ten
-static API message catalogs. It is
+The current [infrastructure-support phase](docs/bootstrap.md) contains contracts,
+application services, ports, ten static catalogs and configuration, translation,
+logging and fatal-lifecycle support. It is
 not a runnable API.
 Contributions must preserve this declared scope and the independent project
 boundary.
@@ -27,8 +27,9 @@ Keep API catalog data under `src/infrastructure/localization/catalogs/`, with
 one flat literal string object per supported language and the canonical registry
 in `index.ts`. Catalogs may use fully erased application message types; the
 registry may also use the locale contract type. Application code must never
-import infrastructure. Do not add fallback spreads, executable catalog logic or
-a translation engine to this data phase. Preserve complete message keys and
+import infrastructure. Keep fallback spreads, executable logic and engine imports
+out of catalog data. The separate `localization/i18n.ts` adapter owns i18next.
+Preserve complete message keys and
 interpolation placeholders in all ten genuine translations.
 
 The exact maintained inventory is declared by
@@ -38,8 +39,11 @@ not the 100-file PR limit: the repository may contain more than 100 files, while
 each PR must still change no more than 100 GitHub file entries.
 
 Preserve unrelated work, private environment files, credentials and runtime data.
-Application tests use synthetic fake ports and local fixtures. Never use real databases, uploads
-or production services to validate this phase.
+Application tests use synthetic fake ports and local fixtures. Configuration tests
+pass synthetic environment objects; never load private environment files. MinIO
+selection requires explicit credentials; invalid numeric or driver settings fail.
+Use real i18next/Pino for support tests and isolated child processes for fatal
+handlers. Never use real databases, uploads or production services to validate this phase.
 
 ## Development and validation
 
@@ -57,7 +61,7 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
-Each PR runs all nine required checks for the published localization-data
+Each PR runs all nine required checks for the published infrastructure-support
 snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
 This includes draft and documentation-only PRs; there are no changed-path or
 branch filters. The runner rejects duplicate IDs, omitted required checks and
@@ -70,14 +74,17 @@ The full phase includes the source/snapshot guards, dependency audit, type and
 style checks, measured application/governance coverage and audit-helper tests.
 Keep tests for authorization boundaries, semantic errors, canonical permissions,
 identity, locale metadata, catalog completeness and object identity, literal-data
-boundaries, validation and repository safety meaningful. Do not
+boundaries, validation and repository safety meaningful. Support coverage must
+exercise engine interpolation, structured logging/redaction, configuration and
+fatal log flushing/exits. HTTP startup-failure behavior requires the future
+server entry point and is not established by these subprocess tests. Do not
 fabricate LCOV, borrow another project's report or describe foundation coverage as
 full API coverage. See [architecture](docs/architecture.md) for service ownership
 and the limits of fake-port evidence.
 
 A later runnable phase must introduce coherent HTTP transport and concrete adapters
 with the complete HTTP, DB, authentication and storage tests and its full canonical
-validation gate. This pure-source phase pass cannot replace those tests or establish
+validation gate. This support-phase pass cannot replace those tests or establish
 application readiness in advance.
 
 ## Before requesting CodeRabbit

@@ -1,19 +1,20 @@
-# Localization-data phase and validation
+# Infrastructure-support phase and validation
 
 [English](bootstrap.md) · [فارسی](bootstrap.fa.md)
 
-This snapshot is in the **localization-data** phase. Its exact inventory is
+This snapshot is in the **infrastructure-support** phase. Its exact inventory is
 [bootstrap-policy.json](../.github/bootstrap-policy.json), and `applicationReady`
 remains **false**. Pure contracts, core modules, feature ports and the seven
 account, authentication, calendar, files, roles, settings and users services are
-published, together with ten flat API message catalogs and their canonical
-registry. HTTP, DB/migrations, concrete authentication/storage adapters,
-translation-engine integration and deployment are not included.
+published, together with ten flat API catalogs, their registry, the i18next
+adapter, configuration validation, Pino logging/redaction and fatal process
+handlers. HTTP, DB/migrations, concrete authentication/storage adapters,
+initial-administrator setup and deployment are not included.
 
 Read [README](../README.md) for the source map, [architecture](architecture.md)
 for ownership and limitations, and [Contributing](../CONTRIBUTING.md) for the
-change workflow. The toolchain has development dependencies and no runtime
-dependencies; it does not start an API.
+change workflow. i18next and Pino are runtime dependencies; pino-pretty is a
+development dependency. This snapshot does not start an API.
 
 ## Exact snapshot and complete phase gate
 
@@ -51,8 +52,9 @@ Validate an isolated checkout/export of the exact proposed snapshot. The guard
 rejects missing or unexpected maintained files, symlinks and private paths;
 ambient untracked source must not make a partial PR appear complete. This phase
 requires all seven service modules, the five declared pure application test
-files, all ten language data files, their registry and the data-only catalog
-tests. Adding a path to the inventory alone cannot admit an unreviewed module,
+files, all ten language data files and their registry, the declared support
+modules and their data, configuration, engine, logging and lifecycle tests.
+Adding a path to the inventory alone cannot admit an unreviewed module,
 concrete adapter or runnable entry point. The **100-file cap applies to each
 PR's GitHub changed-file list**, not the repository's total file count.
 
@@ -70,12 +72,20 @@ Catalog tests compare all supported language codes and the complete application
 message vocabulary, verify flat nonempty strings and identical interpolation
 variables, and check that the registry preserves each original object. AST checks
 keep language modules literal data without engine imports, fallback spreads or
-executable logic. These checks validate catalog data; translation execution,
-fallback resolution and HTTP response localization need their own integration
-tests when the runtime adapter is published.
+executable logic. Separate tests exercise actual i18next resolution, English
+fallback and interpolation for all ten languages. The catalog and engine checks
+do not establish HTTP localization or persisted-language selection.
+
+Configuration tests use synthetic environment objects and validate explicit MinIO
+credentials, numeric settings and driver selection without opening external
+services. Pino tests check structured fields, safe error causes/query-shaped
+failures, redaction, request-context concurrency and development pretty output.
+Fatal-handler tests use isolated subprocesses to check logging, flushing and exit;
+the unpublished HTTP entry point's startup-failure behavior remains deferred.
 
 `npm run test:coverage` produces actual `coverage/lcov.info` from published
-application source, catalog data and tested repository scripts in this checkout. Audit-helper
+application source, catalog data, infrastructure support and tested repository
+scripts in this checkout. Audit-helper
 tests are also required by the full profile. Generated reports are not committed.
 Fake ports do not establish real DB transactions, concurrency, cookies, OTP
 delivery or storage behavior and do not prove a runnable API is ready.
@@ -124,7 +134,7 @@ and expand the canonical full gate when those implementations arrive. Update
 the inventory, workflows, analysis scope and branch-protection contexts together;
 verify replacement checks before retiring obsolete ones.
 
-Do not set application readiness to true because the localization-data gate passes.
+Do not set application readiness to true because the infrastructure-support gate passes.
 Do not use broad allowlist changes, placeholder behavior or unrelated untracked
 source as evidence that a runnable API works. Preserve the per-PR 100-file cap
 through subsequent phases.

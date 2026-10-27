@@ -16,7 +16,7 @@
     "lint:fix": "eslint . --fix",
     "test": "npm run test:coverage && npm run test:audit",
     "test:audit": "vitest run scripts/run-audit.test.mjs",
-    "test:coverage": "node -e \"require('node:fs').mkdirSync('coverage', { recursive: true })\" && node --experimental-test-coverage --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info src/catalogs.test.ts src/foundation.test.ts src/validation.test.ts src/account-application.test.ts src/auth-application.test.ts src/files-application.test.ts src/management-application.test.ts src/users-application.test.ts scripts/check-ci.test.mjs scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs scripts/boundaries.test.mjs scripts/validate.test.mjs",
+    "test:coverage": "node -e \"require('node:fs').mkdirSync('coverage', { recursive: true })\" && node --experimental-test-coverage --test --test-reporter=spec --test-reporter=lcov --test-reporter-destination=stdout --test-reporter-destination=coverage/lcov.info src/config.test.ts src/lifecycle.test.ts src/localization.test.ts src/logger.test.ts src/catalogs.test.ts src/foundation.test.ts src/validation.test.ts src/account-application.test.ts src/auth-application.test.ts src/files-application.test.ts src/management-application.test.ts src/users-application.test.ts scripts/check-ci.test.mjs scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs scripts/boundaries.test.mjs scripts/validate.test.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "validate": "node scripts/validate.mjs",
     "check:ci": "node scripts/check-ci.mjs"
@@ -27,10 +27,15 @@
     "eslint": "^10.13.0",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "globals": "^17.13.0",
+    "pino-pretty": "^13.2.0",
     "prettier": "^3.9.10",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5",
     "yaml": "^2.9.1"
+  },
+  "dependencies": {
+    "i18next": "^26.5.11",
+    "pino": "^10.4.0"
   }
 }

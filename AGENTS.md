@@ -1,18 +1,24 @@
-# Kernel API localization-data instructions
+# Kernel API infrastructure-support instructions
 
 Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 [publication inventory](.github/bootstrap-policy.json) and the canonical
 [validation manifest](.agents/validation.json) before changes.
 
-This standalone npm project publishes pure HTTP contracts, application primitives,
-feature services, ports and ten flat API message catalogs in the localization-data
-phase. Keep dependencies local and framework free; read
+This standalone npm project publishes contracts, application services, ports,
+ten flat API catalogs and infrastructure support for configuration, translation,
+logging and fatal process failures in the infrastructure-support phase. Keep
+application code framework free and dependencies within this checkout; read
 [architecture](docs/architecture.md). Catalog data belongs in
 src/infrastructure/localization/catalogs; its index exposes each canonical object.
 Keep application vocabulary imports fully erased and application code independent
 of infrastructure. Catalogs contain literal strings only: no fallback spreads,
-executable logic or translation engine. The HTTP
-server, database and concrete adapters belong to later reviewed phases. Keep
+executable logic or engine imports. The separate localization/i18n.ts adapter uses
+i18next; logging uses Pino, with pino-pretty restricted to development. Configuration
+parses an explicit environment object or process.env without loading private files.
+Require explicit MinIO credentials when that driver is selected and reject invalid
+driver/numeric settings. Test configuration with synthetic inputs and fatal handlers
+in isolated subprocesses. The HTTP server, database, authentication and storage
+adapters belong to later reviewed phases. Keep
 applicationReady false; pure fake-port tests do not establish runtime readiness.
 Soft deletion is prohibited: business references must block hard deletion with a
 semantic conflict, without partial effects. Future HTTP adapters map that conflict
@@ -25,12 +31,16 @@ never read real environment files or credentials, and require explicit user
 authorization for commits, pushes, remote comments and merging.
 
 Every PR, including drafts and documentation-only changes, runs all nine required
-checks for the published localization-data snapshot through that same full
+checks for the published infrastructure-support snapshot through that same full
 profile. Keep the semantic CI policy check: no PR path/branch filters, conditional
 or advisory full execution, hidden command omissions or implicit runner/job
 transitions. A focused development profile cannot replace the full PR gate.
 Catalog tests must preserve supported-language and message-vocabulary parity,
 flat nonempty values, interpolation placeholders and canonical object identity.
+Engine tests must exercise real resolution and interpolation for all ten languages.
+Logging tests must protect structured context and redact credentials, private fields
+and error details. Subprocess tests establish fatal logging/flush/exit behavior;
+HTTP startup failures remain unvalidated until the server entry point is published.
 The narrow Sonar duplication exception names only the ten catalog data files;
 locale metadata and the registry retain duplication analysis. Keep source, rule and coverage
 analysis enabled; adding executable catalog logic requires revisiting the exception.
