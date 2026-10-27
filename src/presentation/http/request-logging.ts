@@ -11,6 +11,18 @@ import {
 import { sanitizeLogText } from "../../infrastructure/logging/sanitization.ts";
 import { type AppEnvironment, respondToError } from "./http.ts";
 
+const levelForStatus = (status: number) => {
+  if (status >= 500) return "error";
+  if (status >= 400) return "warn";
+  return "info";
+};
+
+const reasonForError = (error: Error | undefined, status: number) => {
+  if (error instanceof ApplicationError) return error.key;
+  if (status >= 500) return "internalError";
+  return undefined;
+};
+
 export const requestLogging =
   (rootLogger: AppLogger): MiddlewareHandler<AppEnvironment> =>
   async (context, next) => {
@@ -24,12 +36,12 @@ export const requestLogging =
     await requestLogContext.run({ logger }, async () => {
       try {
         await next();
-      } catch (thrown) {
+      } catch (error_) {
         // Hono handles Error instances internally, but non-Error throws escape.
         const error =
-          thrown instanceof Error
-            ? thrown
-            : new Error("Non-Error value thrown", { cause: thrown });
+          error_ instanceof Error
+            ? error_
+            : new Error("Non-Error value thrown", { cause: error_ });
         context.error = error;
         context.res = respondToError(error, context);
       }
@@ -43,13 +55,8 @@ export const requestLogging =
       const route = matchedRoutes(context).findLast(
         (value) => value.method !== "ALL",
       )?.path;
-      const level = status >= 500 ? "error" : status >= 400 ? "warn" : "info";
-      const reason =
-        error instanceof ApplicationError
-          ? error.key
-          : status >= 500
-            ? "internalError"
-            : undefined;
+      const level = levelForStatus(status);
+      const reason = reasonForError(error, status);
       // Route templates avoid retaining personal data in path parameters or 404 URLs.
       const fields = {
         method,

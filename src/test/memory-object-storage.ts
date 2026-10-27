@@ -4,19 +4,22 @@ import { publicObjectUrl } from "../infrastructure/storage/url.ts";
 export class MemoryObjectStorage implements ObjectStorage {
   readonly objects = new Map<string, Uint8Array>();
 
-  async delete(bucket: string, objectKey: string) {
+  delete(bucket: string, objectKey: string) {
     this.objects.delete(`${bucket}/${objectKey}`);
+    return Promise.resolve();
   }
 
-  async ensureReady() {}
+  ensureReady() {
+    return Promise.resolve();
+  }
 
-  async get(bucket: string, objectKey: string) {
+  get(bucket: string, objectKey: string) {
     const value = this.objects.get(`${bucket}/${objectKey}`);
-    if (!value) throw new Error("Object not found.");
-    return value;
+    if (!value) return Promise.reject(new Error("Object not found."));
+    return Promise.resolve(value);
   }
 
-  async put(input: {
+  put(input: {
     contentType: string;
     data: Uint8Array;
     objectKey: string;
@@ -24,7 +27,7 @@ export class MemoryObjectStorage implements ObjectStorage {
   }) {
     const bucket = `test-${input.visibility}`;
     this.objects.set(`${bucket}/${input.objectKey}`, input.data);
-    return { bucket, objectKey: input.objectKey };
+    return Promise.resolve({ bucket, objectKey: input.objectKey });
   }
 
   url(bucket: string, objectKey: string, visibility: string) {

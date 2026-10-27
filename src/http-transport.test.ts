@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import type { Context } from "hono";
+
 import { ApplicationError } from "./application/errors.ts";
 import { loadLoggingConfig } from "./infrastructure/config.ts";
 import { getTranslator } from "./infrastructure/localization/i18n.ts";
 import { createLogger } from "./infrastructure/logging/logger.ts";
 import { createHttpApp } from "./presentation/http/app.ts";
+import { enforceAuthAttempt } from "./presentation/http/auth-attempts.ts";
 import type { HttpDependencies } from "./presentation/http/dependencies.ts";
+import type { AppEnvironment } from "./presentation/http/http.ts";
 
 const fixture = (permissions: string[] = ["users.delete"]) => {
   const output: string[] = [];
@@ -63,6 +67,51 @@ const fixture = (permissions: string[] = ["users.delete"]) => {
     getDeleted: () => deleted,
   };
 };
+
+test("authentication attempt windows enforce limits and expire", (t) => {
+  let now = 1_000;
+  t.mock.method(Date, "now", () => now);
+  const headers = new Map<string, string>();
+  const dependencies = {} as HttpDependencies;
+  const context = {
+    get: () => dependencies,
+    header: (name: string, value: string) => headers.set(name, value),
+  } as unknown as Context<AppEnvironment>;
+
+  enforceAuthAttempt(context, "login", "alice", 2);
+  enforceAuthAttempt(context, "login", "alice", 2);
+  assert.throws(
+    () => enforceAuthAttempt(context, "login", "alice", 2),
+    (error: unknown) =>
+      error instanceof ApplicationError && error.kind === "rate-limited",
+  );
+  assert.equal(headers.get("Retry-After"), "900");
+  enforceAuthAttempt(context, "login", "bob", 2);
+
+  now += 15 * 60 * 1_000;
+  enforceAuthAttempt(context, "login", "alice", 2);
+});
+
+test("authentication attempt storage is bounded and reclaims expired windows", (t) => {
+  let now = 1_000;
+  t.mock.method(Date, "now", () => now);
+  const dependencies = {} as HttpDependencies;
+  const context = {
+    get: () => dependencies,
+    header: () => undefined,
+  } as unknown as Context<AppEnvironment>;
+
+  for (let index = 0; index < 5_000; index++)
+    enforceAuthAttempt(context, `scope-${index}`, "identity");
+  assert.throws(
+    () => enforceAuthAttempt(context, "new-scope", "identity"),
+    (error: unknown) =>
+      error instanceof ApplicationError && error.kind === "rate-limited",
+  );
+
+  now += 15 * 60 * 1_000;
+  enforceAuthAttempt(context, "new-scope", "identity");
+});
 
 test("health and credentialed CORS distinguish allowed origins", async () => {
   const { app } = fixture();

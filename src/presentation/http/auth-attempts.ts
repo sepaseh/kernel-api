@@ -13,6 +13,28 @@ const windowsByApplication = new WeakMap<
 const duration = 15 * 60 * 1000;
 const maximumWindows = 10_000;
 
+const removeExpiredWindows = (windows: Map<string, Window>, stamp: number) => {
+  for (const [key, window] of windows)
+    if (window.expiresAt <= stamp) windows.delete(key);
+};
+
+const currentWindow = (
+  windows: Map<string, Window>,
+  key: string,
+  stamp: number,
+) => {
+  const previous = windows.get(key);
+  if (previous && previous.expiresAt > stamp) return previous;
+
+  if (windows.size >= maximumWindows) removeExpiredWindows(windows, stamp);
+  if (!previous && windows.size >= maximumWindows)
+    throw new ApiError(429, "authThrottled");
+
+  const window = { count: 0, expiresAt: stamp + duration };
+  windows.set(key, window);
+  return window;
+};
+
 // A bounded, single-process backstop for the native API wrappers. Shared
 // deployments still need an ingress or shared-store limiter; this trusts no XFF.
 export function enforceAuthAttempt(
@@ -33,17 +55,7 @@ export function enforceAuthAttempt(
     [`${scope}:global`, 2000],
     [`${scope}:${hash}`, maximum],
   ] as const) {
-    let window = windows.get(key);
-    if (!window || window.expiresAt <= stamp) {
-      if (windows.size >= maximumWindows) {
-        for (const [expiredKey, value] of windows)
-          if (value.expiresAt <= stamp) windows.delete(expiredKey);
-      }
-      if (!window && windows.size >= maximumWindows)
-        throw new ApiError(429, "authThrottled");
-      window = { count: 0, expiresAt: stamp + duration };
-      windows.set(key, window);
-    }
+    const window = currentWindow(windows, key, stamp);
     if (window.count >= limit) {
       context.header(
         "Retry-After",
