@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "infrastructure-support",
+  "phase": "storage-local",
   "applicationReady": false,
   "checks": [
     {
@@ -11,7 +11,8 @@
       "scopes": [
         "application-services",
         "localization-data",
-        "infrastructure-support"
+        "infrastructure-support",
+        "storage-local"
       ]
     },
     {
@@ -23,7 +24,8 @@
         "application-services",
         "tooling",
         "localization-data",
-        "infrastructure-support"
+        "infrastructure-support",
+        "storage-local"
       ]
     },
     {
@@ -34,7 +36,8 @@
       "scopes": [
         "application-services",
         "localization-data",
-        "infrastructure-support"
+        "infrastructure-support",
+        "storage-local"
       ]
     },
     {
@@ -45,7 +48,8 @@
       "scopes": [
         "application-services",
         "localization-data",
-        "infrastructure-support"
+        "infrastructure-support",
+        "storage-local"
       ]
     },
     {
@@ -56,7 +60,8 @@
       "scopes": [
         "application-services",
         "localization-data",
-        "infrastructure-support"
+        "infrastructure-support",
+        "storage-local"
       ]
     },
     {
@@ -67,7 +72,8 @@
       "scopes": [
         "application-services",
         "localization-data",
-        "infrastructure-support"
+        "infrastructure-support",
+        "storage-local"
       ]
     },
     {
@@ -78,7 +84,8 @@
       "scopes": [
         "application-services",
         "localization-data",
-        "infrastructure-support"
+        "infrastructure-support",
+        "storage-local"
       ]
     },
     {
@@ -89,7 +96,8 @@
       "scopes": [
         "application-services",
         "localization-data",
-        "infrastructure-support"
+        "infrastructure-support",
+        "storage-local"
       ]
     },
     {
@@ -100,7 +108,8 @@
       "scopes": [
         "application-services",
         "localization-data",
-        "infrastructure-support"
+        "infrastructure-support",
+        "storage-local"
       ]
     }
   ],

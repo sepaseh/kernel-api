@@ -62,22 +62,25 @@ explicit authorization and fresh evidence of zero open/unresolved issues. Do not
 exclude code, suppress findings, weaken rules/gates, hide severities or waive
 issues merely to request review or consume quota.
 
-After preflight passes, request review only within an authorized cycle, respect
-provider quotas and keep at most one request in flight per head. Do not send
-duplicate requests or enable automatic triggers to bypass this order. After
+The repository's `.coderabbit.yaml` disables automatic and incremental reviews,
+including drafts. Native review and automatic approval remain enabled; request
+review manually only after this preflight passes. Within an authorized cycle,
+respect provider quotas and keep at most one request in flight per head. Do not
+send duplicate requests or enable automatic triggers to bypass this order. After
 review fixes create a new commit, run the preflight again.
-Before each new request, also verify that at least one hour has elapsed since
-this repository's latest CodeRabbit review.
+Before each new request, verify that at least one hour has elapsed since both
+this repository's latest manual request and its latest substantive CodeRabbit
+review, including recent PRs. Respect any later retry time reported by the provider.
 
 ## Current scope
 
-During the [infrastructure-support phase](bootstrap.md),
+During the [storage-local phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
 `src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
 tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
 This measures published application services, core modules, static catalogs,
-configuration, translation/logging/lifecycle support and tooling.
-Fake-port coverage is not concrete HTTP, DB, authentication or storage evidence;
+configuration, translation/logging/lifecycle support, local filesystem storage and tooling.
+Real local-storage tests use disposable filesystem fixtures. Fake-port coverage is not concrete HTTP, DB, authentication or MinIO evidence;
 that coverage must be added when the runnable phase is introduced.
 
 Duplication detection excludes only the ten explicit language data files under

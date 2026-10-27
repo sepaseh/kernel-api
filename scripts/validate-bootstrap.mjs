@@ -70,6 +70,11 @@ const infrastructureSupportFiles = [
   "src/localization.test.ts",
   "src/logger.test.ts",
 ];
+const localStorageFiles = [
+  "src/infrastructure/storage/local.ts",
+  "src/infrastructure/storage/operations.ts",
+  "src/local-storage.test.ts",
+];
 const phaseFiles = {
   governance: [],
   foundation: [],
@@ -79,6 +84,12 @@ const phaseFiles = {
     ...applicationServicesFiles,
     ...localizationFiles,
     ...infrastructureSupportFiles,
+  ],
+  "storage-local": [
+    ...applicationServicesFiles,
+    ...localizationFiles,
+    ...infrastructureSupportFiles,
+    ...localStorageFiles,
   ],
 };
 const isPublishedSource = (file, phase) =>
@@ -220,6 +231,8 @@ export const inspectBootstrap = async (root) => {
       "Published contracts, application services and static translation catalogs; translation engine, HTTP, database and concrete adapters are not published or validated.",
     "infrastructure-support":
       "Published contracts, application services, translation engine, configuration and logging/lifecycle support; HTTP, database and authentication/storage adapters are not published or validated.",
+    "storage-local":
+      "Published application services, infrastructure support and local filesystem storage; HTTP, database, authentication and MinIO adapters are not published or validated.",
   };
   return {
     applicationReady: false,

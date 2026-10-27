@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "infrastructure-support",
+  "phase": "storage-local",
   "applicationReady": false,
   "maximumChangedFiles": 100,
   "allowedFiles": [
@@ -96,7 +96,10 @@
     "src/infrastructure/localization/i18n.ts",
     "src/infrastructure/logging/logger.ts",
     "src/infrastructure/logging/sanitization.ts",
+    "src/infrastructure/storage/local.ts",
+    "src/infrastructure/storage/operations.ts",
     "src/lifecycle.test.ts",
+    "src/local-storage.test.ts",
     "src/localization.test.ts",
     "src/logger.test.ts",
     "src/management-application.test.ts",
