@@ -74,14 +74,18 @@ review, including recent PRs. Respect any later retry time reported by the provi
 
 ## Current scope
 
-During the [storage-local phase](bootstrap.md),
+During the [storage-adapters phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
 `src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
 tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
 This measures published application services, core modules, static catalogs,
-configuration, translation/logging/lifecycle support, local filesystem storage and tooling.
-Real local-storage tests use disposable filesystem fixtures. Fake-port coverage is not concrete HTTP, DB, authentication or MinIO evidence;
-that coverage must be added when the runnable phase is introduced.
+configuration, translation/logging/lifecycle support, local and MinIO storage,
+adapter selection, URL helpers and tooling. Real local-storage tests use
+disposable filesystem fixtures; MinIO tests exercise the real signed S3 SDK
+against a synthetic loopback server with isolated profiles and external network
+blocked. This does not establish deployed MinIO integration. Fake-port coverage
+is not concrete HTTP, DB or authentication evidence; that coverage must be added
+when the runnable phase is introduced. See [object storage](object-storage.md).
 
 Duplication detection excludes only the ten explicit language data files under
 `src/infrastructure/localization/catalogs/`: `ar.ts`, `de.ts`, `en.ts`, `es.ts`,

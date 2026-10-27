@@ -132,6 +132,65 @@ test("built-in SQLite dependencies cannot enter application code through runtime
   }
 });
 
+test("the S3 SDK belongs only to the owned MinIO adapter with its real contained package identity", () => {
+  const file = path.join(root, "src/infrastructure/storage/minio.ts");
+  const resolved = path.join(
+    root,
+    "node_modules/@aws-sdk/client-s3/dist-types/index.d.ts",
+  );
+  const options = { file, resolved, resolvedPackage: "@aws-sdk/client-s3" };
+  for (const typeOnly of [false, true]) {
+    assert.equal(
+      check("@aws-sdk/client-s3", { ...options, typeOnly }),
+      undefined,
+    );
+    for (const owner of [
+      "src/infrastructure/storage/create.ts",
+      "src/infrastructure/storage/local.ts",
+      "src/infrastructure/config.ts",
+    ])
+      assert.match(
+        check("@aws-sdk/client-s3", {
+          ...options,
+          typeOnly,
+          file: path.join(root, owner),
+        }),
+        /owned MinIO adapter/,
+      );
+    for (const owner of [
+      "src/application/files.ts",
+      "src/application/ports/object-storage.ts",
+      "src/contracts/settings.ts",
+      "src/infrastructure/localization/catalogs/en.ts",
+    ])
+      assert.ok(
+        check("@aws-sdk/client-s3", {
+          ...options,
+          typeOnly,
+          file: path.join(root, owner),
+        }),
+      );
+  }
+  for (const overrides of [
+    { specifier: "sdk-alias" },
+    { specifier: "@aws-sdk/client-s3/dist-types/index" },
+    { specifier: "@aws-sdk/credential-provider-node" },
+    { resolvedPackage: undefined },
+    { resolvedPackage: "different-package" },
+    { resolved: path.join(root, "node_modules/sdk-alias/index.d.ts") },
+    { resolved: path.join(root, "src/infrastructure/storage/fake-sdk.ts") },
+    {
+      resolved: path.resolve(
+        root,
+        "../other/node_modules/@aws-sdk/client-s3/index.d.ts",
+      ),
+    },
+  ]) {
+    const { specifier = "@aws-sdk/client-s3", ...changes } = overrides;
+    assert.ok(check(specifier, { ...options, ...changes }));
+  }
+});
+
 test("fully erased message types remain valid while module-loading import and re-export forms fail", () => {
   const file = path.join(root, "src/application/service.ts");
   const erased = [

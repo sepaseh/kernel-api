@@ -3,9 +3,9 @@
 [English](README.md) · [فارسی](README.fa.md)
 
 Kernel API is a standalone TypeScript project. The current
-**storage-local** phase provides contracts, application services,
+**storage-adapters** phase provides contracts, application services,
 feature ports, ten API catalogs, configuration, translation and logging support,
-and local filesystem object storage.
+and local filesystem plus S3-compatible MinIO object storage.
 `applicationReady` remains **false**: this
 snapshot does not start an HTTP API.
 
@@ -19,7 +19,7 @@ snapshot does not start an HTTP API.
   roles, settings and users.
 - [`src/application/ports/`](src/application/ports/) contains eight feature ports
   for persistence, authentication, OTP and object storage. Concrete adapters for
-  persistence and authentication ports are not included; the local object-storage adapter is published.
+  persistence and authentication ports are not included; local and MinIO object-storage adapters are published.
 - [`src/infrastructure/localization/catalogs/`](src/infrastructure/localization/catalogs/)
   contains flat, complete API catalogs for Arabic, German, English, Spanish,
   Persian, French, Italian, Portuguese, Russian and Turkish. Its `index.ts`
@@ -42,12 +42,18 @@ snapshot does not start an HTTP API.
   [`operations.ts`](src/infrastructure/storage/operations.ts) wrapper logs safe
   failure metadata while preserving the original storage error. Filesystem tests
   use fresh temporary directories and remove their own fixtures after every test.
+- [`storage/minio.ts`](src/infrastructure/storage/minio.ts) uses the AWS S3 SDK
+  with explicit credentials and endpoint, separate owned buckets, conditional
+  creation and refusal of versioned buckets. [`create.ts`](src/infrastructure/storage/create.ts)
+  selects the configured adapter; [`url.ts`](src/infrastructure/storage/url.ts)
+  validates and encodes public object references. See [object storage](docs/object-storage.md)
+  for setup assumptions and the limits of signed loopback protocol tests.
 
 [Architecture](docs/architecture.md) explains ownership, language authority,
 hard-deletion policy and what fake-port tests can establish. HTTP routes,
-cookies, concrete authentication, database/migrations, MinIO, storage composition and
+cookies, concrete authentication, database/migrations, application composition and
 deployment are not published or validated in this phase. Runtime dependencies are
-i18next and Pino; pino-pretty is a development dependency for readable local logs.
+i18next, Pino and `@aws-sdk/client-s3`; pino-pretty is a development dependency for readable local logs.
 
 ## Install and validate
 
@@ -68,7 +74,8 @@ existing database or running API.
 
 Tests generate real `coverage/lcov.info` for published application source, catalog data, infrastructure support and
 repository tooling in this checkout. This is not coverage of concrete HTTP, DB,
-authentication or MinIO implementations. It includes real local filesystem storage tests.
+authentication or a deployed MinIO service. It includes real filesystem storage
+and signed S3 SDK tests against a synthetic loopback HTTP server.
 Generated coverage is not committed.
 See [Sonar setup](docs/sonarqube.md) for scanner and provider-gate evidence.
 

@@ -2,9 +2,9 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The current [storage-local phase](docs/bootstrap.md) contains contracts,
+The current [storage-adapters phase](docs/bootstrap.md) contains contracts,
 application services, ports, ten static catalogs and configuration, translation,
-logging, fatal-lifecycle support and local filesystem object storage. It is
+logging, fatal-lifecycle support and local/MinIO object storage. It is
 not a runnable API.
 Contributions must preserve this declared scope and the independent project
 boundary.
@@ -46,7 +46,11 @@ Local-storage tests must use fresh owned temporary directories, verify bucket/ke
 containment, exclusive writes, byte preservation and hard deletion, and clean up
 their exact fixtures. Never use an existing upload directory. This adapter assumes
 the API process controls its storage root; lexical path checks are not a symlink
-sandbox. MinIO, its factory and external integration are still unpublished.
+sandbox. MinIO tests must use the real S3 SDK, synthetic credentials, isolated
+empty AWS profile files and an owned loopback HTTP fixture with other network
+access blocked. Preserve exclusive creation, owned bucket policies, versioning
+refusal and original stream failures. Read [object storage](docs/object-storage.md);
+these protocol tests do not establish a deployed MinIO integration.
 Use real i18next/Pino for support tests and isolated child processes for fatal
 handlers. Never use real databases, uploads or production services to validate this phase.
 
@@ -66,7 +70,7 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
-Each PR runs all nine required checks for the published storage-local
+Each PR runs all nine required checks for the published storage-adapters
 snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
 This includes draft and documentation-only PRs; there are no changed-path or
 branch filters. The runner rejects duplicate IDs, omitted required checks and
@@ -106,8 +110,9 @@ proper explicit authorization for a legitimate Sonar classification and verify
 fresh zero-issue evidence; a written false-positive note is insufficient. Do not
 weaken, exclude, suppress or waive findings just to request review. Respect quotas,
 keep one request in flight per head and do not bypass the order with automation.
-Also verify that at least one hour has elapsed since the latest CodeRabbit review
-in this repository before sending a new request.
+Before sending a new request, verify that at least one hour has elapsed since both
+the latest manual request and latest substantive CodeRabbit review in this
+repository, including current and recent PRs. Honor any later provider retry time.
 
 ## Pull requests and review
 

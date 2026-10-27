@@ -75,6 +75,14 @@ const localStorageFiles = [
   "src/infrastructure/storage/operations.ts",
   "src/local-storage.test.ts",
 ];
+const objectStorageFiles = [
+  "src/infrastructure/storage/minio.ts",
+  "src/infrastructure/storage/create.ts",
+  "src/infrastructure/storage/url.ts",
+  "src/object-storage.test.ts",
+  "docs/object-storage.md",
+  "docs/object-storage.fa.md",
+];
 const phaseFiles = {
   governance: [],
   foundation: [],
@@ -90,6 +98,13 @@ const phaseFiles = {
     ...localizationFiles,
     ...infrastructureSupportFiles,
     ...localStorageFiles,
+  ],
+  "storage-adapters": [
+    ...applicationServicesFiles,
+    ...localizationFiles,
+    ...infrastructureSupportFiles,
+    ...localStorageFiles,
+    ...objectStorageFiles,
   ],
 };
 const isPublishedSource = (file, phase) =>
@@ -114,7 +129,7 @@ export const validateBootstrapPolicy = (policy) => {
       file.includes("\\") ||
       file.split("/").some((part) => !part || part === "." || part === "..") ||
       /[*?[\]{}:\r\n]/.test(file) ||
-      /^(?:drizzle|collection|deploy|node_modules|server|coverage)(?:\/|$)/.test(
+      /^(?:apps|packages|drizzle|collection|deploy|node_modules|server|coverage)(?:\/|$)/.test(
         file,
       ) ||
       file === "drizzle.config.ts" ||
@@ -233,6 +248,8 @@ export const inspectBootstrap = async (root) => {
       "Published contracts, application services, translation engine, configuration and logging/lifecycle support; HTTP, database and authentication/storage adapters are not published or validated.",
     "storage-local":
       "Published application services, infrastructure support and local filesystem storage; HTTP, database, authentication and MinIO adapters are not published or validated.",
+    "storage-adapters":
+      "Published application services, infrastructure support, local and S3-compatible MinIO storage, adapter selection and URL helpers; HTTP, database, authentication, deployed MinIO integration and application composition are not published or validated.",
   };
   return {
     applicationReady: false,
