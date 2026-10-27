@@ -42,9 +42,7 @@ const sensitiveKey = (key: string) => {
 const assignmentValueEnd = (text: string, start: number) => {
   const quote = text[start];
   if (quote !== '"' && quote !== "'") {
-    const value = text
-      .slice(start)
-      .match(/^(?:(?:Bearer|Basic)\s+)?[^\s,;&]+/i);
+    const value = /^(?:(?:Bearer|Basic)\s+)?[^\s,;&]+/i.exec(text.slice(start));
     return start + (value?.[0].length ?? 0);
   }
   for (let index = start + 1; index < text.length; index++) {
