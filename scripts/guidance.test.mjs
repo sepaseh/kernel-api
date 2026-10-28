@@ -125,6 +125,21 @@ test("required CI checks cannot silently become advisory at job level", () => {
   );
 });
 
+test("unsupported step error policies cannot become non-advisory checks", () => {
+  for (const value of [" ", "${{ inputs.allow_failure }}"]) {
+    const ci = ciCommands(
+      [
+        "jobs:",
+        "  check:",
+        "    steps:",
+        "      - run: npm run typecheck",
+        `        continue-on-error: ${value}`,
+      ].join("\n"),
+    );
+    assert.equal(ci.get("check")[0].advisory, "unsupported");
+  }
+});
+
 test("navigation/evaluation validate owners, evidence, English prompts and referenced checks", () => {
   const navigation = {
     schemaVersion: 1,
