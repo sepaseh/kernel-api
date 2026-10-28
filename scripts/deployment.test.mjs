@@ -292,6 +292,33 @@ test("Docker and native API gateways reject unknown HTTP hosts and TLS names", a
   }
 });
 
+test("Docker gateway re-resolves the API service without rewriting proxied URLs", async () => {
+  const template = await readFile(
+    new URL("../deploy/docker/nginx.conf.template", import.meta.url),
+    "utf8",
+  );
+  const upstream = template.match(/upstream\s+kernel_api\s*\{([^}]*)\}/)?.[1];
+  assert.ok(upstream, "Docker gateway must define a shared API upstream");
+  assert.match(upstream, /\bzone\s+kernel_api\s+64k\s*;/);
+  assert.match(
+    upstream,
+    /\bresolver\s+127\.0\.0\.11\s+valid=10s\s+ipv6=off\s*;/,
+  );
+  assert.match(upstream, /\bserver\s+api:3000\s+resolve\s*;/);
+  for (const location of ["/", "^~ /auth/"]) {
+    const escaped = location.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const body = [
+      ...template.matchAll(
+        new RegExp(`location\\s+${escaped}\\s*\\{([^}]*)\\}`, "g"),
+      ),
+    ]
+      .map((match) => match[1])
+      .find((block) => /\bproxy_pass\b/.test(block));
+    assert.ok(body, `Missing proxy location ${location}`);
+    assert.match(body, /\bproxy_pass\s+http:\/\/kernel_api\s*;/);
+  }
+});
+
 test("renderer CLI uses fixed templates and does not expose unrelated input", async () => {
   const directory = await mkdtemp(
     path.join(tmpdir(), "kernel-render-fixture-"),

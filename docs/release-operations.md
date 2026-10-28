@@ -14,8 +14,10 @@ cross-repository translation synchronization is assumed.
 For native Linux, package from a clean trusted source with `deploy:package`, install
 runtime dependencies on the target OS/CPU, verify ownership/permissions and preserve
 an earlier release. Before switching `/srv/kernel-api/current`, rehearse migration
-against an isolated restoration, pause writes and take a matched DB/object backup.
-Stop API, atomically switch the current symlink to the complete approved release,
+against an isolated restoration, pause writes and stop the API while preventing
+supervisor restart. Confirm clean shutdown before taking a matched DB/object backup,
+including SQLite journal or WAL files as described in the recovery procedure.
+Atomically switch the current symlink to the complete approved release,
 validate its protected environment, then start. Verify health, release marker,
 login/permissions and public/private file reads before reopening traffic. Inspect
 journald/container logs with the expected SERVER_RELEASE_ID.

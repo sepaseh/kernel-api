@@ -35,6 +35,7 @@ for (const [name, pattern] of cases) {
         "PATHEXT",
         "TEMP",
         "TMP",
+        "TMPDIR",
         "HOME",
       ].flatMap((key) =>
         process.env[key] === undefined ? [] : [[key, process.env[key]]],
@@ -45,6 +46,7 @@ for (const [name, pattern] of cases) {
         process.execPath,
         [
           "--test",
+          "--test-reporter=tap",
           `--test-name-pattern=^${pattern}`,
           fileURLToPath(
             new URL("./test/recovery-drill-cases.ts", import.meta.url),
@@ -59,6 +61,8 @@ for (const [name, pattern] of cases) {
       );
       assert.equal(result.error, undefined, result.error?.message);
       assert.equal(result.status, 0, result.stdout + result.stderr);
+      assert.match(result.stdout, /^# tests 1\r?$/m);
+      assert.match(result.stdout, /^# pass 1\r?$/m);
     } finally {
       assert.equal(
         path.dirname(await realpath(directory)),

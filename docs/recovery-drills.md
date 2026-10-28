@@ -4,7 +4,7 @@
 
 Run `npm run test:recovery` from this checkout. The command runs three executable
 acceptance cases in [recovery-drill.test.ts](../src/recovery-drill.test.ts).
-They also run inside the required published `test:coverage` gate and CI. No additional dependency, Docker engine,
+They also run inside the required `test:coverage` gate and CI. No additional dependency, Docker engine,
 browser, external bucket, real environment file or production service is needed.
 
 The cases create a uniquely named `kernel-recovery-drill-*` directory directly
@@ -44,14 +44,14 @@ revoke restored sessions/OTP records after an authentication incident.
 
 ## Synthetic storage incident
 
-An injected storage port fails a real authenticated multipart upload. The case
+An injected failing storage adapter fails a real authenticated multipart upload. The case
 checks the client-observed HTTP 500 and `X-Request-Id`, then finds the same request
 ID and immutable synthetic release in `storage.operation.failed`,
 `file.upload.failed` and exactly one `api.request.completed` event. It verifies
 the storage stage, generic error behavior, lack of partial file metadata and
 absence of the session token, password, auth secret and provider payload in logs.
-Replacing the failing port with local storage restores a successful upload and
-a correlated HTTP 201 completion event.
+Uploading through the separate app with the healthy local storage adapter succeeds
+and produces a correlated HTTP 201 completion event.
 
 The client here is Hono's real in-process HTTP request interface. The exercise
 does not launch a browser, collector, alerting service or production incident.

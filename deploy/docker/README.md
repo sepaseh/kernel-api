@@ -32,6 +32,8 @@ API port 3000 stays internal. The named `api-data` volume is mounted at
 `/var/lib/kernel-api`; Compose fixes durable DB/upload paths there. Retain the same
 Compose project name when replacing a release so the volume is reused. Never run
 `down --volumes` against real state. One API replica owns the SQLite file.
+The gateway uses Docker's embedded DNS to refresh the API service address every
+10 seconds; a container replacement can still cause a brief interruption.
 
 Provision the first administrator only once on an empty installation. Validate the
 API environment, prepare protected JSON containing first_name, last_name, mobile,
@@ -47,8 +49,9 @@ protected input according to your secret policy. Registration/recovery/email
 verification still need real OTP delivery. Verify `/health`, login, permissions,
 public/private objects and `/_kernel/release` against the intended release ID.
 
-For update, pause writes, capture a coordinated DB/object backup, build/pull a new
-immutable tag, then run `up -d --wait`. Keep prior tags and protected configuration.
+For update, pause writes, stop the API and confirm its clean shutdown before
+capturing a coordinated DB/object backup. Build/pull a new immutable tag, then
+run `up -d --wait`. Keep prior tags and protected configuration.
 A previous image does not undo migrations: restore the matching DB/objects when
 schema rollback requires it. [Recovery procedure](../../docs/backup-restore.md)
 and [release operations](../../docs/release-operations.md) define checks.
