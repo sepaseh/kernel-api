@@ -152,6 +152,14 @@ test("management creation and role update examples match the services", async ()
   const userBody = JSON.parse(
     userRequest.match(/body:json \{\s*\n([\s\S]*?)\n\}/)[1],
   );
+  const loginRequest = await readFile(
+    path.join(root, "auth/login/index.bru"),
+    "utf8",
+  );
+  const loginBody = JSON.parse(
+    loginRequest.match(/body:json \{\s*\n([\s\S]*?)\n\}/)[1],
+  );
+  assert.notEqual(userBody.mobile, loginBody.identifier);
   const users = createUsersService({
     provider: { signUp: async () => ({ userId: userExample.id }) },
     repository: {

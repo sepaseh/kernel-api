@@ -22,10 +22,15 @@ is English. The system setting, not `Accept-Language`, selects the response
 language. Errors contain a translated `message`; bodyless success responses have
 no JSON example. Responses include the `X-Request-Id` correlation header.
 
-For a mobile change, request a code for the new number and then include the
-same `mobile` and its `otp` in the profile update. The local runtime uses a
-configured development code: production OTP delivery is not implemented.
-Issue and confirm the code in the same session.
+To change your own mobile number, request a code using
+`POST /account/request-mobile-verification`, then send the same `mobile` and
+its `otp` to `PATCH /account/update-profile`. To change a user's number through
+management, use `POST /users/{{user_id}}/request-mobile-verification` followed
+by `PATCH /users/{{user_id}}` with the same `mobile` and its `otp`. Management
+requires `users.update`; changing another user's number requires a system
+administrator. Issue and confirm the code in the same session, for the same
+user and flow. The local runtime uses a configured development code: production
+OTP delivery is not implemented.
 Use synthetic accounts and values with a disposable local server. See
 [HTTP transport](../docs/http-transport.md) and
 [authentication adapters](../docs/auth-adapters.md).

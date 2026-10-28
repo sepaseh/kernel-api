@@ -47,7 +47,8 @@ docs {
   - `status` is an optional activation-state filter accepting `active` or `inactive`.
   - Provided filters are combined with AND logic.
   - Invalid pagination values are ignored and replaced with their defaults.
-  - Invalid, empty, or unsupported query parameters are ignored.
+  - An invalid `status`, empty filters, and unsupported query parameters are ignored.
+  - Nonempty `email`, `mobile`, and `username` values are used for exact matches even if they do not look valid.
   - Each item includes summary profile data, activation state, `is_system_admin`, and assigned roles with their IDs and names.
   - `is_system_admin` represents the global `SYSTEM_ADMIN` capability and is separate from role permissions.
 
