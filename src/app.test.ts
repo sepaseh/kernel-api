@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { createAuth } from "./infrastructure/auth/better-auth.ts";
 import { loadConfig } from "./infrastructure/config.ts";
@@ -445,6 +445,207 @@ test("uses the configured system language for server-owned text", async () => {
     .update(settings)
     .set({ languageCode: "fa" })
     .where(eq(settings.id, 1));
+});
+
+test("a system administrator can repair an unsupported stored language without trusting visitor preferences", async () => {
+  const before = await database.query.settings.findFirst({
+    where: eq(settings.id, 1),
+  });
+  assert.ok(before);
+  const initialResponse = await request("/settings");
+  assert.equal(initialResponse.status, 200);
+  const initial = (await initialResponse.json()) as {
+    dark_theme: Record<string, string>;
+    light_theme: Record<string, string>;
+  };
+
+  try {
+    await database
+      .update(settings)
+      .set({ languageCode: "unsupported" })
+      .where(eq(settings.id, 1));
+
+    for (const [endpoint, status, message] of [
+      ["/missing", 404, "The requested endpoint does not exist."],
+      ["/settings", 500, "Configured language is invalid."],
+    ] as const) {
+      const response = await request(endpoint, {
+        headers: { "Accept-Language": "fa", Cookie: "NEXT_LOCALE=fa" },
+      });
+      assert.equal(response.status, status);
+      assert.equal(response.headers.get("content-language"), "en");
+      assert.deepEqual(await response.json(), { message });
+    }
+    assert.equal(
+      (await database.query.settings.findFirst({ where: eq(settings.id, 1) }))
+        ?.languageCode,
+      "unsupported",
+    );
+
+    const repaired = await request(
+      "/settings",
+      authenticated({
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dark_theme: initial.dark_theme,
+          light_theme: initial.light_theme,
+          language_code: "fa",
+        }),
+      }),
+    );
+    assert.equal(repaired.status, 200);
+    assert.equal(repaired.headers.get("content-language"), "en");
+    assert.equal(
+      ((await repaired.json()) as { language: { code: string } }).language.code,
+      "fa",
+    );
+    const restored = await request("/missing", {
+      headers: { "Accept-Language": "en", Cookie: "NEXT_LOCALE=en" },
+    });
+    assert.equal(restored.headers.get("content-language"), "fa");
+    assert.deepEqual(await restored.json(), {
+      message: "مسیر درخواستی وجود ندارد.",
+    });
+  } finally {
+    await database
+      .update(settings)
+      .set({ languageCode: before.languageCode })
+      .where(eq(settings.id, 1));
+  }
+});
+
+test("administrator-generated temporary passwords work for account creation and reset", async () => {
+  const mobile = "09120000171";
+  const original = "a1b2c3d4e5f6g7h8";
+  const replacement = "z9y8x7w6v5u4t3s2";
+  assert.match(original, /^[a-z0-9]{16}$/);
+  assert.match(replacement, /^[a-z0-9]{16}$/);
+  const createdResponse = await request(
+    "/users",
+    authenticated({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: "Temporary",
+        last_name: "Credential",
+        mobile,
+        password: original,
+      }),
+    }),
+  );
+  assert.equal(createdResponse.status, 201);
+  const created = (await createdResponse.json()) as { id: string };
+  const login = (password: string) =>
+    request("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: mobile, password }),
+    });
+  const firstLogin = await login(original);
+  assert.equal(firstLogin.status, 200);
+  const originalSession = (await firstLogin.json()) as { access_token: string };
+
+  const reset = await request(
+    `/users/${created.id}/password`,
+    authenticated({
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: replacement }),
+    }),
+  );
+  assert.equal(reset.status, 200);
+  const priorSession = await request("/account/me", {
+    headers: { Authorization: `Bearer ${originalSession.access_token}` },
+  });
+  assert.equal(priorSession.status, 401);
+  assert.equal((await login(original)).status, 400);
+  assert.equal((await login(replacement)).status, 200);
+});
+
+test("an intervening administrator promotion cannot leave the system without an active administrator", async (t) => {
+  const config = loadConfig({
+    BETTER_AUTH_SECRET: "synthetic-secret-with-at-least-thirty-two-characters",
+    BETTER_AUTH_URL: "http://localhost",
+    DATABASE_URL: "file::memory:",
+    NODE_ENV: "test",
+  });
+  const fixture = createDatabase(config);
+  t.after(() => fixture.client.close());
+  const logger = createLogger(config.logging, { write() {} });
+  const auth = createAuth(config, fixture.database, logger);
+  await initializeDatabase(config, fixture.database, auth);
+  const raceApp = createApp({
+    auth,
+    config,
+    database: fixture.database,
+    logger,
+    storage: new MemoryObjectStorage(),
+  });
+  const createUser = (number: string) =>
+    auth.api.signUpEmail({
+      body: {
+        email: `${number}@kernel.test`,
+        firstName: "Race",
+        lastName: "Fixture",
+        mobile: number,
+        name: "Race Fixture",
+        password: "synthetic-password",
+      },
+    });
+  const administrator = await createUser("09120000172");
+  const target = await createUser("09120000173");
+  await fixture.database
+    .update(user)
+    .set({ isSystemAdmin: true })
+    .where(eq(user.id, administrator.user.id));
+  const login = await raceApp.request("http://localhost/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      identifier: "09120000172",
+      password: "synthetic-password",
+    }),
+  });
+  assert.equal(login.status, 200);
+  const { access_token: accessToken } = (await login.json()) as {
+    access_token: string;
+  };
+  const transaction = fixture.database.transaction.bind(fixture.database);
+  const intercepted = t.mock.method(
+    fixture.database,
+    "transaction",
+    async (...args: Parameters<typeof transaction>) => {
+      intercepted.mock.restore();
+      await fixture.database
+        .update(user)
+        .set({ isSystemAdmin: true })
+        .where(eq(user.id, target.user.id));
+      await fixture.database
+        .update(user)
+        .set({ isSystemAdmin: false })
+        .where(eq(user.id, administrator.user.id));
+      return transaction(...args);
+    },
+  );
+  const response = await raceApp.request(
+    `http://localhost/users/${target.user.id}/system-admin`,
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ is_system_admin: false }),
+    },
+  );
+  assert.equal(response.status, 409);
+  assert.equal(intercepted.mock.callCount(), 1);
+  const remaining = await fixture.database
+    .select({ id: user.id })
+    .from(user)
+    .where(and(eq(user.isSystemAdmin, true), eq(user.status, "active")));
+  assert.deepEqual(remaining, [{ id: target.user.id }]);
 });
 
 test("persists role and user management operations", async () => {
