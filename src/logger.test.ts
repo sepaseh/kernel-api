@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { DrizzleQueryError } from "drizzle-orm/errors";
+
 import type { LoggingConfig } from "./infrastructure/config.ts";
 import { loadLoggingConfig } from "./infrastructure/config.ts";
 import {
@@ -34,6 +36,21 @@ const captureLogs = (
       lines.map((line) => JSON.parse(line) as Record<string, unknown>),
   };
 };
+
+test("redacts real Drizzle query errors and their causes", () => {
+  const output = captureLogs();
+  const error = new DrizzleQueryError(
+    "select synthetic-query",
+    ["synthetic-param"],
+    new Error("synthetic-driver"),
+  );
+  output.logger.error({ err: error }, "Operation failed");
+  assert.doesNotMatch(output.lines.join(""), /synthetic-|select /);
+  assert.equal(
+    (output.records()[0].err as Record<string, unknown>).type,
+    "Error",
+  );
+});
 
 test("writes JSON with standard levels, UTC time, environment, and release", () => {
   const output = captureLogs();
