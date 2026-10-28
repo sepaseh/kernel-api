@@ -54,6 +54,21 @@ for (const failure of ["throw", "rejection"] as const) {
   });
 }
 
+test("startup configuration failures emit a structured error", () => {
+  const result = spawnSync(process.execPath, ["src/index.ts"], {
+    cwd,
+    encoding: "utf8",
+    env: environment,
+    timeout: childProcessTimeout,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 1);
+  const record = JSON.parse(result.stdout.trim()) as Record<string, unknown>;
+  assert.equal(record.event, "server.startup.failed");
+  assert.equal(record.environment, "test");
+  assert.ok((record.err as Record<string, unknown>).stack);
+});
+
 test("development pretty printing preserves the same redaction policy", () => {
   const result = spawnSync(
     process.execPath,
