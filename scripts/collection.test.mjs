@@ -6,18 +6,30 @@ import { test } from "node:test";
 import { permissionGroupDefinitions } from "../src/application/permissions.ts";
 import { createRolesService } from "../src/application/roles.ts";
 import { createUsersService } from "../src/application/users.ts";
+import { supportedLanguages } from "../src/contracts/locales.ts";
 import { apiEn } from "../src/infrastructure/localization/catalogs/en.ts";
 import { createLogger } from "../src/infrastructure/logging/logger.ts";
+import { LocalFileStorage } from "../src/infrastructure/storage/local.ts";
 import { createHttpApp } from "../src/presentation/http/app.ts";
 import { createAccountRoutes } from "../src/presentation/http/routes/account.ts";
 import { createAuthRoutes } from "../src/presentation/http/routes/auth.ts";
+import { createCalendarRoutes } from "../src/presentation/http/routes/calendar.ts";
+import { createFileRoutes } from "../src/presentation/http/routes/files.ts";
 import { createRoleRoutes } from "../src/presentation/http/routes/roles.ts";
+import {
+  createLanguageRoutes,
+  createSettingsRoutes,
+} from "../src/presentation/http/routes/settings.ts";
 import { createUserRoutes } from "../src/presentation/http/routes/users.ts";
 
 const groups = {
   account: createAccountRoutes,
   auth: createAuthRoutes,
+  calendar: createCalendarRoutes,
+  files: createFileRoutes,
+  languages: createLanguageRoutes,
   roles: createRoleRoutes,
+  settings: createSettingsRoutes,
   users: createUserRoutes,
 };
 const root = path.resolve("collection");
@@ -53,7 +65,7 @@ test("collection origin allows cookie-bearing requests through the HTTP guard", 
   assert.equal((await request(allowedOrigin)).status, 200);
 });
 
-test("collection operations match all published auth, account, user and role routes", async () => {
+test("collection operations match the published HTTP routes", async () => {
   for (const [group, createRoutes] of Object.entries(groups)) {
     const directory = path.join(root, group);
     const entries = await readdir(directory, {
@@ -76,7 +88,14 @@ test("collection operations match all published auth, account, user and role rou
       );
       assert.ok(
         variables.every((value) =>
-          ["base_url", "access_token", "user_id", "role_id"].includes(value),
+          [
+            "base_url",
+            "access_token",
+            "user_id",
+            "role_id",
+            "calendar_date",
+            "file_id",
+          ].includes(value),
         ),
       );
       const jsonBody = request.match(/body:json \{\s*\n([\s\S]*?)\n\}/);
@@ -95,6 +114,8 @@ test("collection operations match all published auth, account, user and role rou
                 "first_name is invalid.",
                 "first_name is required.",
                 "name is required.",
+                "file is required.",
+                "dark_theme is required.",
               ].includes(example.message),
             `${group}/${operation.name}/${file} is an English catalog message`,
           );
@@ -105,10 +126,67 @@ test("collection operations match all published auth, account, user and role rou
       `${method} /${group}${route}`
         .replace(":userId", "{{user_id}}")
         .replace(":roleId", "{{role_id}}")
+        .replace(":date", "{{calendar_date}}")
+        .replace(":fileId", "{{file_id}}")
         .replace(/\/$/, ""),
     );
     assert.deepEqual(actual.sort(), expected.sort());
   }
+});
+
+test("user response examples agree for each synthetic identity", async () => {
+  const read = async (name) =>
+    JSON.parse(await readFile(path.join(root, name), "utf8"));
+  const created = await read("users/create/201.json");
+  const listed = await read("users/list/200.json");
+  const details = await read("users/details/200.json");
+  const updated = await read("users/update/200.json");
+  const account = await read("account/me/200.json");
+  assert.ok(!listed.items.some(({ id }) => id === created.id));
+  const related = listed.items.find(({ id }) => id === details.id);
+  assert.ok(related);
+  assert.deepEqual(related, details);
+  assert.deepEqual(updated, details);
+  for (const [key, value] of Object.entries(account))
+    if (key in details) assert.deepEqual(value, details[key], key);
+});
+
+test("language, file and settings examples follow published local contracts", async () => {
+  const read = async (name) =>
+    JSON.parse(await readFile(path.join(root, name), "utf8"));
+  assert.deepEqual(await read("languages/list/200.json"), supportedLanguages);
+  const uploaded = await read("files/upload/201.json");
+  const storage = new LocalFileStorage({
+    baseUrl: "http://localhost:3000",
+    localStoragePath: "synthetic-not-used",
+  });
+  assert.equal(
+    uploaded.url,
+    storage.url("local-public", `${uploaded.id}/logo.svg`, uploaded.visibility),
+  );
+  const get = await read("settings/get/200.json");
+  for (const logo of [get.dark_logo, get.light_logo])
+    assert.equal(
+      logo.url,
+      storage.url("local-public", `${logo.id}/logo.svg`, "public"),
+    );
+  const request = await readFile(
+    path.join(root, "settings/update/index.bru"),
+    "utf8",
+  );
+  const body = JSON.parse(request.match(/body:json \{\s*\n([\s\S]*?)\n\}/)[1]);
+  const updated = await read("settings/update/200.json");
+  assert.deepEqual(updated.dark_theme, body.dark_theme);
+  assert.deepEqual(updated.light_theme, body.light_theme);
+  assert.equal(updated.language.code, body.language_code);
+  assert.equal(updated.dark_logo, undefined);
+  assert.equal(updated.light_logo, undefined);
+  const uploadRequest = await readFile(
+    path.join(root, "files/upload/index.bru"),
+    "utf8",
+  );
+  assert.match(uploadRequest, /body: multipartForm/);
+  assert.match(uploadRequest, /file: @file\(\)/);
 });
 
 test("bodyless successes and mobile verification are represented accurately", async () => {

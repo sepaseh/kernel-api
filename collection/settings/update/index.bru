@@ -1,0 +1,72 @@
+meta {
+  name: Update Application Settings
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{base_url}}/settings
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "dark_theme": {
+      "color_bg_base": "#141414",
+      "color_bg_container": "#1f1f1f",
+      "color_border": "#424242",
+      "color_link": "#1668dc",
+      "color_primary": "#61dafb",
+      "color_text_base": "#ffffff",
+      "color_text_description": "#bfbfbf"
+    },
+    "language_code": "fa",
+    "light_theme": {
+      "color_bg_base": "#ffffff",
+      "color_bg_container": "#ffffff",
+      "color_border": "#d9d9d9",
+      "color_link": "#1677ff",
+      "color_primary": "#61dafb",
+      "color_text_base": "#000000",
+      "color_text_description": "#8c8c8c"
+    }
+  }
+}
+
+docs {
+  ## Purpose
+
+  Updates global branding and optionally the system-wide language.
+
+  ## Authentication
+
+  Requires an authenticated system administrator or an account with `settings.update`.
+  Only a system administrator may change the persisted language.
+
+  ## Behavior
+
+  - `language_code` is optional. A system administrator may send a code from `GET /languages` or omit it to retain the existing value.
+  - Other settings editors should omit `language_code`; an explicitly unchanged value is accepted for compatibility but is never written by their save. A changed value is forbidden.
+  - Logo identifiers are optional public file identifiers returned by `POST /files`.
+  - The PUT replaces both palettes and logo selections. Send existing `dark_logo.id`/`light_logo.id` as `dark_logo_id`/`light_logo_id` when retaining logos during an unrelated save; omitting either identifier clears that selection.
+  - Both complete palettes are required and the operation is idempotent.
+
+  ## Response
+
+  - `200 OK` — Settings updated successfully.
+  - `400 Bad Request` — Submitted settings are invalid.
+    The saved `400.json` example is a missing `dark_theme` with the persisted language set to English; errors contain a localized `message`, without a field-error `cause` object. Omitted `language_code` alone is valid.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — `settings.update` is missing or a non-system-administrator attempts to change language.
+  - `404 Not Found` — A language or logo does not exist.
+}

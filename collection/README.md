@@ -1,9 +1,9 @@
-# Authentication and account requests
+# API requests
 
 [فارسی](README.fa.md)
 
-This partial Bruno collection covers authentication, account, user and role
-HTTP routes. Other API areas will be added separately. Open this directory in
+This Bruno collection covers authentication, account, users, roles, calendar,
+files, languages and settings HTTP routes. Open this directory in
 Bruno, create a local environment, and set `base_url` to your local API URL,
 `origin` to an exact origin allowed by the server's `SERVER_ALLOWED_ORIGINS` or
 `SERVER_ALLOWED_ORIGIN` configuration, and `access_token` to an initially empty
@@ -12,13 +12,14 @@ when configured. The collection sends it as `Origin` so requests with session
 cookies pass the server's origin check. Do not commit that environment or
 real credentials. Successful login saves the access token in the active Bruno
 environment. Session cookies are also used by the authentication adapter.
-Set `user_id` and `role_id` to synthetic identifiers created in the disposable
-local server before running operations that reference an individual user or role.
+Set `user_id`, `role_id` and `file_id` to synthetic identifiers created in the
+disposable local server before running operations that reference those records.
+Select a synthetic file locally in Bruno before sending the upload request.
 The exact publication-snapshot check rejects local environment directories; run
 the full validation gate in a clean checkout without a Bruno environment.
 
-The saved JSON examples illustrate responses when the persisted system language
-is English. The system setting, not `Accept-Language`, selects the response
+The saved error examples use English messages. Successful settings examples
+illustrate a system configured with Persian as its active language. The system setting, not `Accept-Language`, selects the response
 language. Errors contain a translated `message`; bodyless success responses have
 no JSON example. Responses include the `X-Request-Id` correlation header.
 

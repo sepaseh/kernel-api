@@ -1,15 +1,20 @@
 {
   "items": [
     {
-      "email": "john.doe@example.com",
+      "email": "user@example.com",
       "first_name": "علی",
       "id": "2dc56d6f-6b5a-4e0d-9b0b-9a1c9d7f8d41",
-      "is_system_admin": true,
+      "is_system_admin": false,
       "last_name": "رضایی",
       "mobile": "09123456789",
-      "roles": [],
+      "roles": [
+        {
+          "id": "3ecb1f52-6d6e-43b9-a8fb-4e0772c9f863",
+          "name": "کاربر"
+        }
+      ],
       "status": "active",
-      "username": "john.doe"
+      "username": "user"
     },
     {
       "first_name": "سارا",
