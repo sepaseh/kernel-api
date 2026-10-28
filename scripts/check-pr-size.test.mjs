@@ -233,6 +233,26 @@ test("rejects repeated pagination and invalid HTTP or metadata responses", async
   );
 });
 
+test("stops pagination before fetching a thirty-first page", async () => {
+  const requestedPages = [];
+  await assert.rejects(
+    inspect(async (url) => {
+      if (!url.includes("/files")) return response(pull(0));
+      const page = Number(new URL(url).searchParams.get("page") ?? "1");
+      requestedPages.push(page);
+      return response(
+        [],
+        `<https://api.github.com/repos/example/api/pulls/1/files?page=${page + 1}>; rel="next"`,
+      );
+    }),
+    /unsafe or incomplete/,
+  );
+  assert.deepEqual(
+    requestedPages,
+    Array.from({ length: 30 }, (_, index) => index + 1),
+  );
+});
+
 test("validates its target before making requests", async () => {
   let requests = 0;
   const fetchImpl = () => {

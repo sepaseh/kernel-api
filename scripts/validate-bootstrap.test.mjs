@@ -442,6 +442,12 @@ const operationsFiles = [
 const localRuntimeFiles = [
   ...operationsFiles,
   ...collectionFiles,
+  "docs/security/authentication-review.fa.md",
+  "docs/security/authentication-review.md",
+  "docs/security/reviews.fa.md",
+  "docs/security/reviews.md",
+  "docs/security/threat-model.fa.md",
+  "docs/security/threat-model.md",
   "scripts/runtime-integration.test.mjs",
   "scripts/runtime-seed.test.mjs",
   "src/composition.ts",

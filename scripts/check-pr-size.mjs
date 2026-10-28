@@ -135,8 +135,8 @@ export const inspectPullRequest = async ({
 
   const files = [];
   const visited = new Set();
-  let next = filesEndpoint;
-  while (next) {
+  // Each next URL comes from the preceding page, so requests must stay sequential.
+  const readPage = async (next) => {
     if (
       next.origin !== filesEndpoint.origin ||
       next.pathname !== filesEndpoint.pathname ||
@@ -148,14 +148,14 @@ export const inspectPullRequest = async ({
     )
       throw new Error("GitHub returned unsafe or incomplete file pagination.");
     visited.add(next.href);
-    // Each next URL comes from the preceding page, so requests must stay sequential.
     const page = await query(next);
     if (!Array.isArray(page.data))
       throw new Error("GitHub returned an invalid pull request file page.");
     files.push(...page.data);
     const nextLink = parseNextPageLink(page.link);
-    next = nextLink ? new URL(nextLink, filesEndpoint) : undefined;
-  }
+    if (nextLink) return readPage(new URL(nextLink, filesEndpoint));
+  };
+  await readPage(filesEndpoint);
   const after = metadata((await query(endpoint)).data);
   if (
     before.headSha !== after.headSha ||
