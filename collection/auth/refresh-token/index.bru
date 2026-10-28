@@ -1,0 +1,46 @@
+meta {
+  name: Refresh Token
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/auth/refresh-token
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+script:post-response {
+  const responseBody = res.getBody();
+  const payload = responseBody;
+
+  if (res.getStatus() === 200 && payload?.access_token) {
+    bru.setEnvVar("access_token", payload.access_token);
+  }
+}
+
+docs {
+  ## Purpose
+
+  Restores the existing Better Auth session token using its HttpOnly session cookie.
+
+  ## Authentication
+
+  Requires a valid session cookie. A valid bearer session is also accepted.
+
+  ## Behavior
+
+  - No request body is required.
+  - The existing session is read from the cookie or bearer token.
+  - A successful request returns the current session token; it does not create a separate rotating token family.
+  - The returned access token is stored as `access_token` in the Bruno environment.
+
+  ## Response
+
+  - `200 OK` — The current session token is returned.
+  - `401 Unauthorized` — The session is missing, invalid, expired, or inactive.
+}

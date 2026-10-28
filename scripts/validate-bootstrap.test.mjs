@@ -226,7 +226,60 @@ const httpTransportPolicy = (overrides = {}) =>
     ...overrides,
   });
 
+const collectionFiles = [
+  "collection/README.fa.md",
+  "collection/README.md",
+  "collection/account/folder.bru",
+  "collection/account/me/200.json",
+  "collection/account/me/401.json",
+  "collection/account/me/index.bru",
+  "collection/account/request-email-verification/200.json",
+  "collection/account/request-email-verification/400.json",
+  "collection/account/request-email-verification/401.json",
+  "collection/account/request-email-verification/429.json",
+  "collection/account/request-email-verification/index.bru",
+  "collection/account/request-mobile-verification/200.json",
+  "collection/account/request-mobile-verification/index.bru",
+  "collection/account/update-profile/200.json",
+  "collection/account/update-profile/400.json",
+  "collection/account/update-profile/401.json",
+  "collection/account/update-profile/index.bru",
+  "collection/account/update-username/200.json",
+  "collection/account/update-username/400.json",
+  "collection/account/update-username/401.json",
+  "collection/account/update-username/index.bru",
+  "collection/account/verify-email/400.json",
+  "collection/account/verify-email/401.json",
+  "collection/account/verify-email/index.bru",
+  "collection/auth/change-password/400.json",
+  "collection/auth/change-password/401.json",
+  "collection/auth/change-password/500.json",
+  "collection/auth/change-password/index.bru",
+  "collection/auth/folder.bru",
+  "collection/auth/forgot-password/400.json",
+  "collection/auth/forgot-password/index.bru",
+  "collection/auth/login/200.json",
+  "collection/auth/login/400.json",
+  "collection/auth/login/500.json",
+  "collection/auth/login/index.bru",
+  "collection/auth/logout/index.bru",
+  "collection/auth/otp-request/200.json",
+  "collection/auth/otp-request/400.json",
+  "collection/auth/otp-request/429.json",
+  "collection/auth/otp-request/index.bru",
+  "collection/auth/refresh-token/200.json",
+  "collection/auth/refresh-token/401.json",
+  "collection/auth/refresh-token/index.bru",
+  "collection/auth/register/201.json",
+  "collection/auth/register/400.json",
+  "collection/auth/register/500.json",
+  "collection/auth/register/index.bru",
+  "collection/bruno.json",
+  "collection/collection.bru",
+  "scripts/collection.test.mjs",
+];
 const localRuntimeFiles = [
+  ...collectionFiles,
   "scripts/runtime-integration.test.mjs",
   "scripts/runtime-seed.test.mjs",
   "src/composition.ts",
@@ -266,6 +319,15 @@ test("local runtime requires server, composition and independent lifecycle tests
       }),
     ),
   );
+  for (const file of [
+    "collection/environments/development.bru",
+    "collection/auth/unreviewed/index.bru",
+  ])
+    assert.throws(() =>
+      validateBootstrapPolicy(
+        localRuntimePolicy({ allowedFiles: [...complete.allowedFiles, file] }),
+      ),
+    );
 });
 
 test("HTTP transport requires every route and excludes runnable composition", () => {

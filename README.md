@@ -108,6 +108,9 @@ and signed S3 SDK tests against a synthetic loopback HTTP server.
 Generated coverage is not committed.
 See [Sonar setup](docs/sonarqube.md) for scanner and provider-gate evidence.
 
+The partial [Bruno collection](collection/README.md) covers auth and account
+requests using synthetic values. Its checks run in the full profile.
+
 ## Contribute
 
 Read [Contributing](CONTRIBUTING.md) and the
