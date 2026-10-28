@@ -1,0 +1,70 @@
+[
+  {
+    "name": "calendar",
+    "permissions": [
+      {
+        "name": "calendar.read",
+        "title": "View calendar"
+      },
+      {
+        "name": "calendar.update",
+        "title": "Update calendar"
+      }
+    ],
+    "title": "Calendar"
+  },
+  {
+    "name": "roles",
+    "permissions": [
+      {
+        "name": "roles.create",
+        "title": "Create roles"
+      },
+      {
+        "name": "roles.delete",
+        "title": "Delete roles"
+      },
+      {
+        "name": "roles.read",
+        "title": "View roles"
+      },
+      {
+        "name": "roles.update",
+        "title": "Update roles"
+      }
+    ],
+    "title": "Roles"
+  },
+  {
+    "name": "settings",
+    "permissions": [
+      {
+        "name": "settings.update",
+        "title": "Update settings"
+      }
+    ],
+    "title": "Settings"
+  },
+  {
+    "name": "users",
+    "permissions": [
+      {
+        "name": "users.create",
+        "title": "Create users"
+      },
+      {
+        "name": "users.delete",
+        "title": "Delete users"
+      },
+      {
+        "name": "users.read",
+        "title": "View users"
+      },
+      {
+        "name": "users.update",
+        "title": "Update users"
+      }
+    ],
+    "title": "Users"
+  }
+]
