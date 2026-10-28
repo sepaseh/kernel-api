@@ -1,0 +1,37 @@
+[Unit]
+Description=Kernel API
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=kernel-api
+Group=kernel-api
+WorkingDirectory=/srv/kernel-api/current/api
+EnvironmentFile=/etc/kernel-api/api.env
+ExecStartPre=/usr/bin/node /srv/kernel-api/current/api/scripts/validate-deployment-env.mjs api
+ExecStart=/usr/bin/env HOST=127.0.0.1 PORT=3000 /usr/bin/node /srv/kernel-api/current/api/src/index.ts
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+UMask=0077
+StateDirectory=kernel-api
+StateDirectoryMode=0700
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+RestrictSUIDSGID=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ReadWritePaths=/var/lib/kernel-api
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kernel-api
+
+[Install]
+WantedBy=multi-user.target

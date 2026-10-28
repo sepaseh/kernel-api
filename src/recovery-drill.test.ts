@@ -1,0 +1,77 @@
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { access, mkdtemp, realpath, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+
+const cases = [
+  [
+    "matched DB/object recovery preserves real authenticated behavior",
+    "isolated recovery restores",
+  ],
+  [
+    "a mismatched or damaged recovery point is rejected",
+    "the recovery manifest rejects",
+  ],
+  [
+    "a synthetic storage incident is correlated and recovered",
+    "a synthetic storage incident correlates",
+  ],
+] as const;
+
+for (const [name, pattern] of cases) {
+  test(name, async () => {
+    const directory = await mkdtemp(
+      path.join(tmpdir(), "kernel-recovery-drill-"),
+    );
+    const environment = Object.fromEntries(
+      [
+        "PATH",
+        "Path",
+        "SystemRoot",
+        "WINDIR",
+        "PATHEXT",
+        "TEMP",
+        "TMP",
+        "HOME",
+      ].flatMap((key) =>
+        process.env[key] === undefined ? [] : [[key, process.env[key]]],
+      ),
+    );
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          "--test",
+          `--test-name-pattern=^${pattern}`,
+          fileURLToPath(
+            new URL("./test/recovery-drill-cases.ts", import.meta.url),
+          ),
+        ],
+        {
+          env: { ...environment, KERNEL_RECOVERY_DRILL_ROOT: directory },
+          encoding: "utf8",
+          timeout: 60_000,
+          windowsHide: true,
+        },
+      );
+      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+    } finally {
+      assert.equal(
+        path.dirname(await realpath(directory)),
+        await realpath(tmpdir()),
+      );
+      assert.ok(path.basename(directory).startsWith("kernel-recovery-drill-"));
+      await rm(directory, {
+        recursive: true,
+        force: true,
+        maxRetries: 5,
+        retryDelay: 100,
+      });
+    }
+    await assert.rejects(access(directory), { code: "ENOENT" });
+  });
+}

@@ -1,0 +1,14 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;
+}
+# Temporary ACME-only server before the first API certificate exists.
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${API_HOST};
+    location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; try_files $uri =404; }
+    location / { return 503; }
+}

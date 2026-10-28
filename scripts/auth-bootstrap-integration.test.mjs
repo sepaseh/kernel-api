@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash, createHmac } from "node:crypto";
+import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -16,7 +17,12 @@ import { createAuthGateway } from "../src/infrastructure/auth/gateway.ts";
 import { createOtpGateway } from "../src/infrastructure/auth/otp.ts";
 import { loadConfig } from "../src/infrastructure/config.ts";
 import { createDatabase } from "../src/infrastructure/db/client.ts";
-import { account, otpCodes } from "../src/infrastructure/db/schema.ts";
+import {
+  account,
+  otpCodes,
+  session,
+  user,
+} from "../src/infrastructure/db/schema.ts";
 import { createLogger } from "../src/infrastructure/logging/logger.ts";
 import { createAuthPersistence } from "../src/infrastructure/persistence/auth.ts";
 
@@ -45,7 +51,7 @@ async function setup(context, extra = {}) {
     database,
     createLogger(config.logging, { write() {} }),
   );
-  return { auth, config, database };
+  return { auth, client, config, database };
 }
 
 test("new OTPs store HMACs and reject wrong codes", async (context) => {
@@ -190,6 +196,97 @@ test("bootstrap creates one credential without a session and refuses a rerun", a
   assert.equal((await database.query.session.findMany()).length, 0);
   await assert.rejects(createInitialAdmin(database, auth, input));
   assert.equal((await database.query.user.findMany()).length, 1);
+});
+
+test("bootstrap refuses an inactive existing user without modifying it", async (context) => {
+  const { auth, database } = await setup(context);
+  await database.insert(user).values({
+    id: "synthetic-existing-user",
+    email: "existing@kernel.local",
+    firstName: "Existing",
+    lastName: "Inactive",
+    name: "Existing Inactive",
+    mobile: "09120000002",
+    isSystemAdmin: false,
+    status: "inactive",
+  });
+  const before = await database.select().from(user);
+  await assert.rejects(createInitialAdmin(database, auth, input), /no users/);
+  assert.deepEqual(await database.select().from(user), before);
+  assert.deepEqual(await database.select().from(account), []);
+  assert.deepEqual(await database.select().from(session), []);
+});
+
+test("bootstrap rolls back user creation when credential insertion fails", async (context) => {
+  const { auth, client, database } = await setup(context);
+  await client.execute(
+    "CREATE TRIGGER synthetic_reject_credential BEFORE INSERT ON account BEGIN SELECT RAISE(ABORT, 'synthetic credential failure'); END",
+  );
+  await assert.rejects(createInitialAdmin(database, auth, input), (error) => {
+    // Inspect only the synthetic trigger marker in the cause chain; never log it.
+    for (let cause = error, depth = 0; cause && depth < 5; depth++) {
+      if (String(cause.message).includes("synthetic credential failure"))
+        return true;
+      cause = cause.cause;
+    }
+    return false;
+  });
+  assert.deepEqual(await database.select().from(user), []);
+  assert.deepEqual(await database.select().from(account), []);
+  assert.deepEqual(await database.select().from(session), []);
+});
+
+test("concurrent database clients cannot create two initial administrators", async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "kernel-bootstrap-race-"));
+  const config = loadConfig({
+    BETTER_AUTH_SECRET: "synthetic-test-secret-with-at-least-32-characters",
+    DATABASE_URL: pathToFileURL(path.join(root, "race.sqlite")).href,
+    NODE_ENV: "test",
+  });
+  const first = createDatabase(config);
+  const second = createDatabase(config);
+  context.after(async () => {
+    first.client.close();
+    second.client.close();
+    assert.ok(path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep));
+    assert.ok(path.basename(root).startsWith("kernel-bootstrap-race-"));
+    await rm(root, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
+  });
+  await migrate(first.database, {
+    migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
+  });
+  const logger = createLogger(config.logging, { write() {} });
+  const results = await Promise.allSettled([
+    createInitialAdmin(
+      first.database,
+      createAuth(config, first.database, logger),
+      input,
+    ),
+    createInitialAdmin(
+      second.database,
+      createAuth(config, second.database, logger),
+      {
+        ...input,
+        mobile: "09120000002",
+        username: "second-admin",
+      },
+    ),
+  ]);
+  assert.equal(
+    results.filter((result) => result.status === "fulfilled").length,
+    1,
+  );
+  const users = await first.database.select().from(user);
+  const credentials = await first.database.select().from(account);
+  assert.equal(users.length, 1);
+  assert.equal(credentials.length, 1);
+  assert.equal(credentials[0].userId, users[0].id);
+  assert.deepEqual(await first.database.select().from(session), []);
 });
 
 test("OTP consumption is single-use under concurrent requests", async (context) => {
@@ -590,4 +687,67 @@ test("bootstrap CLI uses explicit synthetic configuration and accepts standard i
   );
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /Initial administrator created/);
+});
+
+const runProductionCli = (databaseUrl, jsonInput, args = []) =>
+  spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("../src/bootstrap-admin.ts", import.meta.url)),
+      ...args,
+    ],
+    {
+      encoding: "utf8",
+      env: {
+        BETTER_AUTH_SECRET: "synthetic-test-secret-with-at-least-32-characters",
+        BETTER_AUTH_URL: "https://api.synthetic.invalid",
+        DATABASE_URL: databaseUrl,
+        NODE_ENV: "production",
+        PATH: process.env.PATH,
+        SERVER_ALLOWED_ORIGINS: "https://admin.synthetic.invalid",
+        SERVER_RELEASE_ID: "synthetic-test-release",
+        STORAGE_DRIVER: "local",
+        SystemRoot: process.env.SystemRoot,
+      },
+      input: jsonInput,
+      timeout: 15_000,
+    },
+  );
+
+const cliDirectory = async (context) => {
+  const root = await mkdtemp(path.join(tmpdir(), "kernel-bootstrap-cli-"));
+  context.after(async () => {
+    assert.ok(path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep));
+    assert.ok(path.basename(root).startsWith("kernel-bootstrap-cli-"));
+    await rm(root, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 100,
+    });
+  });
+  return root;
+};
+
+test("invalid bootstrap CLI inputs do not create a database", async (context) => {
+  const root = await cliDirectory(context);
+  const databasePath = path.join(root, "must-not-open.sqlite");
+  const databaseUrl = pathToFileURL(databasePath).href;
+  for (const [body, args] of [
+    ["{malformed-synthetic-input", []],
+    [JSON.stringify({ ...input, password: "short" }), []],
+    [JSON.stringify(input), ["--unexpected"]],
+    ["x".repeat(64 * 1024 + 1), []],
+  ]) {
+    const result = runProductionCli(databaseUrl, body, args);
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /Initial administrator was not created/);
+    assert.doesNotMatch(
+      result.stderr,
+      /synthetic-input|synthetic-password|SyntaxError|stack/,
+    );
+    assert.equal(existsSync(databasePath), false);
+  }
 });
