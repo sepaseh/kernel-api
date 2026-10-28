@@ -1,0 +1,52 @@
+meta {
+  name: Request User Mobile Verification
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{base_url}}/users/{{user_id}}/request-mobile-verification
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "mobile": "09120000002"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Issue a verification code for a user's new mobile number.
+
+  ## Authentication
+
+  Requires `users.update`. A system administrator is required when changing another user's mobile number.
+
+  ## Behavior
+
+  - The new number must be valid and different from the current number.
+  - Complete the change in the same session with `PATCH /users/{{user_id}}`, sending the same `mobile` and the issued `otp`.
+  - Local development uses a configured code; production delivery is not implemented.
+  - Cooldown and in-process attempt limits apply.
+
+  ## Response
+
+  - `200 OK` — Verification code issued.
+  - `400 Bad Request` — The number is invalid or unchanged.
+  - `401 Unauthorized` — Authentication is required.
+  - `403 Forbidden` — The actor is not permitted to change this number.
+  - `404 Not Found` — The user does not exist.
+  - `429 Too Many Requests` — Cooldown or attempt limit applies.
+}
