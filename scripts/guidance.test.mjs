@@ -140,6 +140,28 @@ test("unsupported step error policies cannot become non-advisory checks", () => 
   }
 });
 
+test("job and step error policies preserve supported and unsupported values", () => {
+  for (const [job, step, expected] of [
+    ["false", "false", false],
+    ["true", "false", true],
+    ["false", "true", true],
+    ["invalid", "false", "unsupported"],
+    ["false", "invalid", "unsupported"],
+  ]) {
+    const ci = ciCommands(
+      [
+        "jobs:",
+        "  check:",
+        `    continue-on-error: ${job}`,
+        "    steps:",
+        "      - run: npm run typecheck",
+        `        continue-on-error: ${step}`,
+      ].join("\n"),
+    );
+    assert.equal(ci.get("check")[0].advisory, expected);
+  }
+});
+
 test("navigation/evaluation validate owners, evidence, English prompts and referenced checks", () => {
   const navigation = {
     schemaVersion: 1,

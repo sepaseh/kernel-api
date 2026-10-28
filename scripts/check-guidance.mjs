@@ -108,8 +108,7 @@ export const ciCommands = (content) => {
   const result = new Map();
   const jobPolicies = new Map();
   const policyValue = (value) => {
-    if (value === "true") return true;
-    if (value === "false") return false;
+    if (value === "true" || value === "false") return value;
     return "unsupported";
   };
   let job;
@@ -155,7 +154,7 @@ const applyJobPolicies = (result, jobPolicies) => {
       check.advisory =
         policy === "unsupported" || check.advisory === "unsupported"
           ? "unsupported"
-          : Boolean(policy || check.advisory);
+          : policy === "true" || check.advisory === "true";
     }
 };
 
@@ -382,9 +381,12 @@ const markdownFiles = async (root, directory) => {
     if (error.code === "ENOENT") return [];
     throw error;
   }
-  const nested = await mapSequential(entries, (entry) => {
+  const nested = await mapSequential(entries, async (entry) => {
     const filename = path.join(directory, entry.name);
-    if (entry.isDirectory()) return markdownFiles(root, filename);
+    if (entry.isDirectory()) {
+      const children = await markdownFiles(root, filename);
+      return children;
+    }
     return entry.name.endsWith(".md") ? [filename] : [];
   });
   return nested.flat();
@@ -463,11 +465,15 @@ const collectReferences = (
     ...(Array.isArray(settings.skills) ? settings.skills : []),
     ...(Array.isArray(settings.optionalHooks) ? settings.optionalHooks : []),
   ];
-  for (const task of navigation.tasks)
-    for (const field of ["owners", "contracts", "tests"])
-      referencedPaths.push(...(Array.isArray(task[field]) ? task[field] : []));
-  for (const task of navigation.tasks)
-    if (task.rules) referencedPaths.push(...task.rules);
+  const taskPaths = navigation.tasks.flatMap((task) =>
+    ["owners", "contracts", "tests"].flatMap((field) =>
+      Array.isArray(task[field]) ? task[field] : [],
+    ),
+  );
+  const taskRules = navigation.tasks.flatMap((task) =>
+    task.rules ? [...task.rules] : [],
+  );
+  referencedPaths.push(...taskPaths, ...taskRules);
   for (const item of evaluation.cases) referencedPaths.push(...item.evidence);
   for (const entry of manifest.externalWorkflows ?? [])
     referencedPaths.push(entry.path);
