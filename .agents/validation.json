@@ -124,6 +124,13 @@
       ]
     },
     {
+      "id": "guidance",
+      "command": "npm run check:guidance",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["local-runtime"]
+    },
+    {
       "id": "coverage-tests",
       "command": "npm run test:coverage",
       "kind": "required",
@@ -167,6 +174,7 @@
       "typecheck",
       "lint",
       "format",
+      "guidance",
       "coverage-tests",
       "audit-helper-tests"
     ]

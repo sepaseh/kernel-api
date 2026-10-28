@@ -1,0 +1,16 @@
+# API source comprehension cases
+
+[English](comprehension-evaluation.md) · [فارسی](comprehension-evaluation.fa.md)
+
+[The case definitions](../.agents/evaluation/cases.json) describe three read-only
+tasks: tracing authentication and session revocation, explaining persisted-language
+behavior, and distinguishing synthetic recovery drills from deployed evidence.
+Each case lists relevant task IDs, source evidence, expected explanations, boundaries
+and check identifiers. The definitions are guidance for a review, not a benchmark
+result or evidence that any assistant executed the tasks.
+
+Do not read private environment files, existing user data or production state.
+Use the current [task map](../.agents/navigation.json) and
+[validation manifest](../.agents/validation.json); a listed check must actually be
+run before its outcome is reported. Do not claim production OTP delivery or an
+operator backup was performed based on these cases.

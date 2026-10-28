@@ -1,0 +1,115 @@
+# TypeScript
+
+## Object shapes
+
+Use `type` for object shapes.
+
+```ts
+// Prefer
+type User = { id: string; name: string };
+
+// Avoid
+interface User {
+  id: string;
+  name: string;
+}
+```
+
+Reserve `interface` for class contracts or external declaration merging.
+
+## Type safety
+
+- Prefer narrowing over `as` casts.
+- Use `as` only at boundaries such as route keys, parser output, or third-party APIs.
+- Avoid `any` unless the surrounding code already requires it.
+- Do not add optional chaining or fallback values for values whose types are non-optional.
+
+## Literal unions and configs
+
+Derive unions from const values when it keeps types and runtime data in sync.
+
+```ts
+const themes = ["light", "dark"] as const;
+type Theme = (typeof themes)[number];
+```
+
+Use `satisfies` for config objects when you want type validation without losing literal types.
+
+```ts
+const routes = {
+  auth: { path: "/auth" },
+  root: { path: "/" },
+} as const satisfies Record<string, { path: string }>;
+```
+
+## Exhaustiveness
+
+Prefer `Record<Union, Value>` for finite mappings so TypeScript forces every case to be handled.
+
+```ts
+type Status = "active" | "inactive";
+
+const statusLabel: Record<Status, string> = {
+  active: "Active",
+  inactive: "Inactive",
+};
+```
+
+## Runtime validation
+
+Fail fast for required internal values, but validate untrusted external data before trusting it.
+
+- Required internal state/config: throw clearly when missing.
+- API/user input: validate or normalize at the boundary.
+- Truly optional data: handle explicitly without pretending it is required.
+
+## Prefer optional values over null
+
+- Prefer not to use `null` in application code. Represent an absent value with
+  an optional field, optional parameter, or `undefined` instead of a `null`
+  union.
+- Do not combine optional syntax with a nullable union such as
+  `value?: string | null`; use `value?: string`.
+- Prefer omission to `null` in API examples and request payloads when absence
+  has no distinct domain meaning.
+- Normalize nullable external response fields at the API boundary before they
+  enter domain models or application state.
+- Keep `null` only when it has a distinct domain or protocol meaning, or when a
+  browser API or third-party library requires it. Keep that exception local to
+  the boundary and do not spread its nullable type through the application.
+
+## Shared types
+
+- Keep application models in `src/application/models.ts` and feature ports beside their owner under `src/application/ports`.
+- Keep HTTP DTOs in feature-owned `src/contracts/account.ts`, `auth.ts` and `settings.ts`.
+- Keep genuinely reused permissions, profile bounds and OTP concepts in their own local contract modules; import owners directly without a catch-all barrel.
+- Derive supported locale types from the single `supportedLanguages` metadata list in `src/contracts/locales.ts`. Avoid infrastructure SDK types in application models.
+- Derive permission types from the pure local permission vocabulary.
+- Name domain models for their owning concept, query inputs with `Query` and
+  request bodies with `Request` where that distinction helps. Keep the model name
+  singular in a query type. Use `Response` for a real wire wrapper or a materially
+  different response shape; do not duplicate a domain model just to add a suffix.
+- Preserve existing public names and boundary ownership during unrelated work;
+  a naming preference alone does not justify a contract or module migration.
+
+## Derive types from their source of truth
+
+- When an existing domain or library type already owns a value's shape, derive
+  the consumer type from it instead of repeating a primitive, union, object
+  shape, or function signature manually.
+- Use indexed access types such as `User["id"]` for domain fields and utility
+  types such as `Parameters<>`, `ReturnType<>`, and `Awaited<>` when
+  they keep consumers synchronized with the owning contract.
+- Do not duplicate a type merely to make a local annotation shorter. Prefer a
+  named derived alias when the inline expression would hurt readability.
+- Define a standalone type when it represents a genuinely independent domain
+  concept or public boundary; do not derive unrelated concepts solely because
+  their current representations happen to match.
+
+```ts
+// Prefer
+type DeleteUserId = User["id"];
+
+// Avoid: this can silently diverge if the domain identifier changes.
+type ManuallyTypedUserId = string;
+```
