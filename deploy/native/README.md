@@ -29,9 +29,20 @@ exact allowed frontend origins and absolute durable DB/storage paths. These are
 systemd environment files: NAME=value assignments without shell export/expansion.
 No source-tree development env is loaded by production units or bootstrap.
 
-For initial TLS only, set API_HOST in a public hosts file and render
-`nginx/bootstrap.conf.template` with `npm run deploy:render -- --template PATH
---env-file PATH --output PATH`. Install the resulting HTTP-only ACME challenge
+Return to the trusted source checkout to run the renderer; the packaged `api`
+directory does not include it or the Nginx templates.
+For initial TLS only, set API_HOST in a public hosts file and render the fixed
+`bootstrap` template. The renderer reads public settings from stdin and writes
+the rendered configuration to stdout. Use an exclusive temporary file, check
+the command succeeds, then inspect it before installation; do not redirect
+directly over an existing configuration. For example:
+
+```sh
+render_tmp=$(mktemp)
+npm run --silent deploy:render -- --template bootstrap < /path/to/public-hosts.env > "$render_tmp"
+```
+
+Remove the temporary file if rendering fails or after installation. Install the resulting HTTP-only ACME challenge
 server in Nginx, create `/var/www/letsencrypt`, run `nginx -t` and reload. Then issue:
 
 ```sh
@@ -39,8 +50,9 @@ sudo certbot certonly --webroot -w /var/www/letsencrypt -d api.example.com
 sudo certbot renew --dry-run
 ```
 
-Provide the protected host configuration, including certificate paths and release ID. Render
-`nginx/kernel.conf.template`, inspect output, install in the Nginx http context,
+Provide a public configuration containing the hostname, certificate paths and release ID,
+without credentials. Repeat the rendering command with `--template kernel` and a new
+exclusive temporary file; inspect output, install in the Nginx http context,
 run `nginx -t` and reload. Replace the bootstrap server rather than keeping duplicate
 API blocks. Renewal must reload Nginx after publishing updated certificates:
 `certbot renew --deploy-hook 'systemctl reload nginx'`. No certificate key is stored

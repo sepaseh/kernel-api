@@ -26,8 +26,9 @@ entrypoint Docker و ExecStartPre بومی آن را
 پایدار بیرون release و بدون میزبان، query یا fragment را می‌پذیرد. استقرار
 libSQL راه‌دور در این بسته اعتبارسنجی نشده است.
 
-`deploy:package` انتشار API انحصاری می‌سازد؛ `deploy:render` فقط فیلد عمومی معتبر
-را جایگزین و متغیر Nginx را حفظ می‌کند؛ `deploy:check -- api` محیط عملیاتی صریح و
+`deploy:package` انتشار API انحصاری می‌سازد؛ `deploy:render` فیلدهای عمومی معتبر
+را از stdin در قالب ثابت `bootstrap` یا `kernel` جایگزین و با حفظ متغیر Nginx به
+stdout می‌نویسد؛ `deploy:check -- api` محیط عملیاتی صریح و
 `deploy:health -- api` آمادگی معنایی را بررسی می‌کند. این‌ها env توسعه را نمی‌خوانند
 و DNS یا گواهی نمی‌سازند. `test:deploy` فقط fixture محلی ساختگی دارد. اجرای
 `test:deploy:docker` به موتور Linux محلی نیاز دارد و TLS و اعتبارنامه و volume

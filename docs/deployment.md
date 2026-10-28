@@ -27,7 +27,8 @@ path outside the release and no host, query or fragment. Remote libSQL deploymen
 is not validated by this package.
 
 Commands: `deploy:package` creates an exclusive API release; `deploy:render` substitutes
-validated public fields without corrupting Nginx variables; `deploy:check -- api`
+validated public fields from stdin into a fixed `bootstrap` or `kernel` template and
+writes to stdout without corrupting Nginx variables; `deploy:check -- api`
 validates supplied production configuration; `deploy:health -- api` checks semantic
 readiness. None load developer env files or provision DNS/certificates. `test:deploy`
 uses only synthetic local fixtures. `test:deploy:docker` requires an available local

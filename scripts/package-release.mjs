@@ -58,11 +58,12 @@ export function parseReleaseArguments(args) {
   let releaseId;
   for (let index = 0; index < args.length; index++) {
     const argument = args[index];
-    const value = argument.startsWith("--release=")
-      ? argument.slice("--release=".length)
-      : argument === "--release"
-        ? args[++index]
-        : undefined;
+    let value;
+    if (argument.startsWith("--release=")) {
+      value = argument.slice("--release=".length);
+    } else if (argument === "--release") {
+      value = args[++index];
+    }
     if (value === undefined || releaseId !== undefined) {
       throw new Error("Usage: node scripts/package-release.mjs --release=ID");
     }
@@ -119,13 +120,15 @@ async function copyTree(
       throw new Error(`Cannot package a circular directory link: ${source}`);
     const nested = new Set(ancestors).add(resolved);
     await mkdir(destination, { recursive: true });
-    for (const name of (await readdir(resolved)).sort())
-      await copyTree(
+    const names = (await readdir(resolved)).sort((a, b) => a.localeCompare(b));
+    await eachSequentially(names, (name) =>
+      copyTree(
         path.join(resolved, name),
         path.join(destination, name),
         sourceRoot,
         nested,
-      );
+      ),
+    );
   } else if (info.isFile()) {
     await mkdir(path.dirname(destination), { recursive: true });
     await copyFile(resolved, destination, constants.COPYFILE_EXCL);
@@ -140,9 +143,16 @@ async function requiredFile(file) {
     throw new Error(`Required build file is missing: ${file}`);
 }
 
+function eachSequentially(items, action) {
+  return items.reduce(
+    (previous, item) => previous.then(() => action(item)),
+    Promise.resolve(),
+  );
+}
+
 async function createOutputRoot(repository) {
   let directory = repository;
-  for (const segment of ["dist", "releases"]) {
+  await eachSequentially(["dist", "releases"], async (segment) => {
     directory = path.join(directory, segment);
     try {
       await mkdir(directory);
@@ -151,7 +161,7 @@ async function createOutputRoot(repository) {
     }
     if (!isInside(repository, await realpath(directory)))
       throw new Error("Release output must remain inside the repository.");
-  }
+  });
 }
 
 export async function packageRelease({
@@ -201,26 +211,29 @@ export async function packageRelease({
   await createOutputRoot(repository);
   await mkdir(output);
   const api = path.join(output, "api");
-  for (const file of ["package.json", "package-lock.json"]) {
-    await mkdir(path.dirname(path.join(api, file)), { recursive: true });
-    await copyFile(
-      path.join(repository, file),
-      path.join(api, file),
-      constants.COPYFILE_EXCL,
-    );
-  }
-  for (const { directory, resolved } of runtimeTrees) {
+  await eachSequentially(
+    ["package.json", "package-lock.json"],
+    async (file) => {
+      await mkdir(path.dirname(path.join(api, file)), { recursive: true });
+      await copyFile(
+        path.join(repository, file),
+        path.join(api, file),
+        constants.COPYFILE_EXCL,
+      );
+    },
+  );
+  await eachSequentially(runtimeTrees, async ({ directory, resolved }) => {
     const from = path.join(repository, directory);
     await copyTree(from, path.join(api, directory), resolved);
-  }
-  for (const file of runtimeScripts) {
+  });
+  await eachSequentially(runtimeScripts, async (file) => {
     await mkdir(path.dirname(path.join(api, file)), { recursive: true });
     await copyFile(
       path.join(repository, file),
       path.join(api, file),
       constants.COPYFILE_EXCL,
     );
-  }
+  });
   const release = {
     schemaVersion: 1,
     application: "kernel-api",

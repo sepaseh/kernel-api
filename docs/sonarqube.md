@@ -76,8 +76,9 @@ review, including recent PRs. Respect any later retry time reported by the provi
 
 During the [local-runtime phase](bootstrap.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
-`src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files as
-tests and imports actual `coverage/lcov.info` produced in the same CI checkout.
+`src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files,
+the `src/test` fixtures and `scripts/test-native-release.mjs` as tests, and
+imports actual `coverage/lcov.info` produced in the same CI checkout.
 This measures published application services, core modules, static catalogs,
 configuration, translation/logging/lifecycle support, local and MinIO storage,
 adapter selection, URL helpers and tooling. Real local-storage tests use

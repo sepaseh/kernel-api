@@ -1,5 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { parseArgs, parseEnv } from "node:util";
 
@@ -59,27 +58,38 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const { values } = parseArgs({
       options: {
         template: { type: "string" },
-        "env-file": { type: "string" },
-        output: { type: "string" },
-        force: { type: "boolean", default: false },
       },
     });
-    if (!values.template || !values["env-file"] || !values.output) {
-      throw new Error(
-        "Use --template PATH --env-file PATH --output PATH [--force].",
+    let template;
+    if (values.template === "bootstrap") {
+      template = new URL(
+        "../deploy/native/nginx/bootstrap.conf.template",
+        import.meta.url,
       );
+    } else if (values.template === "kernel") {
+      template = new URL(
+        "../deploy/native/nginx/kernel.conf.template",
+        import.meta.url,
+      );
+    } else {
+      throw new Error("Select the bootstrap or kernel template.");
+    }
+    const chunks = [];
+    let bytes = 0;
+    for await (const chunk of process.stdin) {
+      bytes += chunk.length;
+      if (bytes > 65536) throw new Error("Public configuration is too large.");
+      chunks.push(chunk);
     }
     const rendered = renderDeploymentTemplate(
-      await readFile(values.template, "utf8"),
-      parseEnv(await readFile(values["env-file"], "utf8")),
+      await readFile(template, "utf8"),
+      parseEnv(Buffer.concat(chunks).toString("utf8")),
     );
-    await mkdir(path.dirname(path.resolve(values.output)), { recursive: true });
-    await writeFile(values.output, rendered, {
-      flag: values.force ? "w" : "wx",
-    });
-    console.info("Deployment configuration rendered.");
-  } catch (error) {
-    console.error(error instanceof Error ? error.message : "Rendering failed.");
+    process.stdout.write(rendered);
+  } catch {
+    console.error(
+      "Rendering failed; check the template and public configuration.",
+    );
     process.exitCode = 1;
   }
 }

@@ -27,9 +27,19 @@ uploads زیر آن با مالک kernel-api و مجوز 0700 بسازید. syml
 فایل محیط systemd فقط NAME=value و بدون export یا بسط shell است. unit عملیاتی
 و bootstrap فایل env توسعهٔ checkout را بارگیری نمی‌کنند.
 
-برای TLS اولیه، API_HOST را در فایل عمومی تعیین و nginx/bootstrap.conf.template
-را با npm run deploy:render -- --template PATH --env-file PATH --output PATH رندر
-کنید. سرور موقت HTTP مخصوص چالش ACME را در Nginx نصب، /var/www/letsencrypt را
+برای اجرای رندرکننده به checkout مورد اعتماد منبع برگردید؛ پوشهٔ `api` بسته‌شده
+رندرکننده و قالب‌های Nginx را شامل نمی‌شود.
+برای TLS اولیه، API_HOST را در فایل عمومی تعیین و قالب ثابت `bootstrap` را رندر
+کنید. رندرکننده تنظیمات عمومی را از stdin می‌خواند و پیکربندی را به stdout می‌دهد.
+از فایل موقت انحصاری استفاده کنید، موفقیت دستور را بررسی کنید و پیش از نصب خروجی
+را بازبینی کنید؛ مستقیماً روی پیکربندی موجود تغییرمسیر ندهید. برای نمونه:
+
+```sh
+render_tmp=$(mktemp)
+npm run --silent deploy:render -- --template bootstrap < /path/to/public-hosts.env > "$render_tmp"
+```
+
+اگر رندر ناموفق بود یا پس از نصب، فایل موقت را پاک کنید. سرور موقت HTTP مخصوص چالش ACME را در Nginx نصب، /var/www/letsencrypt را
 ایجاد، nginx -t و reload کنید و سپس گواهی بگیرید:
 
 ```sh
@@ -37,8 +47,9 @@ sudo certbot certonly --webroot -w /var/www/letsencrypt -d api.example.com
 sudo certbot renew --dry-run
 ```
 
-تنظیمات محافظت‌شدهٔ میزبان را با مسیر گواهی و شناسهٔ انتشار فراهم و nginx/kernel.conf.template
-را رندر و بازبینی کنید. خروجی در http context نصب شود و پس از nginx -t، reload
+تنظیمات عمومی میزبان شامل نام، مسیر گواهی و شناسهٔ انتشار را بدون اعتبارنامه فراهم کنید.
+دستور را با `--template kernel` و فایل موقت انحصاری جدید تکرار و خروجی را بازبینی
+کنید. خروجی در http context نصب شود و پس از nginx -t، reload
 انجام شود. سرور موقت قبلی را جایگزین کنید تا block تکراری باقی نماند. تمدید
 باید پس از انتشار گواهی، Nginx را reload کند:
 certbot renew --deploy-hook 'systemctl reload nginx'. کلید گواهی داخل مخزن یا

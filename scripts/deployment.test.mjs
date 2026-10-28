@@ -292,7 +292,7 @@ test("Docker and native API gateways reject unknown HTTP hosts and TLS names", a
   }
 });
 
-test("renderer CLI refuses overwrites unless explicitly requested", async () => {
+test("renderer CLI uses fixed templates and does not expose unrelated input", async () => {
   const directory = await mkdtemp(
     path.join(tmpdir(), "kernel-render-fixture-"),
   );
@@ -300,24 +300,63 @@ test("renderer CLI refuses overwrites unless explicitly requested", async () => 
     const template = path.join(directory, "nginx.template");
     const env = path.join(directory, "public.env");
     const output = path.join(directory, "nginx.conf");
-    await writeFile(template, "server_name ${API_HOST};");
-    await writeFile(env, "API_HOST=kernel.test\n");
+    const secret = "synthetic-secret-never-render";
+    await writeFile(template, "${SECRET}");
+    await writeFile(env, `SECRET=${secret}\n`);
+    await writeFile(output, "unchanged");
     const command = fileURLToPath(
       new URL("./render-deployment.mjs", import.meta.url),
     );
-    const args = [
-      command,
-      "--template",
-      template,
-      "--env-file",
-      env,
-      "--output",
-      output,
-    ];
-    assert.equal(spawnSync(process.execPath, args).status, 0);
-    assert.notEqual(spawnSync(process.execPath, args).status, 0);
-    assert.equal(spawnSync(process.execPath, [...args, "--force"]).status, 0);
-    assert.equal(await readFile(output, "utf8"), "server_name kernel.test;");
+    const input = `API_HOST=kernel.test\nSECRET=${secret}\n`;
+    const result = spawnSync(
+      process.execPath,
+      [command, "--template", "bootstrap"],
+      { input, encoding: "utf8" },
+    );
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /server_name kernel\.test;/);
+    assert.doesNotMatch(
+      result.stdout + result.stderr,
+      /synthetic-secret-never-render/,
+    );
+    const kernel = spawnSync(
+      process.execPath,
+      [command, "--template", "kernel"],
+      {
+        input: `${input}TLS_CERTIFICATE=/etc/kernel-api/fullchain.pem\nTLS_CERTIFICATE_KEY=/etc/kernel-api/private.key\nRELEASE_ID=release-1\n`,
+        encoding: "utf8",
+      },
+    );
+    assert.equal(kernel.status, 0);
+    assert.match(kernel.stdout, /server_name kernel\.test;/);
+    assert.doesNotMatch(
+      kernel.stdout + kernel.stderr,
+      /synthetic-secret-never-render/,
+    );
+    const tooLarge = spawnSync(
+      process.execPath,
+      [command, "--template", "bootstrap"],
+      {
+        input: `API_HOST=kernel.test\nSECRET=${"x".repeat(65537)}\n`,
+        encoding: "utf8",
+      },
+    );
+    assert.notEqual(tooLarge.status, 0);
+    assert.equal(tooLarge.stdout, "");
+    for (const args of [
+      ["--template", template],
+      ["--template", "bootstrap", "--env-file", env, "--output", output],
+      ["--template", "bootstrap", "--force"],
+    ]) {
+      const rejected = spawnSync(process.execPath, [command, ...args], {
+        input,
+        encoding: "utf8",
+      });
+      assert.notEqual(rejected.status, 0);
+      assert.equal(rejected.stdout, "");
+      assert.doesNotMatch(rejected.stderr, /synthetic-secret-never-render/);
+    }
+    assert.equal(await readFile(output, "utf8"), "unchanged");
   } finally {
     assert.equal(path.dirname(path.resolve(directory)), path.resolve(tmpdir()));
     assert.ok(path.basename(directory).startsWith("kernel-render-fixture-"));

@@ -324,7 +324,7 @@ const collectionFiles = new Set([
   "collection/users/update/404.json",
   "collection/users/update/index.bru",
 ]);
-const operationsFiles = [
+const operationsFiles = new Set([
   ".dockerignore",
   ".github/workflows/staging.yml",
   ".github/workflows/deployment-smoke.yml",
@@ -367,7 +367,7 @@ const operationsFiles = [
   "scripts/check-deployed-api.mjs",
   "src/recovery-drill.test.ts",
   "src/test/recovery-drill-cases.ts",
-];
+]);
 const localRuntimeFiles = [
   ...operationsFiles,
   ...collectionFiles,
@@ -465,8 +465,7 @@ export const validateBootstrapPolicy = (policy) => {
       /[*?[\]{}:\r\n]/.test(file) ||
       /^(?:apps|packages|node_modules|server|coverage)(?:\/|$)/.test(file) ||
       (/^deploy(?:\/|$)/.test(file) &&
-        (policy.phase !== "local-runtime" ||
-          !operationsFiles.includes(file))) ||
+        (policy.phase !== "local-runtime" || !operationsFiles.has(file))) ||
       (/^collection(?:\/|$)/.test(file) &&
         (policy.phase !== "local-runtime" || !collectionFiles.has(file))) ||
       (/^drizzle(?:\/|$)/.test(file) &&

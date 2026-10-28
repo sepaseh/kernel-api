@@ -136,7 +136,8 @@ test("Sonar duplication exception names exactly ten data files and leaves all so
     ),
   );
   assert.ok(entries.includes("sonar.sources=src,scripts"));
-  assert.ok(
-    entries.includes("sonar.exclusions=src/**/*.test.ts,scripts/*.test.mjs"),
-  );
+  const testPatterns =
+    "src/**/*.test.ts,src/test/**,scripts/*.test.mjs,scripts/test-native-release.mjs";
+  assert.ok(entries.includes(`sonar.exclusions=${testPatterns}`));
+  assert.ok(entries.includes(`sonar.test.inclusions=${testPatterns}`));
 });

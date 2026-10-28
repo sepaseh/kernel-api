@@ -66,7 +66,7 @@ const localDatabasePath = (database) => {
     if (
       location.startsWith("\\\\") ||
       location.startsWith("//") ||
-      [...location].some((character) => character.charCodeAt(0) < 32)
+      [...location].some((character) => character.codePointAt(0) < 32)
     )
       throw invalid();
     return location;
@@ -98,6 +98,27 @@ export const validateOrigin = (value, publicOrigin = true) => {
   }
   return url;
 };
+
+function validateMinio(environment) {
+  for (const name of [
+    "MINIO_ACCESS_KEY",
+    "MINIO_SECRET_KEY",
+    "MINIO_ENDPOINT",
+    "MINIO_PUBLIC_URL",
+  ]) {
+    const value = requireValue(environment, name);
+    if (/(?:replace[-_ ]|minioadmin)/i.test(value)) {
+      throw new Error(`${name} still contains a placeholder.`);
+    }
+  }
+  validateOrigin(environment.MINIO_PUBLIC_URL);
+  if (
+    environment.MINIO_USE_SSL !== "true" &&
+    !loopback.has(environment.MINIO_ENDPOINT)
+  ) {
+    throw new Error("External MinIO requires TLS.");
+  }
+}
 
 export function validateDeploymentEnv(
   mode,
@@ -148,24 +169,7 @@ export function validateDeploymentEnv(
       "LOCAL_STORAGE_PATH",
     );
   } else if (driver === "minio") {
-    for (const name of [
-      "MINIO_ACCESS_KEY",
-      "MINIO_SECRET_KEY",
-      "MINIO_ENDPOINT",
-      "MINIO_PUBLIC_URL",
-    ]) {
-      const value = requireValue(environment, name);
-      if (/(?:replace[-_ ]|minioadmin)/i.test(value)) {
-        throw new Error(`${name} still contains a placeholder.`);
-      }
-    }
-    validateOrigin(environment.MINIO_PUBLIC_URL);
-    if (
-      environment.MINIO_USE_SSL !== "true" &&
-      !loopback.has(environment.MINIO_ENDPOINT)
-    ) {
-      throw new Error("External MinIO requires TLS.");
-    }
+    validateMinio(environment);
   } else throw new Error("STORAGE_DRIVER must be local or minio.");
 }
 

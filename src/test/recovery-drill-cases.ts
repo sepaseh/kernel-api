@@ -26,33 +26,37 @@ const origin = "http://recovery.kernel.test";
 const password = "synthetic-drill-password";
 const secret = "synthetic-recovery-secret-at-least-thirty-two-characters";
 
-async function inventory(directory: string, relative = "") {
-  const result: { path: string; bytes: number; sha256: string }[] = [];
-  for (const entry of await readdir(path.join(directory, relative), {
+type Point = { path: string; bytes: number; sha256: string }[];
+
+async function inventory(directory: string, relative = ""): Promise<Point> {
+  const entries = await readdir(path.join(directory, relative), {
     withFileTypes: true,
-  })) {
-    const filename = path.join(relative, entry.name);
-    assert.equal(
-      entry.isSymbolicLink(),
-      false,
-      "Recovery fixtures never follow links",
-    );
-    if (entry.isDirectory())
-      result.push(...(await inventory(directory, filename)));
-    else {
+  });
+  const nested = await Promise.all(
+    entries.map(async (entry) => {
+      const filename = path.join(relative, entry.name);
+      assert.equal(
+        entry.isSymbolicLink(),
+        false,
+        "Recovery fixtures never follow links",
+      );
+      if (entry.isDirectory()) return inventory(directory, filename);
       assert.ok(entry.isFile());
       const data = await readFile(path.join(directory, filename));
-      result.push({
-        path: filename.split(path.sep).join("/"),
-        bytes: data.byteLength,
-        sha256: createHash("sha256").update(data).digest("hex"),
-      });
-    }
-  }
-  return result.sort((left, right) => left.path.localeCompare(right.path));
+      return [
+        {
+          path: filename.split(path.sep).join("/"),
+          bytes: data.byteLength,
+          sha256: createHash("sha256").update(data).digest("hex"),
+        },
+      ];
+    }),
+  );
+  return nested
+    .flat()
+    .sort((left, right) => left.path.localeCompare(right.path));
 }
 
-type Point = Awaited<ReturnType<typeof inventory>>;
 async function verifyPoint(directory: string, expected: Point) {
   assert.deepEqual(
     await inventory(directory),
@@ -166,7 +170,7 @@ async function fixture(context: TestContext) {
   return { root, live, source, open, token, userId: created.user.id, upload };
 }
 
-test("isolated recovery restores a matched closed database, sessions and public/private objects", async (context) => {
+void test("isolated recovery restores a matched closed database, sessions and public/private objects", async (context) => {
   const { root, live, source, open, token, userId, upload } =
     await fixture(context);
   const mutation = (body: unknown): RequestInit => ({
@@ -332,59 +336,61 @@ test("isolated recovery restores a matched closed database, sessions and public/
   );
   const records = await restored.database.select().from(files);
   assert.equal(records.length, 2);
-  for (const record of records) {
-    const bytes = await restored.storage.get(record.bucket, record.objectKey);
-    assert.equal(bytes.byteLength, record.size);
-    assert.equal(
-      new TextDecoder().decode(bytes),
-      `synthetic ${record.visibility} recovery object`,
-    );
-  }
+  await Promise.all(
+    records.map(async (record) => {
+      const bytes = await restored.storage.get(record.bucket, record.objectKey);
+      assert.equal(bytes.byteLength, record.size);
+      assert.equal(
+        new TextDecoder().decode(bytes),
+        `synthetic ${record.visibility} recovery object`,
+      );
+    }),
+  );
   // Startup and authentication wrote only to the independent restored copy.
   await verifyPoint(backup, point);
 });
 
-test("the recovery manifest rejects missing, corrupted and mismatched DB/object recovery points", async (context) => {
+void test("the recovery manifest rejects missing, corrupted and mismatched DB/object recovery points", async (context) => {
   const { root, live, source, open, upload } = await fixture(context);
   assert.equal((await upload(source.app, "public")).status, 201);
   source.close();
   const point = await inventory(live);
   const object = point.find((file) => file.path.startsWith("objects/"));
   assert.ok(object);
-  for (const kind of [
-    "missing-object",
-    "changed-object",
-    "mismatched-database",
-  ] as const) {
-    const target = path.join(root, kind);
-    await cp(live, target, {
-      recursive: true,
-      errorOnExist: true,
-      force: false,
-    });
-    if (kind === "missing-object") await rm(path.join(target, object.path));
-    else if (kind === "changed-object")
-      await writeFile(
-        path.join(target, object.path),
-        "synthetic different recovery point",
-      );
-    else {
-      // This remains valid SQLite but belongs to a different data point.
-      const mismatched = await open(target);
-      await mismatched.database
-        .update(settings)
-        .set({ languageCode: "fa" })
-        .where(eq(settings.id, 1));
-      mismatched.close();
-    }
-    await assert.rejects(
-      verifyPoint(target, point),
-      /Recovery point files must match/,
-    );
-  }
+  await Promise.all(
+    (["missing-object", "changed-object", "mismatched-database"] as const).map(
+      async (kind) => {
+        const target = path.join(root, kind);
+        await cp(live, target, {
+          recursive: true,
+          errorOnExist: true,
+          force: false,
+        });
+        if (kind === "missing-object") await rm(path.join(target, object.path));
+        else if (kind === "changed-object")
+          await writeFile(
+            path.join(target, object.path),
+            "synthetic different recovery point",
+          );
+        else {
+          // This remains valid SQLite but belongs to a different data point.
+          const mismatched = await open(target);
+          await mismatched.database
+            .update(settings)
+            .set({ languageCode: "fa" })
+            .where(eq(settings.id, 1));
+          mismatched.close();
+        }
+        await assert.rejects(
+          verifyPoint(target, point),
+          /Recovery point files must match/,
+        );
+      },
+    ),
+  );
 });
 
-test("a synthetic storage incident correlates HTTP failure, request, release and redacted logs before recovery", async (context) => {
+void test("a synthetic storage incident correlates HTTP failure, request, release and redacted logs before recovery", async (context) => {
   const { source, token, upload } = await fixture(context);
   const failing = createApp({
     auth: source.auth,
@@ -395,8 +401,10 @@ test("a synthetic storage incident correlates HTTP failure, request, release and
       delete: (bucket, key) => source.storage.delete(bucket, key),
       ensureReady: () => source.storage.ensureReady(),
       get: (bucket, key) => source.storage.get(bucket, key),
-      async put() {
-        throw new Error("synthetic-provider-secret-must-never-be-logged");
+      put() {
+        return Promise.reject(
+          new Error("synthetic-provider-secret-must-never-be-logged"),
+        );
       },
       url: (bucket, key, visibility) =>
         source.storage.url(bucket, key, visibility),
