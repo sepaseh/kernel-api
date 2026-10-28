@@ -34,6 +34,19 @@ const groups = {
 };
 const root = path.resolve("collection");
 
+test("calendar deletion does not override the selected environment date", async () => {
+  const request = await readFile(
+    path.join(root, "calendar/delete/index.bru"),
+    "utf8",
+  );
+  assert.match(
+    request,
+    /url: \{\{base_url\}\}\/calendar\/\{\{calendar_date\}\}/,
+  );
+  for (const block of request.matchAll(/vars:[\w-]+\s*\{([^}]*)\}/g))
+    assert.doesNotMatch(block[1], /\bcalendar_date\s*:/);
+});
+
 test("collection origin allows cookie-bearing requests through the HTTP guard", async () => {
   const collection = await readFile(path.join(root, "collection.bru"), "utf8");
   const header = collection.match(/^\s*Origin:\s*\{\{(\w+)\}\}\s*$/m);

@@ -14,6 +14,8 @@ real credentials. Successful login saves the access token in the active Bruno
 environment. Session cookies are also used by the authentication adapter.
 Set `user_id`, `role_id` and `file_id` to synthetic identifiers created in the
 disposable local server before running operations that reference those records.
+Set `calendar_date` in the active environment to the `YYYY-MM-DD` date to remove
+before using the calendar deletion request.
 Select a synthetic file locally in Bruno before sending the upload request.
 The exact publication-snapshot check rejects local environment directories; run
 the full validation gate in a clean checkout without a Bruno environment.

@@ -17,10 +17,6 @@ headers {
   Accept: application/json
 }
 
-vars:pre-request {
-  calendar_date: 2026-09-15
-}
-
 docs {
   ## Purpose
 
@@ -29,6 +25,10 @@ docs {
   ## Authentication
 
   Requires a valid access token with `calendar.update` permission.
+
+  ## Behavior
+
+  - Set `calendar_date` in the active environment to the date to remove, in `YYYY-MM-DD` format.
 
   ## Response
 
