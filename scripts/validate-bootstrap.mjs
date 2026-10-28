@@ -324,7 +324,52 @@ const collectionFiles = new Set([
   "collection/users/update/404.json",
   "collection/users/update/index.bru",
 ]);
+const operationsFiles = new Set([
+  ".dockerignore",
+  ".github/workflows/staging.yml",
+  ".github/workflows/deployment-smoke.yml",
+  ".github/workflows/dast.yml",
+  "deploy/docker/15-validate-configuration.sh",
+  "deploy/docker/api-entrypoint.sh",
+  "deploy/docker/compose.yaml",
+  "deploy/docker/Dockerfile",
+  "deploy/docker/nginx.conf.template",
+  "deploy/docker/README.md",
+  "deploy/docker/README.fa.md",
+  "deploy/docker/smoke-resources.mjs",
+  "deploy/docker/smoke-resources.test.mjs",
+  "deploy/docker/smoke.mjs",
+  "deploy/native/nginx/bootstrap.conf.template",
+  "deploy/native/nginx/kernel.conf.template",
+  "deploy/native/README.md",
+  "deploy/native/README.fa.md",
+  "deploy/native/systemd/kernel-api.service",
+  "docs/deployment.md",
+  "docs/deployment.fa.md",
+  "docs/staging.md",
+  "docs/staging.fa.md",
+  "docs/release-operations.md",
+  "docs/release-operations.fa.md",
+  "docs/backup-restore.md",
+  "docs/backup-restore.fa.md",
+  "docs/recovery-drills.md",
+  "docs/recovery-drills.fa.md",
+  "scripts/validate-workflow-targets.test.mjs",
+  "scripts/validate-workflow-targets.mjs",
+  "scripts/validate-deployment-env.mjs",
+  "scripts/test-native-release.mjs",
+  "scripts/render-deployment.mjs",
+  "scripts/package-release.test.mjs",
+  "scripts/package-release.mjs",
+  "scripts/healthcheck.mjs",
+  "scripts/deployment.test.mjs",
+  "scripts/check-deployed-api.test.mjs",
+  "scripts/check-deployed-api.mjs",
+  "src/recovery-drill.test.ts",
+  "src/test/recovery-drill-cases.ts",
+]);
 const localRuntimeFiles = [
+  ...operationsFiles,
   ...collectionFiles,
   "scripts/runtime-integration.test.mjs",
   "scripts/runtime-seed.test.mjs",
@@ -418,9 +463,9 @@ export const validateBootstrapPolicy = (policy) => {
       file.includes("\\") ||
       file.split("/").some((part) => !part || part === "." || part === "..") ||
       /[*?[\]{}:\r\n]/.test(file) ||
-      /^(?:apps|packages|deploy|node_modules|server|coverage)(?:\/|$)/.test(
-        file,
-      ) ||
+      /^(?:apps|packages|node_modules|server|coverage)(?:\/|$)/.test(file) ||
+      (/^deploy(?:\/|$)/.test(file) &&
+        (policy.phase !== "local-runtime" || !operationsFiles.has(file))) ||
       (/^collection(?:\/|$)/.test(file) &&
         (policy.phase !== "local-runtime" || !collectionFiles.has(file))) ||
       (/^drizzle(?:\/|$)/.test(file) &&

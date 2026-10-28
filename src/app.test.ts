@@ -10,7 +10,7 @@ import { createAuth } from "./infrastructure/auth/better-auth.ts";
 import { loadConfig } from "./infrastructure/config.ts";
 import { createDatabase } from "./infrastructure/db/client.ts";
 import { initializeDatabase } from "./infrastructure/db/initialize.ts";
-import { files, settings, user } from "./infrastructure/db/schema.ts";
+import { files, session, settings, user } from "./infrastructure/db/schema.ts";
 import { createLogger } from "./infrastructure/logging/logger.ts";
 import { LocalFileStorage } from "./infrastructure/storage/local.ts";
 import { MinioObjectStorage } from "./infrastructure/storage/minio.ts";
@@ -38,6 +38,200 @@ const authenticated = (init: RequestInit = {}): RequestInit => ({
     ...init.headers,
   },
 });
+
+test("repeated invalid logins are rate limited through HTTP", async () => {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const response = await request("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: "09120000999",
+        password: "incorrect-password",
+      }),
+    });
+    assert.equal(response.status, 400);
+  }
+  const blocked = await request("/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      identifier: "09120000999",
+      password: "incorrect-password",
+    }),
+  });
+  assert.equal(blocked.status, 429);
+});
+
+test("logout expires a secure cookie and revokes an inactive user's session", async (t) => {
+  const config = loadConfig({
+    BETTER_AUTH_SECRET: "synthetic-secret-with-at-least-thirty-two-characters",
+    BETTER_AUTH_URL: "https://api.kernel.test",
+    SERVER_ALLOWED_ORIGINS: "https://website.kernel.test",
+    DATABASE_URL: "file::memory:",
+    NODE_ENV: "test",
+  });
+  const fixture = createDatabase(config);
+  t.after(() => fixture.client.close());
+  const logger = createLogger(config.logging, { write() {} });
+  const auth = createAuth(config, fixture.database, logger);
+  await initializeDatabase(config, fixture.database, auth);
+  const secureApp = createApp({
+    auth,
+    config,
+    database: fixture.database,
+    logger,
+    storage: new MemoryObjectStorage(),
+  });
+  const created = await auth.api.signUpEmail({
+    body: {
+      email: "target@kernel.test",
+      firstName: "Test",
+      lastName: "Target",
+      mobile: "09120000998",
+      name: "Test Target",
+      password: "synthetic-password",
+    },
+  });
+  const login = await secureApp.request("https://api.kernel.test/auth/login", {
+    method: "POST",
+    headers: {
+      Origin: "https://website.kernel.test",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      identifier: "09120000998",
+      password: "synthetic-password",
+    }),
+  });
+  assert.equal(login.status, 200);
+  const cookie = login.headers
+    .getSetCookie()
+    .find((value) => value.startsWith("__Secure-better-auth.session_token="))
+    ?.split(";")[0];
+  assert.ok(cookie);
+  const current = await auth.api.getSession({
+    headers: new Headers({ cookie }),
+  });
+  assert.ok(current);
+  assert.equal(current.user.id, created.user.id);
+  const sessionToken = current.session.token;
+  assert.equal(
+    (
+      await fixture.database
+        .select()
+        .from(session)
+        .where(eq(session.token, sessionToken))
+    ).length,
+    1,
+  );
+  await fixture.database
+    .update(user)
+    .set({ status: "inactive" })
+    .where(eq(user.id, created.user.id));
+  const logout = await secureApp.request(
+    "https://api.kernel.test/auth/logout",
+    {
+      method: "POST",
+      headers: { Cookie: cookie, Origin: "https://website.kernel.test" },
+    },
+  );
+  assert.equal(logout.status, 200);
+  assert.ok(
+    logout.headers
+      .getSetCookie()
+      .some(
+        (value) =>
+          value.startsWith("__Secure-better-auth.session_token=") &&
+          /Max-Age=0/i.test(value),
+      ),
+  );
+  assert.equal(
+    (
+      await fixture.database
+        .select()
+        .from(session)
+        .where(eq(session.token, sessionToken))
+    ).length,
+    0,
+  );
+});
+
+for (const length of [7, 129]) {
+  test(`invalid ${length}-character recovery password does not consume the OTP`, async () => {
+    const mobile = length === 7 ? "09120000996" : "09120000995";
+    const originalPassword = "synthetic-original-password";
+    const replacementPassword = "synthetic-replacement-password";
+    const logger = createLogger(baseConfig.logging, { write() {} });
+    const auth = createAuth(baseConfig, database, logger);
+    await auth.api.signUpEmail({
+      body: {
+        email: `recovery-${length}@kernel.test`,
+        firstName: "Test",
+        lastName: "Recovery",
+        mobile,
+        name: "Test Recovery",
+        password: originalPassword,
+      },
+    });
+    const post = (url: string, body: Record<string, string>) =>
+      request(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    assert.equal(
+      (await post("/auth/otp-request", { mobile, purpose: "forgot_password" }))
+        .status,
+      200,
+    );
+    const attempt = { mobile, otp: "123456" };
+    assert.equal(
+      (
+        await post("/auth/forgot-password", {
+          ...attempt,
+          password: "x".repeat(length),
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await post("/auth/login", {
+          identifier: mobile,
+          password: originalPassword,
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await post("/auth/forgot-password", {
+          ...attempt,
+          password: replacementPassword,
+        })
+      ).status,
+      200,
+    );
+    assert.equal(
+      (
+        await post("/auth/forgot-password", {
+          ...attempt,
+          password: originalPassword,
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await post("/auth/login", {
+          identifier: mobile,
+          password: replacementPassword,
+        })
+      ).status,
+      200,
+    );
+  });
+}
 
 before(async () => {
   tempDirectory = await mkdtemp(path.join(tmpdir(), "kernel-server-"));
