@@ -6,8 +6,10 @@ Use this checklist when changing authentication, sessions or related operations.
 It describes review questions and existing boundaries; it does not certify an
 external audit or production readiness.
 
-1. Check that the actor has an active session and the current permission at the
-   point of the operation. For changes to another user's mobile, require the
+1. For authenticated operations, check that the actor has an active session
+   and any required current permission at the point of the operation. Login and
+   password recovery do not require an existing session; review their credential
+   or OTP checks instead. For changes to another user's mobile, require the
    active system-administrator guard and account for verification of the new
    number only.
 2. Check OTP purpose, destination and expiry. For mobile changes, also check
