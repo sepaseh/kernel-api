@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
+import { inspect } from "node:util";
 
 import { and, eq } from "drizzle-orm";
 
@@ -15,6 +16,7 @@ import { createLogger } from "./infrastructure/logging/logger.ts";
 import { LocalFileStorage } from "./infrastructure/storage/local.ts";
 import { MinioObjectStorage } from "./infrastructure/storage/minio.ts";
 import { createApp } from "./test/create-app-fixture.ts";
+import { cleanupFixtureResources } from "./test/fixture-cleanup.ts";
 import { MemoryObjectStorage } from "./test/memory-object-storage.ts";
 
 let app: ReturnType<typeof createApp>;
@@ -255,15 +257,73 @@ before(async () => {
   app = createApp({ auth, config: baseConfig, database, logger, storage });
 });
 
-after(async () => {
-  await client.close();
-  assert.ok(tempDirectory.startsWith(tmpdir()));
-  await rm(tempDirectory, {
-    force: true,
-    maxRetries: 5,
-    recursive: true,
-    retryDelay: 100,
+const cleanupServerFixture = async (
+  fixtureClient: { close: () => void | Promise<void> } | undefined,
+  directory: string | undefined,
+  removeDirectory: (directory: string) => Promise<void> = (ownedDirectory) =>
+    rm(ownedDirectory, {
+      force: true,
+      maxRetries: 5,
+      recursive: true,
+      retryDelay: 100,
+    }),
+) => {
+  await cleanupFixtureResources(
+    fixtureClient ? [() => fixtureClient.close()] : [],
+    async () => {
+      if (!directory) return;
+      assert.equal(
+        path.dirname(path.resolve(directory)),
+        path.resolve(tmpdir()),
+      );
+      assert.ok(path.basename(directory).startsWith("kernel-server-"));
+      await removeDirectory(directory);
+    },
+  );
+};
+
+after(async (context) => {
+  try {
+    await cleanupServerFixture(client, tempDirectory);
+  } catch (error) {
+    context.diagnostic(inspect(error, { depth: 4 }));
+    throw error;
+  }
+});
+
+test("server fixture removes its directory after a partial setup failure", async () => {
+  const directory = path.join(tmpdir(), "kernel-server-synthetic");
+  const removed: string[] = [];
+  await cleanupServerFixture(undefined, directory, async (ownedDirectory) => {
+    removed.push(ownedDirectory);
   });
+  assert.deepEqual(removed, [directory]);
+});
+
+test("server fixture retains both close and removal failures", async () => {
+  const closeFailure = new Error("synthetic close failure");
+  const removalFailure = new Error("synthetic removal failure");
+  let removalAttempted = false;
+  await assert.rejects(
+    cleanupServerFixture(
+      {
+        close: () => {
+          throw closeFailure;
+        },
+      },
+      path.join(tmpdir(), "kernel-server-synthetic"),
+      async () => {
+        removalAttempted = true;
+        throw removalFailure;
+      },
+    ),
+    (error) =>
+      error instanceof AggregateError &&
+      error.errors.length === 2 &&
+      error.errors[0] === closeFailure &&
+      error.errors[1] === removalFailure,
+  );
+  assert.equal(removalAttempted, true);
 });
 
 test("never enables synthetic seed data in production", () => {

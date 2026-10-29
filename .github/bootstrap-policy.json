@@ -485,6 +485,8 @@
     "src/request-logging.test.ts",
     "src/test/composition-dependencies.ts",
     "src/test/create-app-fixture.ts",
+    "src/test/fixture-cleanup.test.ts",
+    "src/test/fixture-cleanup.ts",
     "src/test/logging.ts",
     "src/test/memory-object-storage.ts",
     "src/test/recovery-drill-cases.ts",

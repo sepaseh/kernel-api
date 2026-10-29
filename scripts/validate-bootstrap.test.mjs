@@ -438,6 +438,8 @@ const operationsFiles = [
   "scripts/check-deployed-api.test.mjs",
   "scripts/check-deployed-api.mjs",
   "src/recovery-drill.test.ts",
+  "src/test/fixture-cleanup.ts",
+  "src/test/fixture-cleanup.test.ts",
   "src/test/recovery-drill-cases.ts",
 ];
 const guidanceFiles = [

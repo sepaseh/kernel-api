@@ -16,6 +16,7 @@ import { createSettingsService } from "./application/settings.ts";
 import * as schema from "./infrastructure/db/schema.ts";
 import { createDrizzleRolesRepository } from "./infrastructure/persistence/roles.ts";
 import { createDrizzleSettingsRepository } from "./infrastructure/persistence/settings.ts";
+import { registerFixtureCleanup } from "./test/fixture-cleanup.ts";
 
 const settingsActor = (
   systemAdmin = false,
@@ -41,13 +42,25 @@ const settingsActor = (
   },
 });
 
-test("role creation and name/permission replacement roll back together on a permission write failure", async () => {
+test("role creation and name/permission replacement roll back together on a permission write failure", async (context) => {
   const directory = await mkdtemp(path.join(tmpdir(), "kernel-management-"));
+  const closers: Array<() => void | Promise<void>> = [];
+  registerFixtureCleanup(context, closers, async () => {
+    const tempRoot = path.resolve(tmpdir()) + path.sep;
+    assert.ok(path.resolve(directory).startsWith(tempRoot));
+    assert.ok(path.basename(directory).startsWith("kernel-management-"));
+    await rm(directory, {
+      force: true,
+      maxRetries: 5,
+      recursive: true,
+      retryDelay: 100,
+    });
+  });
   const client = createClient({
     url: `file:${path.join(directory, "roles.sqlite").replaceAll("\\", "/")}`,
   });
-  try {
-    await client.executeMultiple(`
+  closers.push(() => client.close());
+  await client.executeMultiple(`
       PRAGMA foreign_keys = ON;
       CREATE TABLE roles (id TEXT PRIMARY KEY, name TEXT NOT NULL UNIQUE);
       CREATE TABLE role_permissions (
@@ -64,55 +77,41 @@ test("role creation and name/permission replacement roll back together on a perm
       WHEN NEW.permission = 'users.read'
       BEGIN SELECT RAISE(ABORT, 'simulated permission write failure'); END;
     `);
-    const repository = createDrizzleRolesRepository(
-      drizzle(client, { schema }),
-    );
-    const service = createRolesService(repository);
-    await assert.rejects(
-      service.create({ name: "Failed role", permissions: ["users.read"] }),
-    );
-    assert.deepEqual(await service.list(), []);
+  const repository = createDrizzleRolesRepository(drizzle(client, { schema }));
+  const service = createRolesService(repository);
+  await assert.rejects(
+    service.create({ name: "Failed role", permissions: ["users.read"] }),
+  );
+  assert.deepEqual(await service.list(), []);
 
-    const role = await service.create({
-      name: "Original role",
-      permissions: ["calendar.read"],
-    });
-    await assert.rejects(
-      service.update(role.id, {
-        name: "Renamed role",
-        permissions: ["users.read"],
-      }),
-    );
-    assert.deepEqual(await service.get(role.id), role);
+  const role = await service.create({
+    name: "Original role",
+    permissions: ["calendar.read"],
+  });
+  await assert.rejects(
+    service.update(role.id, {
+      name: "Renamed role",
+      permissions: ["users.read"],
+    }),
+  );
+  assert.deepEqual(await service.get(role.id), role);
 
-    await assert.rejects(
-      service.create({ name: "Original role", permissions: [] }),
-      {
-        key: "roleNameInUse",
-        kind: "invalid",
-      },
-    );
-    await client.execute({
-      sql: "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)",
-      args: ["assigned-user", role.id],
-    });
-    await assert.rejects(service.remove(role.id), {
-      key: "roleAssigned",
-      kind: "conflict",
-    });
-    assert.deepEqual(await service.get(role.id), role);
-  } finally {
-    client.close();
-    const tempRoot = path.resolve(tmpdir()) + path.sep;
-    assert.ok(path.resolve(directory).startsWith(tempRoot));
-    assert.ok(path.basename(directory).startsWith("kernel-management-"));
-    await rm(directory, {
-      force: true,
-      maxRetries: 5,
-      recursive: true,
-      retryDelay: 100,
-    });
-  }
+  await assert.rejects(
+    service.create({ name: "Original role", permissions: [] }),
+    {
+      key: "roleNameInUse",
+      kind: "invalid",
+    },
+  );
+  await client.execute({
+    sql: "INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)",
+    args: ["assigned-user", role.id],
+  });
+  await assert.rejects(service.remove(role.id), {
+    key: "roleAssigned",
+    kind: "conflict",
+  });
+  assert.deepEqual(await service.get(role.id), role);
 });
 
 test("calendar use cases validate real UTC dates before storage and retain idempotent additions", async () => {
