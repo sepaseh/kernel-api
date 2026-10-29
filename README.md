@@ -93,9 +93,9 @@ emptiness check share one transaction, so failure or competing seed attempts do
 not leave a partially created sample account or grants. Migrations and initial
 settings happen separately before that transaction.
 
-The [validation manifest](.agents/validation.json) owns all nine required checks
+The [validation manifest](.agents/validation.json) owns all ten required checks
 in the complete current-phase gate: exact source snapshot, semantic CI policy, dependency audit,
-source boundaries, types, lint, formatting, measured test coverage and audit-helper
+source boundaries, types, lint, formatting, guidance, measured test coverage and audit-helper
 tests. These checks use synthetic data and do not need an environment file,
 existing database or running API.
 
@@ -108,8 +108,10 @@ and signed S3 SDK tests against a synthetic loopback HTTP server.
 Generated coverage is not committed.
 See [Sonar setup](docs/sonarqube.md) for scanner and provider-gate evidence.
 
-The partial [Bruno collection](collection/README.md) covers auth and account
-requests using synthetic values. Its checks run in the full profile.
+The [Bruno collection](collection/README.md) covers authentication, account,
+users, roles, calendar, files, languages and settings requests using synthetic values.
+Its checks run in the full profile. See the [documentation map](docs/README.md)
+and [security policy](SECURITY.md) for further guidance.
 
 ## Contribute
 
