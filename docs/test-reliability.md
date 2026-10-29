@@ -21,6 +21,13 @@ operation and cleanup failures together. These checks use owned temporary data;
 they do not establish the cause of the recorded Windows file lock or guarantee that
 another process cannot hold a fixture open.
 
+The application, persistence and management database fixtures attempt each owned
+client close and temporary-directory removal independently, including after partial
+setup. Cleanup failures are not suppressed: persistence and management test hooks
+also emit diagnostics so cleanup errors remain visible when a test fails as well.
+The recorded Windows `EBUSY` lock's cause remains unconfirmed; these changes do not
+guarantee that an external process cannot hold a file open.
+
 ## Investigation record
 
 Record only observed results and label an unconfirmed cause as a hypothesis.

@@ -65,6 +65,87 @@ async function verifyPoint(directory: string, expected: Point) {
   );
 }
 
+function closeRecoveryClients(clients: Iterable<{ close(): void }>) {
+  const errors: unknown[] = [];
+  for (const client of clients) {
+    try {
+      client.close();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length > 0)
+    throw new AggregateError(errors, "Recovery fixture client cleanup failed");
+}
+
+void test("recovery cleanup attempts all client closes and preserves failures", () => {
+  const failures = [new Error("first close"), new Error("last close")];
+  const closed: string[] = [];
+  const clients = [
+    {
+      close: () => {
+        closed.push("first");
+        throw failures[0];
+      },
+    },
+    {
+      close: () => {
+        closed.push("middle");
+      },
+    },
+    {
+      close: () => {
+        closed.push("last");
+        throw failures[1];
+      },
+    },
+  ];
+  assert.throws(
+    () => closeRecoveryClients(clients),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.deepEqual(error.errors, failures);
+      return true;
+    },
+  );
+  assert.deepEqual(closed, ["first", "middle", "last"]);
+});
+
+function registerRecoveryCleanup(
+  context: TestContext,
+  clients: Iterable<{ close(): void }>,
+) {
+  context.after(() => {
+    try {
+      closeRecoveryClients(clients);
+    } catch (error) {
+      if (error instanceof AggregateError) {
+        for (const failure of error.errors) {
+          context.diagnostic(
+            `Recovery client cleanup failed: ${failure instanceof Error ? failure.message : String(failure)}`,
+          );
+        }
+      }
+      throw error;
+    }
+    // The parent removes the verified tree after worker exit, when every
+    // native SQLite connection/statement handle has been released by the OS.
+  });
+}
+
+if (process.env.KERNEL_RECOVERY_CLEANUP_FAILURE_PROBE === "true") {
+  void test("recovery cleanup failure probe", (context) => {
+    registerRecoveryCleanup(context, [
+      {
+        close: () => {
+          throw new Error("synthetic-close-failure");
+        },
+      },
+    ]);
+    assert.fail("synthetic-operation-failure");
+  });
+}
+
 async function fixture(context: TestContext) {
   const root = process.env.KERNEL_RECOVERY_DRILL_ROOT;
   assert.ok(
@@ -74,11 +155,7 @@ async function fixture(context: TestContext) {
   assert.equal(path.dirname(path.resolve(root)), path.resolve(tmpdir()));
   assert.ok(path.basename(root).startsWith("kernel-recovery-drill-"));
   const clients = new Set<ReturnType<typeof createDatabase>["client"]>();
-  context.after(() => {
-    for (const client of clients) client.close();
-    // The parent removes the verified tree after worker exit, when every
-    // native SQLite connection/statement handle has been released by the OS.
-  });
+  registerRecoveryCleanup(context, clients);
   const open = async (directory: string, initialize = true) => {
     const config = loadConfig({
       BETTER_AUTH_SECRET: secret,

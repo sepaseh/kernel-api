@@ -41,6 +41,7 @@ import {
 import { createDrizzleRolesRepository } from "./infrastructure/persistence/roles.ts";
 import { createDrizzleSettingsRepository } from "./infrastructure/persistence/settings.ts";
 import { createDrizzleUsersRepository } from "./infrastructure/persistence/users.ts";
+import { registerFixtureCleanup } from "./test/fixture-cleanup.ts";
 
 const migrations = fileURLToPath(new URL("../drizzle", import.meta.url));
 const environment = {
@@ -205,16 +206,8 @@ test("mobile changes guard the target and actor at the atomic write", async (con
 
 test("concurrent target promotion and actor revocation cannot bypass the mobile guard", async (context) => {
   const root = await mkdtemp(path.join(tmpdir(), "kernel-user-race-"));
-  const databaseUrl = `file:${path.join(root, "fixture.sqlite").replaceAll("\\", "/")}`;
-  const first = createDatabase(
-    loadConfig({ ...environment, DATABASE_URL: databaseUrl }),
-  );
-  const second = createDatabase(
-    loadConfig({ ...environment, DATABASE_URL: databaseUrl }),
-  );
-  context.after(async () => {
-    await second.client.close();
-    await first.client.close();
+  const closers: Array<() => void | Promise<void>> = [];
+  registerFixtureCleanup(context, closers, async () => {
     await delay(250);
     assert.ok(path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep));
     assert.ok(path.basename(root).startsWith("kernel-user-race-"));
@@ -225,6 +218,15 @@ test("concurrent target promotion and actor revocation cannot bypass the mobile 
       retryDelay: 250,
     });
   });
+  const databaseUrl = `file:${path.join(root, "fixture.sqlite").replaceAll("\\", "/")}`;
+  const first = createDatabase(
+    loadConfig({ ...environment, DATABASE_URL: databaseUrl }),
+  );
+  closers.unshift(() => first.client.close());
+  const second = createDatabase(
+    loadConfig({ ...environment, DATABASE_URL: databaseUrl }),
+  );
+  closers.unshift(() => second.client.close());
   await migrate(first.database, { migrationsFolder: migrations });
   await insertUser(first.database, "editor", "09120000001");
   await insertUser(first.database, "victim", "09120000002");
@@ -429,9 +431,8 @@ test("populated logo migration preserves every row and blocks deletion until ref
   const root = await mkdtemp(
     path.join(tmpdir(), "kernel-persistence-upgrade-"),
   );
-  const { database, client } = createDatabase(loadConfig(environment));
-  context.after(async () => {
-    client.close();
+  const closers: Array<() => void | Promise<void>> = [];
+  registerFixtureCleanup(context, closers, async () => {
     assert.ok(path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep));
     assert.ok(path.basename(root).startsWith("kernel-persistence-upgrade-"));
     await rm(root, {
@@ -441,6 +442,8 @@ test("populated logo migration preserves every row and blocks deletion until ref
       retryDelay: 100,
     });
   });
+  const { database, client } = createDatabase(loadConfig(environment));
+  closers.push(() => client.close());
   const journal = JSON.parse(
     await readFile(path.join(migrations, "meta/_journal.json"), "utf8"),
   ) as {
