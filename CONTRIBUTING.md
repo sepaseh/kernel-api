@@ -82,7 +82,7 @@ Before **every explicitly authorized commit or PR handoff**, run its entire
 A passing check that can see other untracked source does not validate a partial
 published PR. Do not skip, suppress or replace a failed required check.
 
-Each PR runs all nine required checks for the published local-runtime
+Each PR runs all ten required checks for the published local-runtime
 snapshot after `npm ci`, through the same `npm run validate -- full` entry point.
 This includes draft and documentation-only PRs; there are no changed-path or
 branch filters. The runner rejects duplicate IDs, omitted required checks and

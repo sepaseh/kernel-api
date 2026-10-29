@@ -33,12 +33,12 @@ npm run validate -- full
 
 The [canonical validation manifest](../.agents/validation.json) defines all
 required checks: snapshot integrity, semantic CI policy, dependency audit, source
-boundaries, types, lint, formatting, coverage-backed tests and audit-helper tests.
+boundaries, types, lint, formatting, guidance, coverage-backed tests and audit-helper tests.
 Run the entire
 `full` profile before an explicitly authorized commit or PR handoff. Focused
 development tests do not replace it.
 
-Every PR, including drafts and documentation-only changes, runs all nine required
+Every PR, including drafts and documentation-only changes, runs all ten required
 checks through `npm run validate -- full` after `npm ci`. No changed-path or PR
 branch filter narrows this gate. The runner validates the complete inventory
 before execution: every required check appears once in `full`, with no duplicate
