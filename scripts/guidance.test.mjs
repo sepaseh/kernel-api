@@ -71,6 +71,32 @@ test("CI extraction preserves job and advisory boundaries", () => {
   assert.deepEqual(validateManifest(manifest, settings, ci), []);
 });
 
+test("inline step error policy is recognized for advisory and required checks", () => {
+  const { manifest, settings } = fixture();
+  const ci = ciCommands(`jobs:
+  check:
+    steps:
+      - run: npm run typecheck
+  build:
+    steps:
+      - continue-on-error: true
+        run: npm run lighthouse
+`);
+  assert.deepEqual(validateManifest(manifest, settings, ci), []);
+  const required = ciCommands(`jobs:
+  check:
+    steps:
+      - continue-on-error: true
+        run: npm run typecheck
+`);
+  assert.equal(required.get("check")[0].advisory, true);
+  assert.ok(
+    validateManifest(manifest, settings, required).some((message) =>
+      message.includes("advisory policy differs for types"),
+    ),
+  );
+});
+
 test("detects stale projections, missing CI gates and advisory promotion", () => {
   const { manifest, settings, ci } = fixture();
   settings.recommendedChecks = ["npm run stale"];
@@ -250,6 +276,65 @@ test("current guidance paths, instruction entrypoints and canonical check matrix
   assert.ok(result.tasks > 0);
   assert.ok(result.cases > 0);
   assert.deepEqual(result.errors, []);
+});
+
+test("malformed navigation and evaluation inputs produce diagnostics rather than throwing", async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), "kernel-guidance-malformed-"));
+  t.after(async () => {
+    assert.equal(path.dirname(path.resolve(root)), path.resolve(tmpdir()));
+    assert.ok(path.basename(root).startsWith("kernel-guidance-malformed-"));
+    await rm(root, { recursive: true, force: true });
+  });
+  await mkdir(path.join(root, ".agents/evaluation"), { recursive: true });
+  await mkdir(path.join(root, ".github/workflows"), { recursive: true });
+  const { manifest, settings } = fixture();
+  Object.assign(settings, { rules: [], skills: [], optionalHooks: [] });
+  const inputs = {
+    ".agents/validation.json": manifest,
+    ".agents/settings.json": settings,
+    "package.json": {
+      name: "fixture",
+      scripts: { typecheck: "tsc", lighthouse: "test" },
+    },
+    "package-lock.json": { name: "fixture", packages: { "": {} } },
+  };
+  for (const [file, value] of Object.entries(inputs))
+    await writeFile(path.join(root, file), JSON.stringify(value));
+  await writeFile(path.join(root, ".github/workflows/ci.yml"), "jobs:\n");
+  for (const [navigation, evaluation, expected] of [
+    [null, { schemaVersion: 1, cases: [] }, "Invalid navigation schema"],
+    [{ schemaVersion: 1, tasks: {} }, null, "Invalid navigation schema"],
+    [{ schemaVersion: 1, tasks: [] }, null, "Invalid evaluation schema"],
+    [
+      { schemaVersion: 1, tasks: [] },
+      { schemaVersion: 1, cases: "bad" },
+      "Invalid evaluation schema",
+    ],
+    [
+      { schemaVersion: 1, tasks: [null, { id: "bad", rules: "x" }] },
+      { schemaVersion: 1, cases: [null, { id: "bad" }] },
+      "Invalid paths: bad.rules",
+    ],
+  ]) {
+    await writeFile(
+      path.join(root, ".agents/navigation.json"),
+      JSON.stringify(navigation),
+    );
+    await writeFile(
+      path.join(root, ".agents/evaluation/cases.json"),
+      JSON.stringify(evaluation),
+    );
+    const result = await checkGuidance(root);
+    assert.ok(result.errors.includes(expected), expected);
+    assert.equal(
+      result.tasks,
+      Array.isArray(navigation?.tasks) ? navigation.tasks.length : 0,
+    );
+    assert.equal(
+      result.cases,
+      Array.isArray(evaluation?.cases) ? evaluation.cases.length : 0,
+    );
+  }
 });
 
 test("guidance indexes reject traversal, private state and generated dependencies", () => {

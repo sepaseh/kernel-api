@@ -94,7 +94,14 @@
         ".agents/validation.json"
       ],
       "tests": ["scripts/guidance.test.mjs", "scripts/validate.test.mjs"],
-      "checks": ["snapshot", "ci-policy", "lint", "format", "coverage-tests"]
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "lint",
+        "format",
+        "coverage-tests"
+      ]
     }
   ]
 }

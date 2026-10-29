@@ -118,7 +118,7 @@ export const ciCommands = (content) => {
       .map((line) => /^[ \t]+(?:- )?run: (npm run [^\r\n]+)$/.exec(line)?.[1])
       .find(Boolean);
     const advisory = step
-      .map((line) => /^ {8}continue-on-error: (.+)$/.exec(line))
+      .map((line) => /^ {6}(?:- | {2})continue-on-error: (.+)$/.exec(line))
       .find(Boolean);
     if (job && command) {
       const checks = result.get(job) ?? [];
@@ -310,11 +310,11 @@ export const validateNavigation = (navigation, evaluation, checks, exists) => {
     for (const id of values)
       if (!checks.has(id)) errors.push(`Unknown check in ${label}: ${id}`);
   };
-  if (navigation.schemaVersion !== 1 || !Array.isArray(navigation.tasks))
+  if (navigation?.schemaVersion !== 1 || !Array.isArray(navigation.tasks))
     return ["Invalid navigation schema"];
-  if (evaluation.schemaVersion !== 1 || !Array.isArray(evaluation.cases))
+  if (evaluation?.schemaVersion !== 1 || !Array.isArray(evaluation.cases))
     return ["Invalid evaluation schema"];
-  const ids = navigation.tasks.map((task) => task.id);
+  const ids = navigation.tasks.map((task) => task?.id);
   if (!isStrings(ids) || !ids.length || duplicates(ids))
     errors.push("Navigation task IDs must be unique and nonempty");
   validateTasks(navigation.tasks, verifyPaths, verifyChecks, errors);
@@ -324,6 +324,7 @@ export const validateNavigation = (navigation, evaluation, checks, exists) => {
 
 const validateTasks = (tasks, verifyPaths, verifyChecks, errors) => {
   for (const task of tasks) {
+    if (task == null) continue;
     if (typeof task.when !== "string" || !task.when.trim())
       errors.push(`Missing task trigger: ${task.id}`);
     for (const field of ["owners", "contracts", "tests"])
@@ -335,10 +336,11 @@ const validateTasks = (tasks, verifyPaths, verifyChecks, errors) => {
 };
 
 const validateCases = (cases, ids, verifyPaths, verifyChecks, errors) => {
-  const caseIds = cases.map((item) => item.id);
+  const caseIds = cases.map((item) => item?.id);
   if (!isStrings(caseIds) || !caseIds.length || duplicates(caseIds))
     errors.push("Evaluation case IDs must be unique and nonempty");
   for (const item of cases) {
+    if (item == null) continue;
     if (
       typeof item.prompt?.en !== "string" ||
       !item.prompt.en.trim() ||
@@ -465,16 +467,19 @@ const collectReferences = (
     ...(Array.isArray(settings.skills) ? settings.skills : []),
     ...(Array.isArray(settings.optionalHooks) ? settings.optionalHooks : []),
   ];
-  const taskPaths = navigation.tasks.flatMap((task) =>
+  const tasks = Array.isArray(navigation?.tasks) ? navigation.tasks : [];
+  const cases = Array.isArray(evaluation?.cases) ? evaluation.cases : [];
+  const taskPaths = tasks.flatMap((task) =>
     ["owners", "contracts", "tests"].flatMap((field) =>
-      Array.isArray(task[field]) ? task[field] : [],
+      Array.isArray(task?.[field]) ? task[field] : [],
     ),
   );
-  const taskRules = navigation.tasks.flatMap((task) =>
-    task.rules ? [...task.rules] : [],
+  const taskRules = tasks.flatMap((task) =>
+    Array.isArray(task?.rules) ? task.rules : [],
   );
   referencedPaths.push(...taskPaths, ...taskRules);
-  for (const item of evaluation.cases) referencedPaths.push(...item.evidence);
+  for (const item of cases)
+    if (Array.isArray(item?.evidence)) referencedPaths.push(...item.evidence);
   for (const entry of manifest.externalWorkflows ?? [])
     referencedPaths.push(entry.path);
   return referencedPaths;
@@ -621,8 +626,8 @@ export const checkGuidance = async (root = repository) => {
   return {
     errors,
     checks: manifest.checks.length,
-    tasks: navigation.tasks.length,
-    cases: evaluation.cases.length,
+    tasks: Array.isArray(navigation?.tasks) ? navigation.tasks.length : 0,
+    cases: Array.isArray(evaluation?.cases) ? evaluation.cases.length : 0,
     markdownFiles: markdown.length,
   };
 };
