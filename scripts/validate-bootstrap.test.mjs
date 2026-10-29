@@ -429,6 +429,8 @@ const operationsFiles = [
   "scripts/validate-workflow-targets.test.mjs",
   "scripts/validate-workflow-targets.mjs",
   "scripts/validate-deployment-env.mjs",
+  "scripts/native-smoke-cleanup.mjs",
+  "scripts/native-smoke-cleanup.test.mjs",
   "scripts/test-native-release.mjs",
   "scripts/render-deployment.mjs",
   "scripts/package-release.test.mjs",

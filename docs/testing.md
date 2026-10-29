@@ -15,4 +15,5 @@ MinIO service. Local HTTP tests do not establish a deployed client or SMS provid
 The opt-in Docker smoke uses its own temporary project, builder, images and data;
 see [Docker deployment](../deploy/docker/README.md). Native smoke exercises the
 packaged Node payload on the host platform, not necessarily systemd or Nginx.
+If the native smoke server does not stop within 10 seconds, its temporary release and state are preserved and the failure is reported. After a confirmed stop, removal of each owned resource is attempted independently.
 Never delete resources belonging to another project during cleanup.

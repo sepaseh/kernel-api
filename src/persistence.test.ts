@@ -43,6 +43,89 @@ import { createDrizzleSettingsRepository } from "./infrastructure/persistence/se
 import { createDrizzleUsersRepository } from "./infrastructure/persistence/users.ts";
 import { registerFixtureCleanup } from "./test/fixture-cleanup.ts";
 
+const withDatabaseClose = async (
+  operation: () => Promise<void>,
+  close: () => void | Promise<void>,
+) => {
+  let operationFailed = false;
+  let operationError: unknown;
+  try {
+    await operation();
+  } catch (error) {
+    operationFailed = true;
+    operationError = error;
+  }
+  try {
+    await close();
+  } catch (closeError) {
+    if (operationFailed)
+      throw new AggregateError(
+        [operationError, closeError],
+        "Database fixture operation and close failed",
+        { cause: closeError },
+      );
+    throw closeError;
+  }
+  if (operationFailed) throw operationError;
+};
+
+test("database fixture preserves operation and close failures", async () => {
+  const operationError = new Error("synthetic operation failure");
+  const closeError = new Error("synthetic close failure");
+  const calls: string[] = [];
+  await assert.rejects(
+    withDatabaseClose(
+      async () => {
+        calls.push("operation");
+        throw operationError;
+      },
+      () => {
+        calls.push("close");
+        throw closeError;
+      },
+    ),
+    (error) =>
+      error instanceof AggregateError &&
+      error.errors[0] === operationError &&
+      error.errors[1] === closeError,
+  );
+  assert.deepEqual(calls, ["operation", "close"]);
+});
+
+test("database fixture keeps a single failure unchanged and closes on success", async () => {
+  const operationError = new Error("synthetic operation failure");
+  const closeError = new Error("synthetic close failure");
+  let closed = 0;
+  await assert.rejects(
+    withDatabaseClose(
+      async () => {
+        throw operationError;
+      },
+      () => {
+        closed++;
+      },
+    ),
+    (error) => error === operationError,
+  );
+  await assert.rejects(
+    withDatabaseClose(
+      async () => {},
+      () => {
+        closed++;
+        throw closeError;
+      },
+    ),
+    (error) => error === closeError,
+  );
+  await withDatabaseClose(
+    async () => {},
+    () => {
+      closed++;
+    },
+  );
+  assert.equal(closed, 3);
+});
+
 const migrations = fileURLToPath(new URL("../drizzle", import.meta.url));
 const environment = {
   BETTER_AUTH_SECRET:
@@ -402,28 +485,30 @@ test("the database factory creates only an owned file parent and survives close/
         : `file:${file.replaceAll("\\", "/")}`;
     const config = loadConfig({ ...environment, DATABASE_URL: databaseUrl });
     const first = createDatabase(config);
-    try {
-      await migrate(first.database, { migrationsFolder: migrations });
-      await first.database
-        .insert(schema.calendarDates)
-        .values({ date: "2026-01-01" });
-    } finally {
-      first.client.close();
-    }
+    await withDatabaseClose(
+      async () => {
+        await migrate(first.database, { migrationsFolder: migrations });
+        await first.database
+          .insert(schema.calendarDates)
+          .values({ date: "2026-01-01" });
+      },
+      () => first.client.close(),
+    );
     const reopened = createDatabase(config);
-    try {
-      assert.equal(
-        (await reopened.client.execute("PRAGMA foreign_keys")).rows[0]
-          ?.foreign_keys,
-        1,
-      );
-      assert.deepEqual(
-        await createDrizzleCalendarRepository(reopened.database).list(),
-        ["2026-01-01"],
-      );
-    } finally {
-      reopened.client.close();
-    }
+    await withDatabaseClose(
+      async () => {
+        assert.equal(
+          (await reopened.client.execute("PRAGMA foreign_keys")).rows[0]
+            ?.foreign_keys,
+          1,
+        );
+        assert.deepEqual(
+          await createDrizzleCalendarRepository(reopened.database).list(),
+          ["2026-01-01"],
+        );
+      },
+      () => reopened.client.close(),
+    );
   }
 });
 

@@ -206,10 +206,10 @@ test("settings use cases preserve the configured language and reject invalid col
   assert.equal(saves, 1);
 });
 
-test("malformed themes do not block language resolution or settings repair", async () => {
+test("malformed themes do not block language resolution or settings repair", async (context) => {
   const client = createClient({ url: "file::memory:" });
-  try {
-    await client.executeMultiple(`
+  registerFixtureCleanup(context, [() => client.close()], () => {});
+  await client.executeMultiple(`
       CREATE TABLE settings (
         id INTEGER PRIMARY KEY,
         language_code TEXT NOT NULL,
@@ -221,41 +221,38 @@ test("malformed themes do not block language resolution or settings repair", asy
       INSERT INTO settings (id, language_code, dark_theme, light_theme)
         VALUES (1, 'fa', 'malformed dark theme', 'malformed light theme');
     `);
-    const repository = createDrizzleSettingsRepository(
-      drizzle(client, { schema }),
-    );
-    const service = createSettingsService(repository, () => undefined);
+  const repository = createDrizzleSettingsRepository(
+    drizzle(client, { schema }),
+  );
+  const service = createSettingsService(repository, () => undefined);
 
-    await assert.rejects(service.get(), SyntaxError);
-    assert.equal(await service.getLanguageCode(), "fa");
+  await assert.rejects(service.get(), SyntaxError);
+  assert.equal(await service.getLanguageCode(), "fa");
 
-    const palette = Object.fromEntries(
-      [
-        "color_bg_base",
-        "color_bg_container",
-        "color_border",
-        "color_link",
-        "color_primary",
-        "color_text_base",
-        "color_text_description",
-      ].map((key) => [key, "#123456"]),
-    );
-    const repaired = await service.update(settingsActor(true), {
-      language_code: "en",
-      dark_theme: palette,
-      light_theme: palette,
-    });
-    assert.equal(repaired.language.code, "en");
-    assert.deepEqual(repaired.dark_theme, palette);
-    assert.deepEqual(repaired.light_theme, palette);
-    assert.equal(await service.getLanguageCode(), "en");
+  const palette = Object.fromEntries(
+    [
+      "color_bg_base",
+      "color_bg_container",
+      "color_border",
+      "color_link",
+      "color_primary",
+      "color_text_base",
+      "color_text_description",
+    ].map((key) => [key, "#123456"]),
+  );
+  const repaired = await service.update(settingsActor(true), {
+    language_code: "en",
+    dark_theme: palette,
+    light_theme: palette,
+  });
+  assert.equal(repaired.language.code, "en");
+  assert.deepEqual(repaired.dark_theme, palette);
+  assert.deepEqual(repaired.light_theme, palette);
+  assert.equal(await service.getLanguageCode(), "en");
 
-    await client.execute("DELETE FROM settings WHERE id = 1");
-    assert.equal(await repository.readLanguageCode(), undefined);
-    assert.equal(await service.getLanguageCode(), "en");
-  } finally {
-    client.close();
-  }
+  await client.execute("DELETE FROM settings WHERE id = 1");
+  assert.equal(await repository.readLanguageCode(), undefined);
+  assert.equal(await service.getLanguageCode(), "en");
 });
 
 const settingsPalette = () =>
@@ -320,10 +317,10 @@ test("only system administrators can write language while settings editors retai
   assert.equal(Object.hasOwn(writes[3], "languageCode"), false);
 });
 
-test("an ordinary branding save cannot overwrite an interleaved system language change", async () => {
+test("an ordinary branding save cannot overwrite an interleaved system language change", async (context) => {
   const client = createClient({ url: "file::memory:" });
-  try {
-    await client.executeMultiple(`
+  registerFixtureCleanup(context, [() => client.close()], () => {});
+  await client.executeMultiple(`
       CREATE TABLE settings (
         id INTEGER PRIMARY KEY,
         language_code TEXT NOT NULL,
@@ -333,46 +330,43 @@ test("an ordinary branding save cannot overwrite an interleaved system language 
         light_logo_id TEXT
       );
     `);
-    const palette = settingsPalette();
-    await client.execute({
-      sql: "INSERT INTO settings (id, language_code, dark_theme, light_theme) VALUES (1, ?, ?, ?)",
-      args: ["en", JSON.stringify(palette), JSON.stringify(palette)],
-    });
-    const repository = createDrizzleSettingsRepository(
-      drizzle(client, { schema }),
-    );
-    const administrator = createSettingsService(repository, () => undefined);
-    let switches = 0;
-    const editor = createSettingsService(
-      {
-        ...repository,
-        readLanguageCode: async () => {
-          const observed = await repository.readLanguageCode();
-          await administrator.update(settingsActor(true), {
-            dark_theme: palette,
-            language_code: "fa",
-            light_theme: palette,
-          });
-          switches++;
-          return observed;
-        },
+  const palette = settingsPalette();
+  await client.execute({
+    sql: "INSERT INTO settings (id, language_code, dark_theme, light_theme) VALUES (1, ?, ?, ?)",
+    args: ["en", JSON.stringify(palette), JSON.stringify(palette)],
+  });
+  const repository = createDrizzleSettingsRepository(
+    drizzle(client, { schema }),
+  );
+  const administrator = createSettingsService(repository, () => undefined);
+  let switches = 0;
+  const editor = createSettingsService(
+    {
+      ...repository,
+      readLanguageCode: async () => {
+        const observed = await repository.readLanguageCode();
+        await administrator.update(settingsActor(true), {
+          dark_theme: palette,
+          language_code: "fa",
+          light_theme: palette,
+        });
+        switches++;
+        return observed;
       },
-      () => undefined,
-    );
-    const changedPalette = { ...palette, color_primary: "#abcdef" };
-    const result = await editor.update(settingsActor(), {
-      dark_theme: changedPalette,
-      language_code: "en",
-      light_theme: palette,
-    });
-    assert.equal(switches, 1);
-    assert.equal(result.language.code, "fa");
-    assert.equal(await repository.readLanguageCode(), "fa");
-    assert.deepEqual(result.dark_theme, changedPalette);
-    const stored = await repository.read();
-    assert.equal(stored?.languageCode, "fa");
-    assert.deepEqual(stored?.darkTheme, changedPalette);
-  } finally {
-    client.close();
-  }
+    },
+    () => undefined,
+  );
+  const changedPalette = { ...palette, color_primary: "#abcdef" };
+  const result = await editor.update(settingsActor(), {
+    dark_theme: changedPalette,
+    language_code: "en",
+    light_theme: palette,
+  });
+  assert.equal(switches, 1);
+  assert.equal(result.language.code, "fa");
+  assert.equal(await repository.readLanguageCode(), "fa");
+  assert.deepEqual(result.dark_theme, changedPalette);
+  const stored = await repository.read();
+  assert.equal(stored?.languageCode, "fa");
+  assert.deepEqual(stored?.darkTheme, changedPalette);
 });
