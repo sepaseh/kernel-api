@@ -44,6 +44,63 @@
       "checks": ["boundaries", "coverage-tests"]
     },
     {
+      "id": "administrator-concurrency",
+      "prompt": {
+        "en": "Without editing files, trace how user deactivation, deletion or demotion protects the last active system administrator. Explain the transaction boundary and the tests for a stale earlier read."
+      },
+      "taskIds": ["api-feature"],
+      "evidence": [
+        "src/application/users.ts",
+        "src/application/ports/users.ts",
+        "src/infrastructure/persistence/users.ts",
+        "src/presentation/http/routes/users.ts",
+        "src/users-application.test.ts",
+        "src/app.test.ts"
+      ],
+      "mustExplain": [
+        "Distinguish transport authorization, application policy and the persistence transaction.",
+        "Explain how the target state and active administrator count are read within the write transaction, including self-protection and final-administrator rules.",
+        "Cite the stale-state and intervening-promotion test cases and describe what their synthetic fixtures actually establish."
+      ],
+      "mustNot": [
+        "Claim a hidden frontend control enforces server authorization.",
+        "Read or mutate a real database or user data.",
+        "Claim that a local test proves deployed concurrency behavior."
+      ],
+      "checks": ["boundaries", "typecheck", "coverage-tests"]
+    },
+    {
+      "id": "client-screen-contract",
+      "prompt": {
+        "en": "Without editing files, plan the HTTP integration for a settings screen containing branding, logo and language. Identify allowed actions, request fields, response metadata and failure states using local contracts and tests."
+      },
+      "taskIds": ["http-contract", "active-language", "auth-session"],
+      "evidence": [
+        "docs/collection-guide.md",
+        "collection/settings/get/index.bru",
+        "collection/settings/update/index.bru",
+        "collection/files/upload/index.bru",
+        "src/contracts/settings.ts",
+        "src/contracts/locales.ts",
+        "src/application/settings.ts",
+        "src/application/files.ts",
+        "src/presentation/http/routes/settings.ts",
+        "src/management-services.test.ts"
+      ],
+      "mustExplain": [
+        "Identify the authentication and permission requirements of the public settings read, language list, settings update and public file upload.",
+        "Describe complete palettes, public logo IDs, replacement semantics and preserving existing selections on unrelated saves.",
+        "Explain system-administrator language authority and how ordinary branding saves avoid overwriting a concurrent language change.",
+        "Use the API-provided language metadata and identify documented failure statuses with source evidence."
+      ],
+      "mustNot": [
+        "Invent endpoints, permission names, response fields or public URLs for private files.",
+        "Infer language metadata from a code or claim frontend presentation belongs to this API.",
+        "Read real environment files or user data, start a developer or deployed service, run tests or edit files."
+      ],
+      "checks": ["guidance", "boundaries", "coverage-tests"]
+    },
+    {
       "id": "recovery-boundary",
       "prompt": {
         "en": "Without editing, explain the supported recovery drill and its limitations."

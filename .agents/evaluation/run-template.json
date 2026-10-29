@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "state": "not-run",
+  "startedAt": null,
+  "repositoryCommit": null,
+  "workingTreeFingerprint": null,
+  "assistant": { "name": null, "version": null, "model": null, "host": null },
+  "configuration": "existing-search",
+  "instructionDiscovery": {
+    "reportedLoadedFiles": [],
+    "evidence": null,
+    "status": "not-verified"
+  },
+  "index": {
+    "tool": null,
+    "version": null,
+    "sourceScope": [],
+    "generatedAt": null,
+    "dirtyUntrackedFingerprint": null
+  },
+  "caseResults": [],
+  "limitations": [
+    "Template only; no assistant, index or benchmark result has been recorded."
+  ]
+}

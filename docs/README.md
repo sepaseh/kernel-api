@@ -12,10 +12,12 @@
 - [Requirements handoff/implementation plan](change-workflow.md), [test reliability/flaky ownership](test-reliability.md)
 - [Testing](testing.md), [canonical validation](validation.md)
 - [Historical OTP cleanup incident](qa/otp-cleanup-2026-10-29.md)
+- [Historical QA archive](qa/README.md) (claims from 2026-10-24, not independently verified)
 - [Threat model](security/threat-model.md), [auth review](security/authentication-review.md), [security review schedule](security/reviews.md)
 - [Branch protection](branch-protection.md), [required Sonar preflight](sonarqube.md), [security policy](../SECURITY.md)
 - [Architecture decisions](adr/README.md), [guidance evaluation](comprehension-evaluation.md)
 
 Update the matching active English/Persian document whenever behavior, configuration,
-checks or operational workflow changes. Dated reports describe their actual run
-and do not establish results for later source.
+checks or operational workflow changes. Dated reports describe their recorded scope
+and do not establish results for later source; the 2026-10-24 archive has not been
+independently verified.
