@@ -46,12 +46,12 @@ export async function finishNativeSmoke(
     errors.push(error);
   }
   if (stopped) {
-    for (const cleanup of [removeRelease, removeState]) {
-      try {
-        await cleanup();
-      } catch (error) {
-        errors.push(error);
-      }
+    const results = await Promise.allSettled([
+      Promise.resolve().then(removeRelease),
+      Promise.resolve().then(removeState),
+    ]);
+    for (const result of results) {
+      if (result.status === "rejected") errors.push(result.reason);
     }
   }
   if (errors.length === 1) throw errors[0];

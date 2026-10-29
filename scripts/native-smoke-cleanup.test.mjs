@@ -45,6 +45,44 @@ test("native smoke attempts both owned removals and preserves every failure", as
   assert.deepEqual(actions, ["stop", "release", "state"]);
 });
 
+test("native smoke runs independent removals together and retains failures in resource order", async () => {
+  const releaseFailure = new Error("synthetic release cleanup failure");
+  const stateFailure = new Error("synthetic state cleanup failure");
+  let rejectRelease;
+  let timer;
+  let timedOut = false;
+  const actions = [];
+  await assert.rejects(
+    finishNativeSmoke(
+      [],
+      () => {},
+      () => {
+        actions.push("release");
+        return new Promise((_resolve, reject) => {
+          rejectRelease = reject;
+          timer = setTimeout(() => {
+            timedOut = true;
+            reject(releaseFailure);
+          }, 1_000);
+        });
+      },
+      () => {
+        actions.push("state");
+        clearTimeout(timer);
+        rejectRelease(releaseFailure);
+        throw stateFailure;
+      },
+    ),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.deepEqual(error.errors, [releaseFailure, stateFailure]);
+      return true;
+    },
+  );
+  assert.deepEqual(actions, ["release", "state"]);
+  assert.equal(timedOut, false);
+});
+
 test("native smoke preserves its owned files if server stop cannot be confirmed", async () => {
   const operation = new Error("synthetic operation failure");
   const stop = new Error("synthetic stop failure");
