@@ -3,6 +3,9 @@
 Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 [publication inventory](.github/bootstrap-policy.json) and the canonical
 [validation manifest](.agents/validation.json) before changes.
+Use [guidance](.agents/README.md), the [settings index](.agents/settings.json)
+and [source navigation](docs/source-navigation.md) to find the rules and
+evidence relevant to the task.
 
 This standalone npm project publishes contracts, application services, ports,
 ten flat API catalogs and infrastructure support for configuration, translation,
@@ -51,7 +54,7 @@ renames; the total repository may grow beyond 100 files. Preserve private state,
 never read real environment files or credentials, and require explicit user
 authorization for commits, pushes, remote comments and merging.
 
-Every PR, including drafts and documentation-only changes, runs all nine required
+Every PR, including drafts and documentation-only changes, runs all required
 checks for the published local-runtime snapshot through that same full
 profile. Keep the semantic CI policy check: no PR path/branch filters, conditional
 or advisory full execution, hidden command omissions or implicit runner/job

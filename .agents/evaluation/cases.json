@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "session-lifecycle",
+      "prompt": {
+        "en": "Without editing, trace login, password recovery and session revocation in this API using local evidence."
+      },
+      "taskIds": ["auth-session"],
+      "evidence": [
+        "src/application/auth.ts",
+        "src/infrastructure/persistence/auth.ts",
+        "scripts/auth-bootstrap-integration.test.mjs"
+      ],
+      "mustExplain": [
+        "Identify public authentication flows and the checks for protected operations.",
+        "Distinguish session revocation from client-side refresh failures."
+      ],
+      "mustNot": [
+        "Read real environment files or user data.",
+        "Claim production OTP delivery is implemented."
+      ],
+      "checks": ["typecheck", "coverage-tests"]
+    },
+    {
+      "id": "persisted-language",
+      "prompt": {
+        "en": "Without editing, trace persisted language selection and the API response fallback."
+      },
+      "taskIds": ["active-language"],
+      "evidence": [
+        "src/contracts/locales.ts",
+        "src/localization.test.ts",
+        "src/app.test.ts"
+      ],
+      "mustExplain": [
+        "Describe the ten local catalogs and persisted-language behavior.",
+        "Describe the invalid-language recovery path using the tests."
+      ],
+      "mustNot": [
+        "Claim visitor language headers replace the configured language.",
+        "Read private state."
+      ],
+      "checks": ["boundaries", "coverage-tests"]
+    },
+    {
+      "id": "recovery-boundary",
+      "prompt": {
+        "en": "Without editing, explain the supported recovery drill and its limitations."
+      },
+      "taskIds": ["deployment"],
+      "evidence": [
+        "docs/recovery-drills.md",
+        "src/recovery-drill.test.ts",
+        "docs/backup-restore.md"
+      ],
+      "mustExplain": [
+        "Separate synthetic recovery evidence from deployed production verification."
+      ],
+      "mustNot": [
+        "Read or change real state.",
+        "Claim that an operator backup was executed."
+      ],
+      "checks": ["coverage-tests"]
+    }
+  ]
+}

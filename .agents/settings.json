@@ -1,0 +1,51 @@
+{
+  "name": "kernel-api-guidance",
+  "description": "Assistant-neutral independent Kernel API guidance.",
+  "rules": [
+    ".agents/rules/api-collection.md",
+    ".agents/rules/backend.md",
+    ".agents/rules/branches.md",
+    ".agents/rules/code-quality.md",
+    ".agents/rules/code-review.md",
+    ".agents/rules/collection-quality.md",
+    ".agents/rules/commits.md",
+    ".agents/rules/data-lifecycle.md",
+    ".agents/rules/git.md",
+    ".agents/rules/guidance.md",
+    ".agents/rules/imports.md",
+    ".agents/rules/issues.md",
+    ".agents/rules/localization.md",
+    ".agents/rules/pull-requests.md",
+    ".agents/rules/safety.md",
+    ".agents/rules/testing.md",
+    ".agents/rules/typescript.md"
+  ],
+  "skills": [
+    ".agents/skills/commit/SKILL.md",
+    ".agents/skills/create-issue/SKILL.md",
+    ".agents/skills/create-pr/SKILL.md",
+    ".agents/skills/review-pr/SKILL.md",
+    ".agents/skills/start-issue/SKILL.md",
+    ".agents/skills/validate-change/SKILL.md"
+  ],
+  "optionalHooks": [],
+  "recommendedChecks": [
+    "npm run check:snapshot",
+    "npm run check:ci",
+    "npm run audit",
+    "npm run check:boundaries",
+    "npm run typecheck",
+    "npm run lint",
+    "npm run format:check",
+    "npm run check:guidance",
+    "npm run test:coverage",
+    "npm run test:audit"
+  ],
+  "navigation": ".agents/navigation.json",
+  "validation": ".agents/validation.json",
+  "evaluation": ".agents/evaluation/cases.json",
+  "recommendedChecksSource": {
+    "path": ".agents/validation.json",
+    "profile": "full"
+  }
+}

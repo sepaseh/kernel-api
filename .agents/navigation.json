@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "id": "auth-session",
+      "when": "Trace or change authentication, sessions, passwords or OTP.",
+      "owners": [
+        "src/application/auth.ts",
+        "src/infrastructure/auth/gateway.ts",
+        "src/infrastructure/persistence/auth.ts",
+        "src/presentation/http/routes/auth.ts"
+      ],
+      "contracts": [
+        "src/contracts/auth.ts",
+        "docs/auth-adapters.md",
+        "docs/security/authentication-review.md"
+      ],
+      "tests": [
+        "src/auth-gateway.test.ts",
+        "scripts/auth-bootstrap-integration.test.mjs",
+        "src/app.test.ts"
+      ],
+      "checks": ["typecheck", "lint", "coverage-tests"]
+    },
+    {
+      "id": "active-language",
+      "when": "Change the persisted system language or API localization.",
+      "owners": [
+        "src/contracts/locales.ts",
+        "src/infrastructure/localization",
+        "src/application/localization.ts"
+      ],
+      "contracts": ["docs/http-transport.md", ".agents/rules/localization.md"],
+      "tests": [
+        "src/catalogs.test.ts",
+        "src/localization.test.ts",
+        "src/app.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "coverage-tests"]
+    },
+    {
+      "id": "api-feature",
+      "when": "Change API behavior, authorization, persistence or a wire contract.",
+      "owners": [
+        "src/application",
+        "src/infrastructure/persistence",
+        "src/presentation/http/routes"
+      ],
+      "contracts": [
+        "collection",
+        "src/contracts",
+        ".agents/rules/backend.md",
+        ".agents/rules/data-lifecycle.md"
+      ],
+      "tests": [
+        "src/app.test.ts",
+        "src/persistence.test.ts",
+        "src/http-transport.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "coverage-tests"]
+    },
+    {
+      "id": "deployment",
+      "when": "Review deployment, recovery, storage or operational readiness.",
+      "owners": [
+        "deploy",
+        "scripts/validate-deployment-env.mjs",
+        "src/infrastructure/storage"
+      ],
+      "contracts": [
+        "docs/deployment.md",
+        "docs/backup-restore.md",
+        "docs/object-storage.md"
+      ],
+      "tests": [
+        "scripts/deployment.test.mjs",
+        "src/recovery-drill.test.ts",
+        "src/object-storage.test.ts"
+      ],
+      "checks": ["snapshot", "typecheck", "coverage-tests"]
+    },
+    {
+      "id": "guidance",
+      "when": "Change project instructions, navigation or validation guidance.",
+      "owners": [
+        "AGENTS.md",
+        ".agents/settings.json",
+        ".agents/navigation.json",
+        "scripts/check-guidance.mjs"
+      ],
+      "contracts": [
+        "docs/source-navigation.md",
+        ".agents/rules/guidance.md",
+        ".agents/validation.json"
+      ],
+      "tests": ["scripts/guidance.test.mjs", "scripts/validate.test.mjs"],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "lint",
+        "format",
+        "coverage-tests"
+      ]
+    }
+  ]
+}
