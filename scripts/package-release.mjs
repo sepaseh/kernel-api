@@ -167,6 +167,7 @@ async function createOutputRoot(repository) {
 export async function packageRelease({
   repositoryRoot = defaultRepository,
   releaseId,
+  onOutputCreated,
 }) {
   validateReleaseId(releaseId);
   const repository = await realpath(repositoryRoot);
@@ -210,6 +211,7 @@ export async function packageRelease({
   );
   await createOutputRoot(repository);
   await mkdir(output);
+  if (onOutputCreated) await onOutputCreated(output);
   const api = path.join(output, "api");
   await eachSequentially(
     ["package.json", "package-lock.json"],

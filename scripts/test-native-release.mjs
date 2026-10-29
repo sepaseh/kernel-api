@@ -9,6 +9,10 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { checkHealth } from "./healthcheck.mjs";
+import {
+  finishNativeSmoke,
+  stopNativeSmokeServer,
+} from "./native-smoke-cleanup.mjs";
 import { packageRelease } from "./package-release.mjs";
 import { validateDeploymentEnv } from "./validate-deployment-env.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -51,7 +55,7 @@ const launch = (args, cwd, env, input) =>
     child.stdin.on("error", () => {});
     child.stdin.end(input);
   });
-const cleanupFixture = async () => {
+const cleanupRelease = async () => {
   if (output) {
     const resolved = path.resolve(output);
     if (
@@ -67,6 +71,8 @@ const cleanupFixture = async () => {
       retryDelay: 200,
     });
   }
+};
+const cleanupState = async () => {
   const resolved = path.resolve(state);
   if (
     path.dirname(resolved) !== parent ||
@@ -80,8 +86,14 @@ const cleanupFixture = async () => {
     retryDelay: 200,
   });
 };
+const operationErrors = [];
 try {
-  ({ directory: output } = await packageRelease({ releaseId }));
+  await packageRelease({
+    releaseId,
+    onOutputCreated: (directory) => {
+      output = directory;
+    },
+  });
   const api = path.join(output, "api");
   if (!process.env.npm_execpath)
     throw new Error("Run through npm run test:deploy:native.");
@@ -165,14 +177,15 @@ try {
   });
   assert.equal(account.status, 200);
   assert.equal((await account.json()).username, initial.username);
-  console.log(
-    "PASS: packaged production dependency install, prevalidation, migrations/bootstrap, health and authenticated HTTP run from an immutable release without development dependencies.",
-  );
-} finally {
-  if (server?.pid && server.exitCode === null && !server.signalCode) {
-    const done = once(server, "exit");
-    server.kill("SIGTERM");
-    await done;
-  }
-  await cleanupFixture();
+} catch (error) {
+  operationErrors.push(error);
 }
+await finishNativeSmoke(
+  operationErrors,
+  () => stopNativeSmokeServer(server),
+  cleanupRelease,
+  cleanupState,
+);
+console.log(
+  "PASS: packaged production dependency install, prevalidation, migrations/bootstrap, health and authenticated HTTP run from an immutable release without development dependencies.",
+);

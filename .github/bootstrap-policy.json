@@ -363,6 +363,8 @@
     "scripts/guidance.test.mjs",
     "scripts/healthcheck.mjs",
     "scripts/http-upload-loopback.test.mjs",
+    "scripts/native-smoke-cleanup.mjs",
+    "scripts/native-smoke-cleanup.test.mjs",
     "scripts/package-release.mjs",
     "scripts/package-release.test.mjs",
     "scripts/render-deployment.mjs",
