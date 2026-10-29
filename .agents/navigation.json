@@ -60,6 +60,26 @@
       "checks": ["boundaries", "typecheck", "coverage-tests"]
     },
     {
+      "id": "http-contract",
+      "when": "Plan or change a client screen's API contract and observable HTTP behavior.",
+      "owners": [
+        "src/presentation/http/routes",
+        "src/application",
+        "collection"
+      ],
+      "contracts": [
+        "src/contracts",
+        "docs/collection-guide.md",
+        "docs/http-transport.md"
+      ],
+      "tests": [
+        "scripts/collection.test.mjs",
+        "src/http-transport.test.ts",
+        "src/app.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "coverage-tests"]
+    },
+    {
       "id": "deployment",
       "when": "Review deployment, recovery, storage or operational readiness.",
       "owners": [

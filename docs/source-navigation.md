@@ -15,5 +15,11 @@ For storage or deletion, consult [storage](object-storage.md),
 For deployment and recovery, start with [deployment](deployment.md) and
 [backup and restore](backup-restore.md).
 
+For a client screen's API handoff, start with the
+[collection guide](collection-guide.md#client-screen-contract-handoff),
+[contract testing](contract-testing.md), and [input validation](input-validation.md).
+Use [request sequences](sequences.md) and [logging](backend-logging.md) to trace
+runtime flows; the [decision index](adr/README.md) records architectural choices.
+
 Use [validation](validation.md) for executable checks. Never use a real environment
 file, existing data or a production service as a local test fixture.
