@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
 import { Hono } from "hono";
@@ -18,6 +19,7 @@ const uploadLimit = 128;
 const appForTest = (
   onUpload: (bytes: Uint8Array) => void,
   rejectAuth = false,
+  language: "en" | "fa" = "fa",
 ) => {
   const logger = {
     child() {
@@ -62,7 +64,7 @@ const appForTest = (
   app.use("*", async (context, next) => {
     context.set("dependencies", dependencies);
     context.set("logger", logger);
-    context.set("translate", getTranslator("fa"));
+    context.set("translate", getTranslator(language));
     await next();
   });
   app.route("/files", createFileRoutes());
@@ -264,6 +266,30 @@ test("rejects unsupported media type with a localized 415", async () => {
   assert.deepEqual(await response.json(), {
     message: getTranslator("fa")("fieldInvalid", { field: "Content-Type" }),
   });
+  assert.equal(called, false);
+});
+
+test("English unsupported media type matches the saved 415 example", async () => {
+  const { request } = streamRequest(
+    new TextEncoder().encode("{}"),
+    "application/json",
+  );
+  let called = false;
+  const response = await appForTest(
+    () => {
+      called = true;
+    },
+    false,
+    "en",
+  ).fetch(request);
+  const expected = JSON.parse(
+    await readFile(
+      new URL("../collection/files/upload/415.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.equal(response.status, 415);
+  assert.deepEqual(await response.json(), expected);
   assert.equal(called, false);
 });
 

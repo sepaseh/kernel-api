@@ -177,6 +177,7 @@ const collectionFiles = new Set([
   "collection/files/upload/401.json",
   "collection/files/upload/403.json",
   "collection/files/upload/413.json",
+  "collection/files/upload/415.json",
   "collection/files/upload/index.bru",
   "collection/languages/folder.bru",
   "collection/languages/list/200.json",

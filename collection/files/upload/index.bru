@@ -38,5 +38,6 @@ docs {
   - `400 Bad Request` — File or visibility is invalid.
   - `401 Unauthorized` — Authentication is missing or invalid.
   - `403 Forbidden` — Public upload is not allowed.
-  - `413 Content Too Large` — File exceeds the upload limit.
+  - `413 Content Too Large` — The file exceeds its limit or the complete multipart body exceeds that limit plus 64 KiB of framing and metadata.
+  - `415 Unsupported Media Type` — Content-Type is not multipart/form-data.
 }

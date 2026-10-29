@@ -124,6 +124,7 @@ test("collection operations match the published HTTP routes", async () => {
           assert.ok(
             Object.values(apiEn).includes(example.message) ||
               [
+                apiEn.fieldInvalid.replace("{{field}}", "Content-Type"),
                 "first_name is invalid.",
                 "first_name is required.",
                 "name is required.",
