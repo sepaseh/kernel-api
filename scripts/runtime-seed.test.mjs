@@ -3,7 +3,7 @@ import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { createAuth } from "../src/infrastructure/auth/better-auth.ts";
 import { loadConfig } from "../src/infrastructure/config.ts";
@@ -170,81 +170,218 @@ test("development seed preserves intentionally edited permissions and calendar e
   assert.equal((await database.select().from(calendarDates)).length, 0);
 });
 
-test("existing seed validation reads a consistent snapshot against another connection", async (t) => {
+async function withSeedConnections(run, create = createDatabase, remove = rm) {
   const directory = await mkdtemp(path.join(tmpdir(), "kernel-seed-test-"));
-  const config = loadConfig({
-    BETTER_AUTH_SECRET: "synthetic-test-secret-with-at-least-32-characters",
-    DATABASE_URL: pathToFileURL(path.join(directory, "test.db")).href,
-    NODE_ENV: "test",
-  });
-  const first = createDatabase(config);
-  const second = createDatabase(config);
-  t.after(async () => {
-    first.client.close();
-    second.client.close();
+  const clients = [];
+  const errors = [];
+  try {
+    const config = loadConfig({
+      BETTER_AUTH_SECRET: "synthetic-test-secret-with-at-least-32-characters",
+      DATABASE_URL: pathToFileURL(path.join(directory, "test.db")).href,
+      NODE_ENV: "test",
+    });
+    const first = create(config);
+    clients.push(first.client);
+    const second = create(config);
+    clients.push(second.client);
+    await run({ config, first, second });
+  } catch (error) {
+    errors.push(error);
+  }
+  for (const client of clients) {
+    try {
+      await client.close();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  try {
     const parent = await realpath(tmpdir());
     const owned = await realpath(directory);
     const relative = path.relative(parent, owned);
     assert.ok(
       relative.startsWith("kernel-seed-test-") && !relative.includes(path.sep),
     );
-    await rm(owned, {
+    await remove(owned, {
       recursive: true,
       force: true,
       maxRetries: 5,
       retryDelay: 100,
     });
-  });
-  const auth = createAuth(
-    config,
-    first.database,
-    createLogger(config.logging, { write() {} }),
-  );
-  const seeded = { ...config, seedDevelopmentData: true };
-  await initializeDatabase(seeded, first.database, auth);
+  } catch (error) {
+    errors.push(error);
+  }
+  if (errors.length === 1) throw errors[0];
+  if (errors.length > 1)
+    throw new AggregateError(errors, "Seed fixture failed");
+}
 
-  const originalTransaction = first.database.transaction.bind(first.database);
-  let attempted = false;
-  first.database.transaction = (callback, options) =>
-    originalTransaction(
-      (transaction) =>
-        callback(
-          new Proxy(transaction, {
-            get(target, property, receiver) {
-              if (property !== "query")
-                return Reflect.get(target, property, receiver);
-              return new Proxy(target.query, {
-                get(queries, name, queryReceiver) {
-                  if (name !== "user")
-                    return Reflect.get(queries, name, queryReceiver);
-                  return new Proxy(queries.user, {
-                    get(userQuery, method, userReceiver) {
-                      if (method !== "findFirst")
-                        return Reflect.get(userQuery, method, userReceiver);
-                      return async (...args) => {
-                        const result = await userQuery.findFirst(...args);
-                        attempted = true;
-                        await assert.rejects(
-                          second.client.execute('DELETE FROM "account"'),
-                          /locked|busy/i,
-                        );
-                        return result;
-                      };
-                    },
-                  });
-                },
-              });
+test("seed fixture cleans the first connection when creating the second fails", async () => {
+  const failure = new Error("synthetic connection failure");
+  let directory;
+  let closed = false;
+  let calls = 0;
+  await assert.rejects(
+    withSeedConnections(
+      () => assert.fail("unexpected run"),
+      (config) => {
+        directory = path.dirname(fileURLToPath(config.databaseUrl));
+        if (++calls === 2) throw failure;
+        return {
+          client: {
+            close: () => {
+              closed = true;
             },
-          }),
-        ),
-      options,
+          },
+        };
+      },
+    ),
+    (error) => error === failure,
+  );
+  assert.equal(closed, true);
+  await assert.rejects(realpath(directory), { code: "ENOENT" });
+});
+
+test("seed fixture preserves body and close failures while cleaning all resources", async () => {
+  const bodyError = new Error("synthetic body failure");
+  const closeError = new Error("synthetic close failure");
+  const closed = [];
+  let directory;
+  await assert.rejects(
+    withSeedConnections(
+      () => {
+        throw bodyError;
+      },
+      (config) => {
+        directory = path.dirname(fileURLToPath(config.databaseUrl));
+        const index = closed.length;
+        closed.push(false);
+        return {
+          client: {
+            close: () => {
+              closed[index] = true;
+              if (index === 0) throw closeError;
+            },
+          },
+        };
+      },
+    ),
+    (error) =>
+      error instanceof AggregateError &&
+      error.errors[0] === bodyError &&
+      error.errors[1] === closeError,
+  );
+  assert.deepEqual(closed, [true, true]);
+  await assert.rejects(realpath(directory), { code: "ENOENT" });
+});
+
+test("seed fixture reports body, close and removal failures together", async () => {
+  const bodyError = new Error("synthetic body failure");
+  const closeError = new Error("synthetic close failure");
+  const removalError = new Error("synthetic removal failure");
+  const closed = [];
+  let directory;
+  let removalAttempted = false;
+  try {
+    await assert.rejects(
+      withSeedConnections(
+        () => {
+          throw bodyError;
+        },
+        (config) => {
+          directory = path.dirname(fileURLToPath(config.databaseUrl));
+          const index = closed.length;
+          closed.push(false);
+          return {
+            client: {
+              close: () => {
+                closed[index] = true;
+                if (index === 0) throw closeError;
+              },
+            },
+          };
+        },
+        async () => {
+          removalAttempted = true;
+          throw removalError;
+        },
+      ),
+      (error) =>
+        error instanceof AggregateError &&
+        error.errors.length === 3 &&
+        error.errors[0] === bodyError &&
+        error.errors[1] === closeError &&
+        error.errors[2] === removalError,
     );
-  await initializeDatabase(seeded, first.database, auth);
-  assert.equal(attempted, true);
-  assert.equal((await first.database.select().from(account)).length, 1);
-  first.database.transaction = originalTransaction;
-  await second.database.delete(account);
-  assert.equal((await second.database.select().from(account)).length, 0);
+    assert.deepEqual(closed, [true, true]);
+    assert.equal(removalAttempted, true);
+  } finally {
+    if (directory) {
+      const parent = await realpath(tmpdir());
+      const owned = await realpath(directory);
+      const relative = path.relative(parent, owned);
+      assert.ok(
+        relative.startsWith("kernel-seed-test-") &&
+          !relative.includes(path.sep),
+      );
+      await rm(owned, { recursive: true, force: true });
+    }
+  }
+});
+
+test("existing seed validation reads a consistent snapshot against another connection", async () => {
+  await withSeedConnections(async ({ config, first, second }) => {
+    const auth = createAuth(
+      config,
+      first.database,
+      createLogger(config.logging, { write() {} }),
+    );
+    const seeded = { ...config, seedDevelopmentData: true };
+    await initializeDatabase(seeded, first.database, auth);
+
+    const originalTransaction = first.database.transaction.bind(first.database);
+    let attempted = false;
+    first.database.transaction = (callback, options) =>
+      originalTransaction(
+        (transaction) =>
+          callback(
+            new Proxy(transaction, {
+              get(target, property, receiver) {
+                if (property !== "query")
+                  return Reflect.get(target, property, receiver);
+                return new Proxy(target.query, {
+                  get(queries, name, queryReceiver) {
+                    if (name !== "user")
+                      return Reflect.get(queries, name, queryReceiver);
+                    return new Proxy(queries.user, {
+                      get(userQuery, method, userReceiver) {
+                        if (method !== "findFirst")
+                          return Reflect.get(userQuery, method, userReceiver);
+                        return async (...args) => {
+                          const result = await userQuery.findFirst(...args);
+                          attempted = true;
+                          await assert.rejects(
+                            second.client.execute('DELETE FROM "account"'),
+                            /locked|busy/i,
+                          );
+                          return result;
+                        };
+                      },
+                    });
+                  },
+                });
+              },
+            }),
+          ),
+        options,
+      );
+    await initializeDatabase(seeded, first.database, auth);
+    assert.equal(attempted, true);
+    assert.equal((await first.database.select().from(account)).length, 1);
+    first.database.transaction = originalTransaction;
+    await second.database.delete(account);
+    assert.equal((await second.database.select().from(account)).length, 0);
+  });
 });
 
 test("a transactional seed failure leaves no user, credential or permissions and can be retried", async (t) => {

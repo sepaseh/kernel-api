@@ -54,6 +54,151 @@ async function setup(context, extra = {}) {
   return { auth, client, config, database };
 }
 
+async function withDatabasePair(
+  prefix,
+  filename,
+  extra,
+  run,
+  create = createDatabase,
+  remove = rm,
+) {
+  const root = await mkdtemp(path.join(tmpdir(), prefix));
+  const clients = [];
+  const errors = [];
+  try {
+    const config = loadConfig({
+      BETTER_AUTH_SECRET: "synthetic-test-secret-with-at-least-32-characters",
+      DATABASE_URL: pathToFileURL(path.join(root, filename)).href,
+      NODE_ENV: "test",
+      ...extra,
+    });
+    const first = create(config);
+    clients.push(first.client);
+    const second = create(config);
+    clients.push(second.client);
+    await run({ config, first, second });
+  } catch (error) {
+    errors.push(error);
+  }
+  for (const client of clients) {
+    try {
+      await client.close();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  try {
+    assert.ok(path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep));
+    assert.ok(path.basename(root).startsWith(prefix));
+    await remove(root, {
+      recursive: true,
+      force: true,
+      maxRetries: prefix === "kernel-bootstrap-race-" ? 10 : 5,
+      retryDelay: 100,
+    });
+  } catch (error) {
+    errors.push(error);
+  }
+  if (errors.length === 1) throw errors[0];
+  if (errors.length > 1)
+    throw new AggregateError(errors, "Fixture operation and cleanup failed");
+}
+
+function emergencyCleanup(context, root) {
+  context.after(async () => {
+    if (!root.path) return;
+    assert.ok(
+      path.resolve(root.path).startsWith(path.resolve(tmpdir()) + path.sep),
+    );
+    assert.ok(path.basename(root.path).startsWith("kernel-otp-race-"));
+    await rm(root.path, { recursive: true, force: true });
+  });
+}
+
+test("database pair fixture preserves setup and cleanup failures", async (context) => {
+  const root = {};
+  emergencyCleanup(context, root);
+  let calls = 0;
+  let closed = false;
+  const setupError = new Error("synthetic second connection failure");
+  const closeError = new Error("synthetic close failure");
+  const create = () => {
+    if (++calls === 2) throw setupError;
+    return {
+      client: {
+        close: () => {
+          closed = true;
+          throw closeError;
+        },
+      },
+    };
+  };
+  const remove = async (directory, options) => {
+    root.path = directory;
+    await rm(directory, options);
+  };
+  await assert.rejects(
+    withDatabasePair(
+      "kernel-otp-race-",
+      "otp.db",
+      {},
+      () => assert.fail("callback must not run"),
+      create,
+      remove,
+    ),
+    (error) =>
+      error instanceof AggregateError &&
+      error.errors[0] === setupError &&
+      error.errors[1] === closeError,
+  );
+  assert.equal(closed, true);
+  assert.equal(existsSync(root.path), false);
+});
+
+test("database pair fixture preserves operation, close and removal failures", async (context) => {
+  const root = {};
+  emergencyCleanup(context, root);
+  const closed = [];
+  const operationError = new Error("synthetic operation failure");
+  const closeError = new Error("synthetic close failure");
+  const removeError = new Error("synthetic removal failure");
+  const create = () => {
+    const index = closed.length;
+    closed.push(false);
+    return {
+      client: {
+        close: () => {
+          closed[index] = true;
+          if (index === 0) throw closeError;
+        },
+      },
+    };
+  };
+  const remove = async (directory) => {
+    root.path = directory;
+    throw removeError;
+  };
+  await assert.rejects(
+    withDatabasePair(
+      "kernel-otp-race-",
+      "otp.db",
+      {},
+      () => {
+        throw operationError;
+      },
+      create,
+      remove,
+    ),
+    (error) =>
+      error instanceof AggregateError &&
+      error.errors[0] === operationError &&
+      error.errors[1] === closeError &&
+      error.errors[2] === removeError,
+  );
+  assert.deepEqual(closed, [true, true]);
+  assert.equal(existsSync(root.path), true);
+});
+
 test("new OTPs store HMACs and reject wrong codes", async (context) => {
   const { config, database } = await setup(context, {
     OTP_FIXED_CODE: "123456",
@@ -236,57 +381,44 @@ test("bootstrap rolls back user creation when credential insertion fails", async
   assert.deepEqual(await database.select().from(session), []);
 });
 
-test("concurrent database clients cannot create two initial administrators", async (context) => {
-  const root = await mkdtemp(path.join(tmpdir(), "kernel-bootstrap-race-"));
-  const config = loadConfig({
-    BETTER_AUTH_SECRET: "synthetic-test-secret-with-at-least-32-characters",
-    DATABASE_URL: pathToFileURL(path.join(root, "race.sqlite")).href,
-    NODE_ENV: "test",
-  });
-  const first = createDatabase(config);
-  const second = createDatabase(config);
-  context.after(async () => {
-    first.client.close();
-    second.client.close();
-    assert.ok(path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep));
-    assert.ok(path.basename(root).startsWith("kernel-bootstrap-race-"));
-    await rm(root, {
-      recursive: true,
-      force: true,
-      maxRetries: 10,
-      retryDelay: 100,
-    });
-  });
-  await migrate(first.database, {
-    migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
-  });
-  const logger = createLogger(config.logging, { write() {} });
-  const results = await Promise.allSettled([
-    createInitialAdmin(
-      first.database,
-      createAuth(config, first.database, logger),
-      input,
-    ),
-    createInitialAdmin(
-      second.database,
-      createAuth(config, second.database, logger),
-      {
-        ...input,
-        mobile: "09120000002",
-        username: "second-admin",
-      },
-    ),
-  ]);
-  assert.equal(
-    results.filter((result) => result.status === "fulfilled").length,
-    1,
+test("concurrent database clients cannot create two initial administrators", async () => {
+  await withDatabasePair(
+    "kernel-bootstrap-race-",
+    "race.sqlite",
+    {},
+    async ({ config, first, second }) => {
+      await migrate(first.database, {
+        migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
+      });
+      const logger = createLogger(config.logging, { write() {} });
+      const results = await Promise.allSettled([
+        createInitialAdmin(
+          first.database,
+          createAuth(config, first.database, logger),
+          input,
+        ),
+        createInitialAdmin(
+          second.database,
+          createAuth(config, second.database, logger),
+          {
+            ...input,
+            mobile: "09120000002",
+            username: "second-admin",
+          },
+        ),
+      ]);
+      assert.equal(
+        results.filter((result) => result.status === "fulfilled").length,
+        1,
+      );
+      const users = await first.database.select().from(user);
+      const credentials = await first.database.select().from(account);
+      assert.equal(users.length, 1);
+      assert.equal(credentials.length, 1);
+      assert.equal(credentials[0].userId, users[0].id);
+      assert.deepEqual(await first.database.select().from(session), []);
+    },
   );
-  const users = await first.database.select().from(user);
-  const credentials = await first.database.select().from(account);
-  assert.equal(users.length, 1);
-  assert.equal(credentials.length, 1);
-  assert.equal(credentials[0].userId, users[0].id);
-  assert.deepEqual(await first.database.select().from(session), []);
 });
 
 test("OTP consumption is single-use under concurrent requests", async (context) => {
@@ -336,45 +468,31 @@ test("concurrent OTP issuance is throttled and cannot create two usable codes", 
   await assert.rejects(otp.consume(attempt));
 });
 
-test("concurrent OTP issuance across database connections remains atomic", async (context) => {
-  const root = await mkdtemp(path.join(tmpdir(), "kernel-otp-race-"));
-  const config = loadConfig({
-    BETTER_AUTH_SECRET: "synthetic-test-secret-with-at-least-32-characters",
-    DATABASE_URL: pathToFileURL(path.join(root, "otp.db")).href,
-    NODE_ENV: "test",
-    OTP_FIXED_CODE: "123456",
-  });
-  const first = createDatabase(config);
-  const second = createDatabase(config);
-  context.after(async () => {
-    first.client.close();
-    second.client.close();
-    assert.ok(path.resolve(root).startsWith(path.resolve(tmpdir()) + path.sep));
-    assert.ok(path.basename(root).startsWith("kernel-otp-race-"));
-    await rm(root, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 100,
-    });
-  });
-  await migrate(first.database, {
-    migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
-  });
-  const one = createOtpGateway(config, first.database);
-  const two = createOtpGateway(config, second.database);
-  const results = await Promise.allSettled([
-    one.issue("09120000014", "register"),
-    two.issue("09120000014", "register"),
-  ]);
-  assert.equal(
-    results.filter((result) => result.status === "fulfilled").length,
-    1,
+test("concurrent OTP issuance across database connections remains atomic", async () => {
+  await withDatabasePair(
+    "kernel-otp-race-",
+    "otp.db",
+    { OTP_FIXED_CODE: "123456" },
+    async ({ config, first, second }) => {
+      await migrate(first.database, {
+        migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
+      });
+      const one = createOtpGateway(config, first.database);
+      const two = createOtpGateway(config, second.database);
+      const results = await Promise.allSettled([
+        one.issue("09120000014", "register"),
+        two.issue("09120000014", "register"),
+      ]);
+      assert.equal(
+        results.filter((result) => result.status === "fulfilled").length,
+        1,
+      );
+      const rejected = results.find((result) => result.status === "rejected");
+      assert.equal(rejected.reason.kind, "rate-limited");
+      assert.equal(rejected.reason.key, "otpThrottled");
+      assert.equal((await first.database.query.otpCodes.findMany()).length, 1);
+    },
   );
-  const rejected = results.find((result) => result.status === "rejected");
-  assert.equal(rejected.reason.kind, "rate-limited");
-  assert.equal(rejected.reason.key, "otpThrottled");
-  assert.equal((await first.database.query.otpCodes.findMany()).length, 1);
 });
 
 test("duplicate v2 OTP records do not allow the same code to be reused", async (context) => {
