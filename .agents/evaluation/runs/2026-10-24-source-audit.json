@@ -1,0 +1,1815 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-24",
+  "method": "Source/rubric review of the five API observations recorded on 2026-10-24. No self-score or cross-model comparison.",
+  "discovery": "Manual from supplied directory; automatic host loading not measured.",
+  "metadata": {
+    "model": null,
+    "version": null,
+    "tokens": null,
+    "cost": null,
+    "responseTime": null
+  },
+  "executionLimits": "Subject did not run apps/tests/network/install or edit source by its report; complete tool trace/host auto-loading was not independently instrumented. This evaluates source explanation, not runtime performance, linguistic quality or deployment state.",
+  "interpretation": "The five recorded API cases contain three covered and two partial rubric observations. This is a scoped summary of the dated records, not a new run, model-accuracy rate or finding of two runtime defects. Clarified follow-up questions were not rerun or rescored.",
+  "counts": {
+    "cases": 5,
+    "covered": 3,
+    "partial": 2
+  },
+  "correctiveFinding": "API intentionally allowed English emergency translation fallback, but unsupported stored codes were advertised in Content-Language. The subject described snapshot behavior; a later isolated regression/fix makes header and translator resolve to English without rewriting settings. Public DTO still rejects bad settings.",
+  "records": [
+    {
+      "repository": "api",
+      "id": "session-lifecycle",
+      "result": "covered",
+      "covered": "Opaque nonrotating sessions, native cookies and transactional all-session revocation were source-grounded.",
+      "qualification": ""
+    },
+    {
+      "repository": "api",
+      "id": "persisted-language",
+      "result": "covered",
+      "covered": "Settings authority, English defaults/preservation, ignored visitor preferences and public no-store DTO were covered.",
+      "qualification": "Subject additionally found old unsupported-code header/fallback mismatch; later fixed after this input snapshot."
+    },
+    {
+      "repository": "api",
+      "id": "shared-label",
+      "result": "partial",
+      "covered": "Local common identity, ten catalogs, API {{variable}} syntax, engine boundary and erased imports were covered.",
+      "qualification": "Full distinction/preservation of both consumer interpolation syntaxes was not explicit; original prompt did not explicitly ask for both syntaxes."
+    },
+    {
+      "repository": "api",
+      "id": "administrator-concurrency",
+      "result": "covered",
+      "covered": "Thin transport, framework-free policy and reread/count within real write transactions were correctly separated.",
+      "qualification": ""
+    },
+    {
+      "repository": "api",
+      "id": "private-media",
+      "result": "partial",
+      "covered": "Authorization, private URL/read policy, compensation, post-parse versus ingress bounds and owner-state exclusion were covered.",
+      "qualification": "Matched recovery point and new executable recovery/incident drill scope were omitted; they were in rubric but not explicit in the supplied question."
+    }
+  ],
+  "repository": "api",
+  "inputSnapshotCreatedUtc": "2026-10-24T17:30:23.040Z",
+  "inputFingerprint": "1405d707da7c48c2c7036e08432270db6433529d17b926952588eea4b32e5690",
+  "inputScopeRevisions": [
+    {
+      "fingerprint": "795a2b93659c6002aaa96ddd7c094989e80174268ee0803f598186c8bce4c28e",
+      "reason": "Initial allowlisted snapshot"
+    },
+    {
+      "createdUtc": "2026-10-24T17:32:56.577Z",
+      "reason": "Added omitted browser test source after subject reported missing references; no existing snapshot bytes changed, no oracle/QA included.",
+      "fingerprint": "1405d707da7c48c2c7036e08432270db6433529d17b926952588eea4b32e5690"
+    }
+  ],
+  "sourceFiles": [
+    {
+      "repository": "api",
+      "path": ".agents/README.fa.md",
+      "sha256": "6ac0fa23b09ede014ddee89d09538a8de8e0c7c3c61495810439d88ac98e8592"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/README.md",
+      "sha256": "cc40a799528c1444a5d8e16a966fd672d9feb3d0002451d3e210721e0bed57aa"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/hooks/block-dangerous.mjs",
+      "sha256": "217023c4dbd271af65f5969467bf5c48078fd294123c26a77234795c8947def2"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/hooks/block-dangerous.sh",
+      "sha256": "4dea4609c85a41d1c509a6f4bc3382da8d16b75cc68c6a506a475e67bb4eb8cf"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/hooks/post-edit-format.sh",
+      "sha256": "72bd5fd2edee34da6fb33f549aa76f0817c71540eab9c970585760126bac5238"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/hooks/quality-gate.sh",
+      "sha256": "9630f536eb92af187ff5c2dbd23cbdc769eb4ae144b557cf38d25af3b6fc0992"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/navigation.json",
+      "sha256": "6cd1ca85bb4f79db5c738da05aa4c600bf44156242f3ca1cf28b8dbb965ad11c"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/api-collection.md",
+      "sha256": "a00193cb3a33c7f4a6ef1ca09739641bcc64711aa912c53d4b555d689e4a8a88"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/backend.md",
+      "sha256": "cb3a19e14397d0691dbb6d120cec80b1d29085fc924ff726d37b68fb1354c72a"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/code-quality.md",
+      "sha256": "2f72a556d67284fd3c2a112e407a6f3b299a0c7a817e83c8c7098a83427032ab"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/code-review.md",
+      "sha256": "5a599f86f8aa6ae013b32c822032cb6308f05697d063e913be5e659aaeed3634"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/collection-quality.md",
+      "sha256": "f288c456cb0fcb4327dab59f7e6c2e2f1a0847aa65b037748d74c72b54981f19"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/commits.md",
+      "sha256": "52c8fbf23fad450521fcd9c69e0f19b9b426c92940d475d8c176067705892ca9"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/git.md",
+      "sha256": "90929bc58befebc39003817f005b1f29b296cb48502582c54060406f7573b23f"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/guidance.fa.md",
+      "sha256": "2d08edd36e200b8dbc02453aad7ca440a46775ee13d27eedd8e9513e2fd02e46"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/guidance.md",
+      "sha256": "59adcf0ee4795bc8f3be505472062a0593ad0a9fb920f91873c25aa6eb6708a1"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/imports.md",
+      "sha256": "b4d27b8bb0b06919256284c6445a327a4889069cd183684fc52cafacbee39366"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/issues.md",
+      "sha256": "33736bebcc4803cd8f1799f6cb611c8f2f9766ade1ebb436c5a3830be3daca6f"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/localization.md",
+      "sha256": "5f24e8c1c5f72913cf40567e5b6fd4fe0d0bc007386483602aef15c2a61d6557"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/pull-requests.md",
+      "sha256": "6c07caa5589de8c632991d297154c07614971a96c0717e9c3becb2aef37517c6"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/safety.md",
+      "sha256": "49a82d35564b117578e89be4f50e7cd9801031b9e4c9ffa11ac0e50fa36ef731"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/testing.md",
+      "sha256": "32dc6a85e1295af0ba123791a76529a67531088e04605d701dafefd1114503be"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/rules/typescript.md",
+      "sha256": "7325b4a5cc7cee400445f1c0ffcf5c007e0bddb047db5af58f002b0b067ec11c"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/settings.json",
+      "sha256": "2a31967538ee0a774e2d3abde7f8ff75c02cb23539f20d8d268b343506429de6"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/skills/create-issue/SKILL.md",
+      "sha256": "7585726c7c62e7520702f224065adc31a1f119d2da8349086fdbd9e99109dada"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/skills/create-pr/SKILL.md",
+      "sha256": "29e85be50afd47c5b3a1a20c83eb1e9ee2b03af91848b543ae942265e28a5cca"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/skills/review-pr/SKILL.md",
+      "sha256": "e88f54640fe3ce0be98682b86a6218f3ed0c264ae31512cc1fc84e91280ec4e2"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/skills/validate-change/SKILL.md",
+      "sha256": "389649d68071c2747e3b79f182b43d1d49ee2a2638c3489be96fd72e862b9c93"
+    },
+    {
+      "repository": "api",
+      "path": ".agents/validation.json",
+      "sha256": "6df8011b0e09b27a0210bc3562fa320466ab91c3c68e8eea7fa118eca43f951d"
+    },
+    {
+      "repository": "api",
+      "path": ".nvmrc",
+      "sha256": "e326b5cc77d5d52db959fb26b64ca8a56c5d01c9ab11e9f7b3d3920cf8a0e72a"
+    },
+    {
+      "repository": "api",
+      "path": "AGENTS.fa.md",
+      "sha256": "a195806a07742819c3b6a005d2cb1763b5c374f81720f280830023526c7fbc2f"
+    },
+    {
+      "repository": "api",
+      "path": "AGENTS.md",
+      "sha256": "4532c03a9d450a43de6460989dca840093dee03eeb51a2fe3829139d8d629c10"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/.env.example",
+      "sha256": "68b39ebf2393551e49c2dbbdd33470aabbe3985ed33b1b06b2e5d909f439c057"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/AGENTS.fa.md",
+      "sha256": "82ba1c53375525f2047cd9ed6e42e13ee364f06f254295272884f313d3c6d610"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/AGENTS.md",
+      "sha256": "079481f399258ac3b9662605ff82446e114237d20bbd11f1072c7f81340561ed"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/README.fa.md",
+      "sha256": "83c95cc9179bb769656b070c8920c60e86d32bb6a571b195ac27641af30e0dcc"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/README.md",
+      "sha256": "4f80f6647032c7a050ee264a0b61fb91cd7c8bb4a24183c75d7d4e5c5086674f"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle.config.ts",
+      "sha256": "326974e33b112565ce8aac4609d01bd9c140a7290c1fb61329b9af255f48bb24"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle/0000_init_backend.sql",
+      "sha256": "3040d050cf8c83f8f067e4eba4e1c9edb702cf81ffa69202e3ae4fbb54e28905"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle/0001_optional_profile_email.sql",
+      "sha256": "bda811b9a56c159db8da3112dae187b89ef5a2d485361fb8c18f27d5b9c39022"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle/0002_bind_otp_subject.sql",
+      "sha256": "704ede6ee4f3ec30ea447897529dcb5c861f1e3733747a4c93e40ec4be3bcaff"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle/0003_outgoing_mauler.sql",
+      "sha256": "a97feddd9bcaca6586adbb0444ad3418eee03eb3875f809fabc428162a2e4325"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle/meta/0000_snapshot.json",
+      "sha256": "43d37d76c9a2cb0418861da3716bf2b0818436160160540b6505344816951aae"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle/meta/0001_snapshot.json",
+      "sha256": "47166291fba261fe2aed73bdb5e6adaa62501b0d2fc9e37957a71d442e5e01ee"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle/meta/0002_snapshot.json",
+      "sha256": "f84b8e4d8a288eadd6c7b5aeda18d801dbe4827e7ac3a38c31de62731543d8d3"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle/meta/0003_snapshot.json",
+      "sha256": "49915d8ffab047747de5cc9c06932397281d867a2bf426a99b48f62fcde51e77"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/drizzle/meta/_journal.json",
+      "sha256": "d76b14815f7d501d7b70f718e9b930956424134e8de8f4cbb03ebc9d68d70e41"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/package.json",
+      "sha256": "67efd6c8aa8a32bd2d34f2473b3d3b62fc60c60ad6a0b9d678d4221335689f9e"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/app.test.ts",
+      "sha256": "b8caf00d69fef0060fcf4bcf65653ec155165e33e79af313bb4edcc8405e42fe"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/account.ts",
+      "sha256": "7a1826576f6b7c0869104521b40ca63467a8514ec869e4402227dba800038e50"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/auth.ts",
+      "sha256": "66da1a9f8b582e976dc391072f72cd3f9d8ef2d702d90d08e412d3a8bba2c906"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/authorization.ts",
+      "sha256": "9aa1e91d47893a1563a0041cdb7c5892269dc1a56c1279ee00996be610998c0c"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/calendar.ts",
+      "sha256": "3fdd9506c465ac67af07f8f9a62ef5e4aaaa3662da8523e856e44fb78d594e52"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/errors.ts",
+      "sha256": "2720ded52735cc84a96be908ac1caa007694213d662a02f7108b687c44601497"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/files.ts",
+      "sha256": "6e8fefea3ebd749aa81600443ecf6f28520874e3a7d5c2dcc50caac9dcd5e178"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/identity.ts",
+      "sha256": "c40cd3d11a0ba8470f1df9f95c85bf84394d8c371aea62bba79139b79c6a0871"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/models.ts",
+      "sha256": "feee0d1a82f07157111719996382c8ddd6a15c0e999c6b58e3177b0ef05603e6"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/permissions.ts",
+      "sha256": "c997faff7638eacd3234fd199b299c0b9dd701e2ce68a39b4394ecdbb8d77ee2"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/ports/account.ts",
+      "sha256": "c6ba7a83e79c54361eec036625cfeb450493ace509514bdafc4bf039631d1998"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/ports/auth.ts",
+      "sha256": "5f1c5cd817b097556fef59b92a674a52d04e459b5ca3444ee324523a74e735dc"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/ports/calendar.ts",
+      "sha256": "a03666ea4d271548e1b7bdf9f70cdb00ce1b1bc297b3a0ac6aba9ed79bdb67ac"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/ports/files.ts",
+      "sha256": "6cfa303bd669ee28c7e8f307e368dc8f2040ef5fc4c6fb915527b0423c284f5f"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/ports/object-storage.ts",
+      "sha256": "8635c348ced5e96395c047698744970d5061aee1aceddd7927c14537eb846de5"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/ports/roles.ts",
+      "sha256": "026b807f3fab8a11d73f4876864002da5dfb572c94d47ed803138648506f84ec"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/ports/settings.ts",
+      "sha256": "f01fbdff707b896a84dcf7d3cc1b9549816ad2c27630d52bc9e51e9509c0402b"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/ports/users.ts",
+      "sha256": "c06c0169b8eb84c57ee289f03d482d8283cc40ffc89aeec134fcf97eea603388"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/roles.ts",
+      "sha256": "47610228352280a3b68fd3f298a5840216e98e1ee379b7ef3277211f0d3dec1e"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/settings.ts",
+      "sha256": "5dc94e1311fcd523f816317ea4ba121c41927e7af128064a9644f9e19230e2b6"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/users.ts",
+      "sha256": "2ba49638012ee73978eba029855080af24763d194d873355e7453c5857d0c952"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/application/validation.ts",
+      "sha256": "59bdf1754b75103405c2615649b485e7131568afaa6b06484b8508365ec055fc"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/architecture.test.ts",
+      "sha256": "678e83bf15f8f8b6e61217d26f9fe92b5279e092a46ce9c32e832df123d22bc2"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/auth-application.test.ts",
+      "sha256": "4355753f5e41f178e941af44290e397b4c4d4296765227f56df622bd2cab3ad5"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/auth-gateway.test.ts",
+      "sha256": "6feae70774d3763f4442dff269cc023bbddff9b000a4b212ed4d4e993cef2125"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/auth-invariants.test.ts",
+      "sha256": "9207ee0f1470efa010ebcf068dc400b62323936e4594bece93911ba4135148ba"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/bootstrap-admin.test.ts",
+      "sha256": "1866cef028a1f0bf83be4b59ef94547fcdbe2b1c44898951274b95632a1589e0"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/bootstrap-admin.ts",
+      "sha256": "eacfa0056d1162b00032ec8bff1a6307048dd3b070fa6af5bd62e1faf2fb30df"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/composition.ts",
+      "sha256": "379ce4d723cdef5ec931a80af67bdd8c0c7874ad019ab1ef732fd6a58915fa08"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/dependencies.ts",
+      "sha256": "d1fdae71fd72aca5f1e3a20a9ffa829019a36019c6b1968e411bd9aa9c27be45"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/drizzle-toolchain.test.ts",
+      "sha256": "0b7943ddd73481c85ab9316fdba011b21702c9f52e63e999df11669a354a3974"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/files-application.test.ts",
+      "sha256": "f836a00322ca86907f8729bb20b995f7e0c10a1703740ab6e02c8ee13f7afc8c"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/index.ts",
+      "sha256": "3b3d4fce483612a88d0c5e0abf13c2452249b21c154cd7d85f93793871c4d8fe"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/admin/bootstrap.ts",
+      "sha256": "3e8fff4626e95e035e4b25c2f3cddd65ece778a4be29e55666953cad6dc55251"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/auth/better-auth.ts",
+      "sha256": "c7fc025cf67254da4b44f851ab20bb058da8ce829f3d0a142f9ab35f9c805976"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/auth/gateway.ts",
+      "sha256": "89d6e51a909209a2b20ca5ef28e0a0e856d116cbd86dff86fef7095986faa460"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/auth/otp.ts",
+      "sha256": "561b6f9b852ad29a5a0ab545e565a01665857738879bff6d38228287058a6879"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/config.ts",
+      "sha256": "071f095a44b5b68d51e4a3a4e7084e48fde714ca2c1d18f7d3f19caff8e7d252"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/db/client.ts",
+      "sha256": "a9767ead159d8402e8c5b42393d287bc92b63a0d7451c5d379cbedef3fecd951"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/db/initialize.ts",
+      "sha256": "bcc9d95199c66ef6e2296033498dd4b29ba781010af174f7f20b0e54da8a3135"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/db/schema.ts",
+      "sha256": "6730da2b79d67243937fbf909b5031d54203f02be1a9d45a7699f03af34d4c7c"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/lifecycle.ts",
+      "sha256": "55061850115a7094ea1989ecc3f241fc1cc0fa11fe9f3a45ed66959ddc25a52c"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/localization/i18n.ts",
+      "sha256": "71404bf681071d47436d417e449a924affcada52c4596a450e756fb038aa8a0b"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/logging/logger.ts",
+      "sha256": "33629f2ae105e47f5d570b6f230d909286f7cd1ec9151376104df160ede5769f"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/logging/sanitization.ts",
+      "sha256": "c65850d5365044f2548ebe659c9fc64a5c7c41e40131dae445187d8673a338a2"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/persistence/account.ts",
+      "sha256": "0b00b80a982d090b955aa5c7ed0953b051f4c36f92370ead306809fd2692242b"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/persistence/auth.ts",
+      "sha256": "8934faf11288974bea0bd6ec8fa53e80b4a0e2e3fd6c791b8a461cf8d5c8173b"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/persistence/calendar.ts",
+      "sha256": "26820f67f77aca14156fe8a7496e423c0eca6f3433a481088bd1c59bf86665b9"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/persistence/errors.ts",
+      "sha256": "724a542476fc399169dad97a97c59d34775415612206f5bfa1b1607b29bd7c9c"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/persistence/files.ts",
+      "sha256": "5bcfd807333ea8d42e17fb1a5f73913a70bd0102abb108f070d1211bf0e50f98"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/persistence/identity.ts",
+      "sha256": "41d47bb6c8cdfd94d46f7d699ba088afd24827ebe87b3339348520dab39ee530"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/persistence/roles.ts",
+      "sha256": "e2e7f8fb8ebdb41b5d74081bc24343518e358b79013851c6551dbfc205799d01"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/persistence/settings.ts",
+      "sha256": "6ec9b27333508e79153c1bf6baba65cfbbb387bacdacfadf66a497d7372c4485"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/persistence/users.ts",
+      "sha256": "b3167fe04e7344b5ce566fbea9eea5994374d01a898f783671e79b2cb9ea086a"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/storage/create.ts",
+      "sha256": "1031d7bbce11f73866829cb8ab5cbad0364069c7f5f87d353adac32420be999f"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/storage/local.ts",
+      "sha256": "4708cf892bd9970b2248d7a1ee14edd39e6da6e6d64f841431efe7e0011ea736"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/storage/memory.ts",
+      "sha256": "b33f42bd96c3743494b01957b17c6c507596d94a26af58fb609fc80d796556fe"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/storage/minio.ts",
+      "sha256": "b40039fc695b8e94d4dba3d5f1b1e2ca156683355b573465cf801edd37565cbd"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/storage/operations.ts",
+      "sha256": "26be51c3a3a9b79408f16edac66f8715e2b9a3608b99a1dcdf181dc46d748aca"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/infrastructure/storage/url.ts",
+      "sha256": "e9bc07fa34139f8fd8538bec5addb3073017c9d3af28826820e066dfef389d7d"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/input-validation-http.test.ts",
+      "sha256": "87ed5fdfcfc6fb58f854a49ac0c85b573c7e1f44eb936d578c0a541273dc0794"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/lifecycle.test.ts",
+      "sha256": "4bfaf8dd90d1bc4d6145a9ec0506e25ac741a630bc76d498697e87d44a3ec906"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/logger.test.ts",
+      "sha256": "9e9b938c15062758bec2ade50ce35f6eab9d1ac5060c727315ebf87b2b997973"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/management-services.test.ts",
+      "sha256": "8afe9f7087f06408a3574eb2cc3ed6a8c8c88a01a6411e6e4621256d3a29fed9"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/app.ts",
+      "sha256": "793dc819f3d8a4dbd4ff9f1b5d135e70f551838e4f7686602c9c87fc0e664e22"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/auth-attempts.ts",
+      "sha256": "24e1d2325525d9fc31daecdbc16fb9a1b4ced96af9e1db110caf0c632238c2d6"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/dependencies.ts",
+      "sha256": "a2dadc0e7cad304056300dde7195611c9670f7e6cc81949d89cd7d9c066937fa"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/http.ts",
+      "sha256": "ab54c63f24c5aa9d3fc8f3059ad404a0e27e03267da867d88a06d868fd1057f7"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/request-logging.ts",
+      "sha256": "5044ca5aa7216832ff08875e973a05a40a3210b86c31b2fcf6143294c596f13a"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/routes/account.ts",
+      "sha256": "b4c07166c2b4f6604308fcfcecf48060dcef72d7c9c82ad07c0bae3d1bce58a1"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/routes/auth.ts",
+      "sha256": "ef7f2a0170015b51b1dec6a6f3eded36d20326c2a00a3f09bb4f607d84fd5d78"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/routes/calendar.ts",
+      "sha256": "76d6ff61e51cb6d161a3001c306cea058c0f18129a1c3a7c4445b5b57933ca42"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/routes/files.ts",
+      "sha256": "8d29e343cd66ffc3d8e45de8d7654d357dc7f6944c315a191d9db4fbdc52b1a5"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/routes/roles.ts",
+      "sha256": "731831ba34c22f2fb4ba446e4592502eaa939668b8e9db22b8e5d930abf518f9"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/routes/settings.ts",
+      "sha256": "45543941f90c891e788225ca1744c53cc6ca28b17ba50687ce1a4df5578ae5a7"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/presentation/http/routes/users.ts",
+      "sha256": "763b0b9953ac3bddf9bb1391cca7057298150c8b80a47febe60966848291fd86"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/recovery-drill.test.ts",
+      "sha256": "ff390e83f5f6c947e4492c7c7b6a04141d54513a2e6d398feb7529d393ac7892"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/request-logging.test.ts",
+      "sha256": "d0e360a171bc1f15baec4c06dc9901f6dc49f26fc1ceb47322e52ef047e14e13"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/test/logging.ts",
+      "sha256": "23562854fff39e6714873ce2872abe55a9a47fa4814b48d5cecdb50b97603028"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/test/recovery-drill-cases.ts",
+      "sha256": "c5bda3e4b934a0ad1b563c5cfdef378c80643a0341c3d1a6492a8674f722f1c2"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/users-application.test.ts",
+      "sha256": "fbb71421fb3cc2895ed0afa1166270e6743985519c25e095244aae9bd58f0f99"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/src/validation.test.ts",
+      "sha256": "10519b5083eae1617236e1c69e1123376ad36576ef70f06a33b82c938f7d88c6"
+    },
+    {
+      "repository": "api",
+      "path": "apps/api/tsconfig.json",
+      "sha256": "4338279c7dc06a885519d72c0fac3c5a80408eb9364cd1ccb13652bcd5271a8e"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/15-validate-configuration.sh",
+      "sha256": "e00582f810ff21a79ab337e1bd2f328975667b79e9f2a41feb6328350158c5d7"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/README.fa.md",
+      "sha256": "ba74e8e9fff9296f0364e58f0b3904a11be6d79e4662a4bdecafb9753ac8b6ae"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/README.md",
+      "sha256": "79fc18a40aaf9914e84fecafbf3af10a547a5359d2e2fff9a56edbf9468c6e6c"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/api-entrypoint.sh",
+      "sha256": "f85666832df03ae692131b06d76b4ac68c343d47dc301af68bb76b2d78c7d003"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/api.env.example",
+      "sha256": "74327ed3a595f8f8aa8bd720512ec156b14fbc0c7fecb11784a9cfc05be7a0bb"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/compose.yaml",
+      "sha256": "dab8180608fcab5b60567aa7806e8418a515889e61acec579a163c2937ca680a"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/hosts.env.example",
+      "sha256": "03716df856b074fc7a2b9c973e0838d6be6c21e069aff87f4807ecea9a739f51"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/nginx.conf.template",
+      "sha256": "b61e9ab91e34e3dc16c53f5d9c0327b58b858591dfc05f8e228eff1975277d84"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/smoke-resources.mjs",
+      "sha256": "344fe33cd60b86b5baf0c2551106f011a8fb5b64fad9e27a957c06fe0b3ef6f3"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/smoke-resources.test.mjs",
+      "sha256": "cc544717625f169cde0c09937029a2d530d793c5f3f920d1bb248d77d6aa60fd"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/docker/smoke.mjs",
+      "sha256": "108e9f0a32fd586d71e2190ebc4198507a5bf74ff3d67f9a13d0ec35c6c5db6f"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/native/README.fa.md",
+      "sha256": "d31911ede503ddc8e0977c1468d24fe9a1c439f213a7fa26c2eb9f35f3ad13c6"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/native/README.md",
+      "sha256": "06ec460c3530e462f6370d5de0ed63797311cfc8b0922cba7ca52bc017cbe01f"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/native/api.env.example",
+      "sha256": "adb69dae99ab82a3bfbce30d5d0d6193947aa958b17b83f54f81fec5bb2bd055"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/native/hosts.env.example",
+      "sha256": "ef0051022475e94ad43940d6981a088843246f0bb39f003ef085194cf3ae2c0e"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/native/nginx/bootstrap.conf.template",
+      "sha256": "dd6c615cbed956f287b4abb0a4fe40a6bb89d68a73e9fa95a672bfd9ff946c4c"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/native/nginx/kernel.conf.template",
+      "sha256": "dae752c6f18a8b988ed387e244fda5a6e35a641357207376013895c117d35f4b"
+    },
+    {
+      "repository": "api",
+      "path": "deploy/native/systemd/kernel-api.service",
+      "sha256": "6f2b958e653367b831b56e347f352b02b22ace01df1e12b5f389d823f45a33b3"
+    },
+    {
+      "repository": "api",
+      "path": "docs/README.fa.md",
+      "sha256": "71f1b895691216967c76afa71f515a9e990d2867b1e8f19704b877918ed8bc70"
+    },
+    {
+      "repository": "api",
+      "path": "docs/README.md",
+      "sha256": "c5a9004cc77070ae43ac00f6a8cc0b96dc7cf736f944f5a76de357cb245aee81"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0001-independent-runtimes.fa.md",
+      "sha256": "e9a74fbc91dff539c6d7b098eb24c0b8af2c82c64c2b2f66b3d2995e50eee6e4"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0001-independent-runtimes.md",
+      "sha256": "b2b718650148fb75c4105c6a8847c450cbf9075552734dd9a7da15d2563afadb"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0002-lightweight-clean-api.fa.md",
+      "sha256": "b229b0072e88da1365ea95f60fbe4dfd751a547ca29f13f90f48dc2a8fa7c115"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0002-lightweight-clean-api.md",
+      "sha256": "924ac6f4f983d585246dec6933d8978a26f19dbc3f30b29876652177324dc6e4"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0003-single-active-language.fa.md",
+      "sha256": "48c983dee01e129dabf3fc9fdca7eac8ce9fe21d738536ecdf67b096c19db65d"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0003-single-active-language.md",
+      "sha256": "86aa424bbbd0111afac1efeccb6e2279938da030dc0bb59046819a7e0332b2e3"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0004-cookie-proxy-and-sessions.fa.md",
+      "sha256": "cbfd42cdb1ef36f69400b0864b7636f46e311849c736a06cc34fb2bcaa8a7a4f"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0004-cookie-proxy-and-sessions.md",
+      "sha256": "a81350bf0810ddcb9a6fe790b6239e1799f1303d6113a22d72e4c46b960b8a77"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0005-independent-repositories.fa.md",
+      "sha256": "980b590d0fb2d69ff2f557b71c823d153b05fd5361027f0bfeb425e43ed48abe"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/0005-independent-repositories.md",
+      "sha256": "2aac1aeaf1b09fc01d5455b5d03143165b1c83747cde23a54d8be2da5cf646ec"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/README.fa.md",
+      "sha256": "e3fef5c9b70edb1e0e9d602408d4d9038db7faf2597d7b6816fe14c60b562085"
+    },
+    {
+      "repository": "api",
+      "path": "docs/adr/README.md",
+      "sha256": "ac2ad645d00ae183e6e870d1c2e08a4ae9e2b692c2ba6f61be8c72c66adff4a7"
+    },
+    {
+      "repository": "api",
+      "path": "docs/architecture.fa.md",
+      "sha256": "1a783f8aed3dd842e2c7efd65f2d36c2413607b6fbba55789ad2f0da0b6b3ccb"
+    },
+    {
+      "repository": "api",
+      "path": "docs/architecture.md",
+      "sha256": "459035b53a63f68b8e61b7ed9763514395036287b3847928c516c80c00e382a2"
+    },
+    {
+      "repository": "api",
+      "path": "docs/backend-logging.fa.md",
+      "sha256": "fba0b6d8bbe03d53518dee7657a462e7406c1d606b138ee9e6afb9d7e3c01d01"
+    },
+    {
+      "repository": "api",
+      "path": "docs/backend-logging.md",
+      "sha256": "9f223f602c2d1a75a4eeb8b63b88f19bb1915eb08d5a3f107bbbccdfacbce1b0"
+    },
+    {
+      "repository": "api",
+      "path": "docs/backup-restore.fa.md",
+      "sha256": "657034ff5b70c2e25ba408acb1dce672c7ac00f1e2f45862e9463cf789684e92"
+    },
+    {
+      "repository": "api",
+      "path": "docs/backup-restore.md",
+      "sha256": "8c89b53e294562328765defe6f934a63f9d8d24c92d1ef4c022a0752eb0bde9a"
+    },
+    {
+      "repository": "api",
+      "path": "docs/branch-protection.fa.md",
+      "sha256": "a5df9cc3b3e864a86aaab1bd2d42e9b405b1510f03c484688f6141045795f830"
+    },
+    {
+      "repository": "api",
+      "path": "docs/branch-protection.md",
+      "sha256": "5188ebbed96bb0bfa3192061d9ebb934f8649c8552db48f22b07283c43a0deb2"
+    },
+    {
+      "repository": "api",
+      "path": "docs/change-workflow.fa.md",
+      "sha256": "c13c96e00f59ea2d94a808bc1cb3a28477f1567fbb805c2a971d363f18f44459"
+    },
+    {
+      "repository": "api",
+      "path": "docs/change-workflow.md",
+      "sha256": "f06016bb0c20e414d5c92b44dab6328405ef7ee0177c1be2ec707ea109f3d1d8"
+    },
+    {
+      "repository": "api",
+      "path": "docs/collection-guide.fa.md",
+      "sha256": "fceae753bed12318dc9b00efda944d65f1ce95c4ac3d2a10e9440de0e382d79e"
+    },
+    {
+      "repository": "api",
+      "path": "docs/collection-guide.md",
+      "sha256": "f679bd616804449be83e4bde754810bb72f77a2b542b0be543aa50431525d438"
+    },
+    {
+      "repository": "api",
+      "path": "docs/comprehension-evaluation.fa.md",
+      "sha256": "15f89a690b8045b1b303571c6c4c141c518f4c979225d86402d2d73e9b4d8697"
+    },
+    {
+      "repository": "api",
+      "path": "docs/comprehension-evaluation.md",
+      "sha256": "18fbc0bd9279b28618e95b44aababb25d83b637b14e5e560caa67469ef3e5780"
+    },
+    {
+      "repository": "api",
+      "path": "docs/contract-testing.fa.md",
+      "sha256": "7349debc4183bcac25c1fc8aa8fe0bf385f04fe63851dccb797f82534ed18ce0"
+    },
+    {
+      "repository": "api",
+      "path": "docs/contract-testing.md",
+      "sha256": "96da0907cde774921738de6236297f4f8c84ba70d8c30f0b2ecf6f24e2b89bb6"
+    },
+    {
+      "repository": "api",
+      "path": "docs/database-schema.fa.md",
+      "sha256": "3d0ed0edbed1f8bad3d7cd66686d6211bcea3c81f634d727c0b4291075bf4812"
+    },
+    {
+      "repository": "api",
+      "path": "docs/database-schema.md",
+      "sha256": "42c315663db613df6d9d2b92d94cc98b98431f2b26ddb24e1130ad77345b65ea"
+    },
+    {
+      "repository": "api",
+      "path": "docs/deployment.fa.md",
+      "sha256": "7dd280d6ce2387c767bdc6e3052b719c84efdbd7cb642958c9e17f915b6d73d4"
+    },
+    {
+      "repository": "api",
+      "path": "docs/deployment.md",
+      "sha256": "0eabccdb808597d2d7fd0eb02268c784fba0fa8b85aa2b14fe75dd4f9f1870fb"
+    },
+    {
+      "repository": "api",
+      "path": "docs/development.fa.md",
+      "sha256": "2ff1d892011ee409fa3e9b7001cce274f43703fd22854e0c84e18bc751d8a892"
+    },
+    {
+      "repository": "api",
+      "path": "docs/development.md",
+      "sha256": "3844a01e9658dbd870d05a59836d0a12ab75fe55cff3ddcd2fd35c62a7de4971"
+    },
+    {
+      "repository": "api",
+      "path": "docs/feature-development.fa.md",
+      "sha256": "a32301fb07edb9040b9b70d26b86c05981540ddb65d2e5883f8ee2b2e5f73aa2"
+    },
+    {
+      "repository": "api",
+      "path": "docs/feature-development.md",
+      "sha256": "ef34dfeed5d7d1033383c16600ee1ee2bf40efc7a44dc4f93f0df692b643d806"
+    },
+    {
+      "repository": "api",
+      "path": "docs/input-validation.fa.md",
+      "sha256": "cfcda9b40cb163498abb4647e95cf0e2979ba7b68ee112ef43f70f92cc379c65"
+    },
+    {
+      "repository": "api",
+      "path": "docs/input-validation.md",
+      "sha256": "239f90130e0dfa15105d24e50240f8e50dba16795d257c18cd22fc67058d7dde"
+    },
+    {
+      "repository": "api",
+      "path": "docs/localization.fa.md",
+      "sha256": "5ee89e567b673d0c3aa17d834de92b866fefbbb5eb918fd22548a1c7287d8988"
+    },
+    {
+      "repository": "api",
+      "path": "docs/localization.md",
+      "sha256": "efb9a81b08aef168a0f86bf41588c027aef2d6d7987639cf0c090f6e440221d7"
+    },
+    {
+      "repository": "api",
+      "path": "docs/recovery-drills.fa.md",
+      "sha256": "7fbd8f6c364293f8d5981e10b0dd7140d9210b5624cf784b58344bc020db2602"
+    },
+    {
+      "repository": "api",
+      "path": "docs/recovery-drills.md",
+      "sha256": "821ba0987fcbfae6d7f7d89b4b3be06fa598b3a0c03da805ee52f9e90689eff3"
+    },
+    {
+      "repository": "api",
+      "path": "docs/release-operations.fa.md",
+      "sha256": "90db5b5fa6793b3b9dfdacb15eceb2d9975133f6a3ae75cf653a2245fd6db45f"
+    },
+    {
+      "repository": "api",
+      "path": "docs/release-operations.md",
+      "sha256": "445ac4292c2176ce47e8ad506ce445b295f9f24ff2f1beeae22bfec033c53693"
+    },
+    {
+      "repository": "api",
+      "path": "docs/releasing.fa.md",
+      "sha256": "be9358662666dc6ca8668d35ef6098573639decf0d6c03edd69320b1fbac7154"
+    },
+    {
+      "repository": "api",
+      "path": "docs/releasing.md",
+      "sha256": "4b898bd76d24ec037594c3686815ca5936fde1f9ec1536fbfe17a5cc3cd85048"
+    },
+    {
+      "repository": "api",
+      "path": "docs/security/authentication-review.fa.md",
+      "sha256": "aeb2e0720bd0da0d0cfbf47a2f1f34c4921a3ab7c55babf1813c687a3fb9da03"
+    },
+    {
+      "repository": "api",
+      "path": "docs/security/authentication-review.md",
+      "sha256": "eac04cea656a30cc46d1264ba8fb1eb5b32b6dfac20b3ace88503de84d89589b"
+    },
+    {
+      "repository": "api",
+      "path": "docs/security/reviews.fa.md",
+      "sha256": "f17e227efc233e73b69814d1161862dfce8bd58071fcd5c600433e80b3200704"
+    },
+    {
+      "repository": "api",
+      "path": "docs/security/reviews.md",
+      "sha256": "7938f6200a372e4b6f9bcc0dc9774b555dfb62970f931d4d5b08506f03f6ed33"
+    },
+    {
+      "repository": "api",
+      "path": "docs/security/threat-model.fa.md",
+      "sha256": "a655fc6ac8f574094ce907e83119c0b9b752d7b162c12f0fff9788c62a6d0f08"
+    },
+    {
+      "repository": "api",
+      "path": "docs/security/threat-model.md",
+      "sha256": "fd23796f349d10d1564d9fe46c0f0daa1c7fa82abd7eb9e92e7b819eb97a8f02"
+    },
+    {
+      "repository": "api",
+      "path": "docs/sequences.fa.md",
+      "sha256": "4e4c3b6b03d00188488e7861b3131ce99fefb73bbf8d07082b73e9b877f1c022"
+    },
+    {
+      "repository": "api",
+      "path": "docs/sequences.md",
+      "sha256": "f6e685eb0d4286366b1ae5cb1641d1ff90f3708057071cf3a1adfb38e4e98ea2"
+    },
+    {
+      "repository": "api",
+      "path": "docs/sonarqube.fa.md",
+      "sha256": "58f45842d797f836320b1aa30a792b3cf7aada7e000b913208132224c550516b"
+    },
+    {
+      "repository": "api",
+      "path": "docs/sonarqube.md",
+      "sha256": "dfc65c73585b1cbb03fab50eaca3300e683cf4b209602e5b817287a96ecf4551"
+    },
+    {
+      "repository": "api",
+      "path": "docs/source-navigation.fa.md",
+      "sha256": "70cd8cb775bcfea09fab8d16ff63d0e0b7d386a4eafa6c607a3ba288789aca40"
+    },
+    {
+      "repository": "api",
+      "path": "docs/source-navigation.md",
+      "sha256": "7c6a1fad01f03022019a7fc27156bb5cd794ee3e6cbf9c2151f1801963a5ab61"
+    },
+    {
+      "repository": "api",
+      "path": "docs/staging.fa.md",
+      "sha256": "0a45c80bbd7944e0344d02b82713d65a05444f48778609f80b2ccc321e238436"
+    },
+    {
+      "repository": "api",
+      "path": "docs/staging.md",
+      "sha256": "e7803f2448f142c3321ac4da036022d6d99fb5afbd8707e842f64f35fb670c2a"
+    },
+    {
+      "repository": "api",
+      "path": "docs/test-reliability.fa.md",
+      "sha256": "f9c21e6d5fc4028eeeef0cf834866f745304c0022cd23bc0c7f2bc677ebf8fca"
+    },
+    {
+      "repository": "api",
+      "path": "docs/test-reliability.md",
+      "sha256": "f727c7c0f7a89039d2a44377a6a549a468cc15a9ea7cae52bdc43226dbc12bf5"
+    },
+    {
+      "repository": "api",
+      "path": "docs/testing.fa.md",
+      "sha256": "2198b173b775402dd8fe2d79cc5dde2464c93db2ffa30248279632468bb45501"
+    },
+    {
+      "repository": "api",
+      "path": "docs/testing.md",
+      "sha256": "47cb9e18c454c37d712c6e2ea88000070d1f97fd3a7ae6aeba9066a2a8d59307"
+    },
+    {
+      "repository": "api",
+      "path": "docs/validation.fa.md",
+      "sha256": "1abd4a9078efe425eacb5dfa85cea61b97f445b3f5c29b69a934c17270c58f26"
+    },
+    {
+      "repository": "api",
+      "path": "docs/validation.md",
+      "sha256": "0d10cc664979b600af3b67a4e475abfcb2b5b9bfea6d1ef100b5a9b63868682a"
+    },
+    {
+      "repository": "api",
+      "path": "package-lock.json",
+      "sha256": "29c89c2efed2b4844c2798844af677cdf54c43a872d2305b2c775587f6a07d0a"
+    },
+    {
+      "repository": "api",
+      "path": "package.json",
+      "sha256": "8e8ab02544b7fa86193606db398331aca10e7b2937f60d65745e103abacc716a"
+    },
+    {
+      "repository": "api",
+      "path": "packages/contracts/AGENTS.fa.md",
+      "sha256": "c4fffe79aced6881cd9b43122e701a95571bbdb71fcf33308114234e4ff39d6b"
+    },
+    {
+      "repository": "api",
+      "path": "packages/contracts/AGENTS.md",
+      "sha256": "9a09e8e860597aea66df5f52d6ffc1d32c30a0b0809f0cdc39e3cf04e64f11d0"
+    },
+    {
+      "repository": "api",
+      "path": "packages/contracts/package.json",
+      "sha256": "0e2bbe6395c5c7ddf8a490a078d91943c4dcf69632a147df6e0253e4bc5affe3"
+    },
+    {
+      "repository": "api",
+      "path": "packages/contracts/src/index.ts",
+      "sha256": "eb0c72a23495ea931523199c96647fe688281c0f0caf3d80c27f581f0f216a38"
+    },
+    {
+      "repository": "api",
+      "path": "packages/contracts/tsconfig.json",
+      "sha256": "a87fa4b0f2285275d5de435fc18e3f5f43f704eb7f18ed04190e3f41a479826b"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/AGENTS.fa.md",
+      "sha256": "221169bf92d10aa01a22fb491d7784fed5a31a465d0b6c2b15a8dab387f1af17"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/AGENTS.md",
+      "sha256": "91711fdb1a314a7b6f9e70d9a669caba25dfd5b5af26ee3664062ceb366b4632"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/package.json",
+      "sha256": "9cba0802c4ad0a22904d3c9dd0f364edb39098528b372a870fde8a13be112e77"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/admin.ts",
+      "sha256": "1c57b5fd1d35e512adaa1ca042589fa2e6fbd5ddb68e7c71fe730e3f71ba68b3"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/api-types.ts",
+      "sha256": "3c5663e69e7f89827890a283cbba845b1947e946cb40d65840122f7877e10113"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/api.ts",
+      "sha256": "0b99d96db407ba0e7f09d0f2c06a4c5e6057f37e6e1b97e224426d2d0ae1b618"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/catalogs.test.ts",
+      "sha256": "7b9f1e6e8bd2cb8a38a9c636abf7191ec8e6a468c0649df787a5bc8b28fc287a"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/common.ts",
+      "sha256": "82d85dc93f03f75067bbb362da5de6c7d40a1e0cda745a5bdaee70e59514f95a"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/dayjs/fa.ts",
+      "sha256": "10ce0a3a9140a633f9cecf79f327939f70265b3ec2c010530ee557c5fd497261"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales.ts",
+      "sha256": "4eff34eea72dcb370e8ab3dc08a5c9f9ccde0b254551390e8fd216e1b12ed19e"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ar/admin.ts",
+      "sha256": "104c9070304b81bf9b4ac84d6fedb0c0318eec4092bbf23f80dd9ac44cd135f7"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ar/api.ts",
+      "sha256": "cdcc8564180b510bbd509b5eaeddd507b43f936625d34adb1e77df6219951bc2"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ar/common.ts",
+      "sha256": "765f92ff29cf9d0b4813ad8112c4d7835aca4d7cc597b717538805a0fb7b20c8"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ar/website.json",
+      "sha256": "ae7a6111eb0ab6adbfe42469948a8aba4c8e50e45ada2887d0b9dfc2b8661b19"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ar/website.ts",
+      "sha256": "79054150facb56daaa9b265278a457f22c5e83d06a20602801d06a90c3a008b1"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/de/admin.ts",
+      "sha256": "e3e40f4197b4d15c7f1acb68cc81290bf40adc7a0c03e6689db4f510a5365bf9"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/de/api.ts",
+      "sha256": "42fa081acc3ede830a611deaa1faf85a2c0a1fb02697e8a68f808291e7afe623"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/de/common.ts",
+      "sha256": "1725ce35eab76d9c326053b4f2096089f6437eef13c34c0205c36050aa834f4d"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/de/website.json",
+      "sha256": "9742dbb6e942fc90f2bbe537b51d199fa3c3671a2c63bf2e7e760d2e4a4e9bf7"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/de/website.ts",
+      "sha256": "689193ab9ca1375c6ee967f4183842208758186bcc34b4af7609f0dac69c2b66"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/en/admin.ts",
+      "sha256": "2d58a05822ec0464b7d2b5809104472a44dc2761af3b3c943ed3b41250094850"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/en/api.ts",
+      "sha256": "d2d47b86088ad25a49a13bc097640ed8c3aca6e8cdf70dd1041475b5f56701b0"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/en/common.ts",
+      "sha256": "0a663cb89e1b556f44efd93d71e476c8285bed0261921b7208cd61e5bbf60a1a"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/en/website.json",
+      "sha256": "05ca5e875b259da559bdad7bb89720d590a38a66643b9313b8cb4285d3931df9"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/en/website.ts",
+      "sha256": "55b81d32c20c1658acc695bf841db6b0158f1b2ae8032c7d8ce472548678ca21"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/es/admin.ts",
+      "sha256": "231730ea2c12de97a62d4b3cdc2fdfddf2c4607213c45021e0e64ea7a62ff9fd"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/es/api.ts",
+      "sha256": "a57f9edba0bda4248f9498281c32e6b1f4c60f30f9aa55063c36dd86942e5bff"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/es/common.ts",
+      "sha256": "d1afa1cac98347cae3a5fed24abd0a2a3765439a3dc5af39ad9602d308b2fa69"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/es/website.json",
+      "sha256": "1e3490ccc881e9551aa2c4c09ae4ee03731774ec9dbf6ce668e976ab9d7c4414"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/es/website.ts",
+      "sha256": "4d70d927d363f1b08f40cfb9c94c32edb3e3262a6b0eb640f2f3bb6d689e44bc"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fa/admin.ts",
+      "sha256": "1da388b1e249cfe147c34fb1e0b5bceaa8c15b11ee944e3ab03250916927cd2c"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fa/api.ts",
+      "sha256": "9cd45871bec1ce46c6f1efb6241440ba7c80763325a51504a3826dacb1aedd0a"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fa/common.ts",
+      "sha256": "0abf09d52173aa72089c494907d234abe6e24f2fd83289c6fdfca31895b72279"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fa/website.json",
+      "sha256": "63cde96127c3a29cbd6041472acab4389c4c14c8e1b990ba550137dd3640eb27"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fa/website.ts",
+      "sha256": "b39e9aefbc15821fe76a122a78ee9253dc1150d6d810643391042b29a9b6c55f"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fr/admin.ts",
+      "sha256": "92a2d7d9c3bc1c797338f8210e441af4661c1e3fbe6f9553a637b1da6c62dedc"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fr/api.ts",
+      "sha256": "0eaecf6454bf63fd59df8623074d7d4b5de304522395649a09b87f3bef803425"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fr/common.ts",
+      "sha256": "af1a1336a066239be8d9f4ea32740bb1905337ad13ca214c1e55597661b3511b"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fr/website.json",
+      "sha256": "e1ba8f68b8262a847f91fc57d3633ca239651c92a2f515e3bd51a17ae7453801"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/fr/website.ts",
+      "sha256": "04ec816a10f80e63acd2c29cd08835c56a01c65ed0d9070d1fbc76056d7351d6"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/it/admin.ts",
+      "sha256": "b008a1f177c0bb55cdc0a4a2d4163eec86c5dcab24aa832e3f59f71319f1b909"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/it/api.ts",
+      "sha256": "9c9902d7c39d18d1dc1bd1426c79851029745df25e49bca0646efdf94012fe60"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/it/common.ts",
+      "sha256": "86e751738199089a38950333202133b63241e6a8f3ff5712a61db5a082e28e88"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/it/website.json",
+      "sha256": "fae8f30a0d92684f2f20b2b67d2e84704fffce8690f25bce387cbec193e59a62"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/it/website.ts",
+      "sha256": "1d302d9c9da4288826dc77bdf7c002658616ceb4f82864743075bb1db7e85542"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/pt/admin.ts",
+      "sha256": "a881f97ac236c6414b0d27983a83ef1fb5bab52546b2ae6f530de2ee24df63d6"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/pt/api.ts",
+      "sha256": "0207b5a2279cd9b4f8ab034052f373c85b85518df74f6a80b8b1399e5c8ed515"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/pt/common.ts",
+      "sha256": "35b9125e20107c1869933909cfa8bbfeca48e7ef20517c2274341f39d3c09e8a"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/pt/website.json",
+      "sha256": "2dc2c3d601c6358082d0bbe9691dbeb30db0d7765262fad05dff11b98f5a7c6c"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/pt/website.ts",
+      "sha256": "46d8d24e1da380e85464957f9a080a69901863b85e72fb4e4b915498b26ac25f"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ru/admin.ts",
+      "sha256": "456e1799339763c29ab6ecb777fa03cbe4d126a7970f71c3c7edbf56b654b84c"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ru/api.ts",
+      "sha256": "a403347dfe046348af37ad747575d0df63aea6822fad820fc972635df5ffdde1"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ru/common.ts",
+      "sha256": "c4e9f2662f6f4b7b6224d959355a6a8548c08393929272def43cdde6985adfb0"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ru/website.json",
+      "sha256": "bfbaa63af137fe4aed829b4abc2f5fc7e18ba7c778d64bd5bb8e591a176de2f7"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/ru/website.ts",
+      "sha256": "b67171128275a452c8c4250cc33391c6e45f77048d4da190ec8e29040e7ee891"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/tr/admin.ts",
+      "sha256": "2888239c43f1193158cea12b4e4d820ee0eeb97f49028c445621d1f4e6766061"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/tr/api.ts",
+      "sha256": "3e1dfbfdb08f643df932825d56f7380c0e57219fca8bb2e80dcd884aeacac787"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/tr/common.ts",
+      "sha256": "04cedb9def76d99d479d57d230a173fd0428e254561131a19b0a76480a000088"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/tr/website.json",
+      "sha256": "95998bafe2080c9e07e320dca782f2ae42de604d003ebb8072dcf3ea7466eb20"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/locales/tr/website.ts",
+      "sha256": "62077bdbf7cfcc0dedaf423c1c7da18ce72c52bdf0cd65c4b64ca824b1d079dc"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/src/website-types.ts",
+      "sha256": "658930011fad48943f66f055338f7c496371d0dfcc2eb17a78bf25c3b9120c11"
+    },
+    {
+      "repository": "api",
+      "path": "packages/i18n/tsconfig.json",
+      "sha256": "db227c70a6faf14da2232659228181d4d6d696f6df0d433641fefbd641ca31f2"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/ai-hooks.portable.test.mjs",
+      "sha256": "8fe80ac79bc22b8e1e707d5fec98576bb9f6b953112203e1caed5a5d8313a7dc"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/check-deployed-api.mjs",
+      "sha256": "af50dad1d7b39303a31c042b5ec9e8abbdf810e4a3612396a51feb5c3b46ded2"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/check-deployed-api.test.mjs",
+      "sha256": "3085134730ab8b9fe2bbb1544c180edb577cbd3a72c89ad67f22fcdb60aad170"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/check-guidance.mjs",
+      "sha256": "f8fcda4550c7fbdee011379a8e8124db83e0a77ea61588072827a8a9243f0715"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/check-workspace-boundaries.mjs",
+      "sha256": "7ea7144af48c6cf3461be57092564a1e80b292e677d8f944578a827bb95b1297"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/deployment.test.mjs",
+      "sha256": "8428b7e7f595306e0a1bab80af243f532324fcae6dc9e48b86a18fab40aa2439"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/guidance.test.mjs",
+      "sha256": "e37ac361fbf4b2226d66477966a06df3590d619a2e64900f7641833e09aebbbf"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/healthcheck.mjs",
+      "sha256": "99300a037538fbf8f0eeb490a9db9a235d58d027dbe3dc04b4b7095bc32b00cb"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/package-release.mjs",
+      "sha256": "a29c0e5229f0fab61c2063fa9dea1d32e43a12f45d01cbd415e1afb6913ea613"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/package-release.test.mjs",
+      "sha256": "e3d8011abac1834a3e28bf2d862e03565eaac7d140a1fe51aac3aca4a8096bbf"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/render-deployment.mjs",
+      "sha256": "89d5653da7a452860530571136ae6530bff31e8357fdb7d16f106fac87b2fb89"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/run-audit.mjs",
+      "sha256": "65e4c3b353b17b1d3402db2fcd83c60833c1508842e625d417029622e0273618"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/run-audit.test.mjs",
+      "sha256": "7ff6aa10b0f3e8485cca3a5c17331e242ea329e11cfd2f16383cb960f3d001ae"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/test-native-release.mjs",
+      "sha256": "45884981c348e0131728c394fd87e5701127fd16ddbee8ccdd3eaa441fdd406d"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/test-website-api.mjs",
+      "sha256": "3c1f9d13d33a3fafce69f742b34427e5fd28038f92d24f7cd77931581332223e"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/validate-deployment-env.mjs",
+      "sha256": "c0753ec83cbdd372bf21d9a4d074379b94c8b11fa96d87214ac31283e4395e7e"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/validate-workflow-targets.mjs",
+      "sha256": "7249fad011135761581664e6ddd499f79f573512435e18582d7209ac9141d6a4"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/validate-workflow-targets.test.mjs",
+      "sha256": "fda962ec4e45e6a3e12024c66ee14a66b24e4655909b34d8274a174f6e0c47f0"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/validate.mjs",
+      "sha256": "fa34146f99347665a6438601bba678d5df4551eb24db8044a4656e29055a09d2"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/validate.test.mjs",
+      "sha256": "a042075e3a47d14e72c415a4fb2913e76bc57f345147f4ac5b27b1ca2635b6e5"
+    },
+    {
+      "repository": "api",
+      "path": "scripts/workspace-boundaries.test.mjs",
+      "sha256": "81db13cd1126695e37434dd2e6883c1ffea363149c16564abe40ea1c2cac4dc9"
+    },
+    {
+      "repository": "api",
+      "path": "tsconfig.json",
+      "sha256": "98d9ab8da050c6751316756f944cac1371223c60635e4e5d6158bcfb5897bab2"
+    }
+  ],
+  "suppliedPrompts": [
+    {
+      "repository": "api",
+      "id": "session-lifecycle",
+      "prompt": "Without editing, trace API login/refresh/logout and password change/recovery. Explain actual opaque-session semantics, transaction revocation and native cookie handling with local evidence and tests."
+    },
+    {
+      "repository": "api",
+      "id": "persisted-language",
+      "prompt": "Without editing, trace persisted API language validation/public DTO and response localization. Explain ten complete local catalogs, new defaults, preserved settings and ignored visitor language headers/cookies."
+    },
+    {
+      "repository": "api",
+      "id": "shared-label",
+      "prompt": "Without editing, locate API message catalogs, common object composition, locale integrity and application type-only import restrictions. Explain independent local catalog ownership without mandatory cross-repository synchronization."
+    },
+    {
+      "repository": "api",
+      "id": "administrator-concurrency",
+      "prompt": "Without editing files, trace a user deactivation/deletion that could affect the last active system administrator. Which rules belong in the application, which invariant must be checked in the write transaction, and what tests prove stale requests cannot bypass it?"
+    },
+    {
+      "repository": "api",
+      "id": "private-media",
+      "prompt": "Without editing files, explain public versus private upload authorization and URL/read behavior, metadata failure cleanup and deployment upload limits. Distinguish post-parse application limits from ingress limits and identify storage/data files that must remain untouched."
+    }
+  ],
+  "rubricAtEvaluation": [
+    {
+      "repository": "api",
+      "id": "session-lifecycle",
+      "prompt": {
+        "en": "Without editing, trace API login/refresh/logout and password change/recovery. Explain actual opaque-session semantics, transaction revocation and native cookie handling with local evidence and tests.",
+        "fa": "بدون ویرایش، ورود/refresh/خروج و تغییر یا بازیابی رمز API را دنبال کن و معنای واقعی نشست opaque، ابطال تراکنشی و کوکی رسمی را با شاهد و آزمون محلی توضیح بده."
+      },
+      "taskIds": ["auth-session"],
+      "evidence": [
+        "apps/api/src/application/auth.ts",
+        "apps/api/src/infrastructure/persistence/auth.ts",
+        "apps/api/src/infrastructure/auth/gateway.ts",
+        "apps/api/src/auth-invariants.test.ts"
+      ],
+      "mustExplain": [
+        "Refresh returns the existing opaque session token; this is not JWT refresh-token rotation or reuse detection.",
+        "Successful password change/recovery revoke all account sessions; terminal client refresh failure alone does not revoke server sessions.",
+        "The API preserves native provider cookie headers; frontend bearer/cookie adapters are separate HTTP consumers outside this checkout."
+      ],
+      "mustNot": [
+        "Claim JWT rotation exists.",
+        "Read actual environment files or user data.",
+        "Move auth services into Next or copy the admin bearer store into the website."
+      ],
+      "checks": ["api-tests"]
+    },
+    {
+      "repository": "api",
+      "id": "persisted-language",
+      "prompt": {
+        "en": "Without editing, trace persisted API language validation/public DTO and response localization. Explain ten complete local catalogs, new defaults, preserved settings and ignored visitor language headers/cookies.",
+        "fa": "بدون ویرایش، اعتبارسنجی و DTO عمومی زبان ذخیره‌شده و ترجمهٔ پاسخ API را دنبال کن و ده ترجمهٔ کامل محلی، پیش‌فرض تازه، حفظ تنظیم موجود و نادیده‌گرفتن هدر/کوکی زبان بازدیدکننده را توضیح بده."
+      },
+      "taskIds": ["active-language"],
+      "evidence": [
+        "apps/api/src/application/settings.ts",
+        "apps/api/src/presentation/http/routes/settings.ts"
+      ],
+      "mustExplain": [
+        "Persisted API settings select response language; new settings are English and existing rows remain.",
+        "All ten local catalogs are complete; request headers/cookies cannot override configured API language.",
+        "Public settings are no-store metadata for HTTP consumers; website implementation is outside this repository."
+      ],
+      "mustNot": [
+        "Add a visitor language selector or locale negotiation.",
+        "Treat React per-render cache as a distributed settings cache.",
+        "Reset existing settings or use real owner data to demonstrate the flow."
+      ],
+      "checks": ["api-tests", "i18n"]
+    },
+    {
+      "repository": "api",
+      "id": "shared-label",
+      "prompt": {
+        "en": "Without editing, locate API message catalogs, common object composition, locale integrity and application type-only import restrictions. Explain independent local catalog ownership without mandatory cross-repository synchronization.",
+        "fa": "بدون ویرایش، پیام API، ترکیب common، یکپارچگی زبان و محدودیت import نوعی application را پیدا کن و مالکیت مستقل ترجمهٔ محلی بدون هماهنگی اجباری مخزن دیگر را توضیح بده."
+      },
+      "taskIds": ["shared-translation"],
+      "evidence": [
+        "packages/i18n/src/common.ts",
+        "packages/i18n/src/locales/en/common.ts",
+        "packages/i18n/src/admin.ts",
+        "packages/i18n/src/locales/en/website.ts",
+        "packages/i18n/src/locales.ts",
+        "packages/i18n/src/catalogs.test.ts",
+        "apps/api/src/architecture.test.ts"
+      ],
+      "mustExplain": [
+        "Reuse a common semantic key first; admin and website compositions share the same common object identity per locale.",
+        "All ten registered locales need genuine nonempty key/placeholder-complete translations, with no English spread or retained duplicate alias.",
+        "i18next and next-intl remain app-owned; consumer-specific interpolation syntaxes must not be converted indiscriminately.",
+        "API application code may use only erased types from exact @kernel/i18n/api-types, never runtime catalogs."
+      ],
+      "mustNot": [
+        "Create app-local message catalogs or initialize a translation engine in the shared package.",
+        "Accept eight empty locales or EN/FA-only website coverage.",
+        "Import admin/website translation runtime into API application services."
+      ],
+      "checks": ["boundaries", "typecheck", "i18n", "api-tests"]
+    },
+    {
+      "repository": "api",
+      "id": "administrator-concurrency",
+      "prompt": {
+        "en": "Without editing files, trace a user deactivation/deletion that could affect the last active system administrator. Which rules belong in the application, which invariant must be checked in the write transaction, and what tests prove stale requests cannot bypass it?",
+        "fa": "بدون ویرایش فایل، غیرفعال‌سازی یا حذف کاربری را دنبال کن که ممکن است آخرین مدیر فعال سیستم باشد. کدام قواعد متعلق به application است، کدام invariant باید داخل تراکنش نوشتن بررسی شود و کدام آزمون نشان می‌دهد درخواست قدیمی آن را دور نمی‌زند؟"
+      },
+      "taskIds": ["api-feature"],
+      "evidence": [
+        "apps/api/src/application/users.ts",
+        "apps/api/src/application/ports/users.ts",
+        "apps/api/src/infrastructure/persistence/users.ts",
+        "apps/api/src/presentation/http/routes/users.ts",
+        "apps/api/src/users-application.test.ts",
+        "apps/api/src/management-services.test.ts"
+      ],
+      "mustExplain": [
+        "HTTP routes authenticate/authorize and adapt transport; application services own policy/order and infrastructure owns Drizzle transactions.",
+        "The persistence mutation rereads current target state and counts active system administrators within the write transaction.",
+        "Self-deactivation/deletion and losing the final active system administrator are distinct rules.",
+        "A stale earlier read cannot authorize an unsafe later write; cite the real concurrency/rollback tests rather than a hidden menu."
+      ],
+      "mustNot": [
+        "Move ORM queries into routes or application services.",
+        "Introduce a generic repository, CQRS or a DI container.",
+        "Mutate the real database to demonstrate the invariant."
+      ],
+      "checks": ["boundaries", "api-tests", "contract", "typecheck"]
+    },
+    {
+      "repository": "api",
+      "id": "private-media",
+      "prompt": {
+        "en": "Without editing files, explain public versus private upload authorization and URL/read behavior, metadata failure cleanup and deployment upload limits. Distinguish post-parse application limits from ingress limits and identify storage/data files that must remain untouched.",
+        "fa": "بدون ویرایش فایل، مجوز آپلود عمومی و خصوصی، URL و امکان خواندن، پاک‌سازی هنگام شکست metadata و سقف آپلود استقرار را توضیح بده. محدودیت پس از parse برنامه را از سقف ingress جدا کن و فایل‌های storage و داده‌ای را که نباید لمس شوند مشخص کن."
+      },
+      "taskIds": ["media-storage", "deployment-recovery"],
+      "evidence": [
+        "apps/api/src/application/files.ts",
+        "apps/api/src/application/ports/object-storage.ts",
+        "apps/api/src/infrastructure/persistence/files.ts",
+        "apps/api/src/presentation/http/routes/files.ts",
+        "apps/api/src/files-application.test.ts",
+        "docs/backup-restore.md",
+        "docs/recovery-drills.md",
+        "apps/api/src/recovery-drill.test.ts",
+        "apps/api/src/test/recovery-drill-cases.ts"
+      ],
+      "mustExplain": [
+        "Public uploads require settings.update or system-admin access; private uploads require an active authenticated account.",
+        "Private metadata does not expose a public URL and no private-download endpoint is currently implemented.",
+        "A metadata failure triggers compensating object deletion while preserving the original error; cleanup failure has separate operational evidence.",
+        "Hono parses multipart before application file-size validation; gateway limits are a separate transport protection.",
+        "SQLite metadata and matching public/private objects must be recovered together; ignored owner state is not evaluation input.",
+        "The executable synthetic recovery/incident cases validate local matched state, sessions and request/release/log correlation; they do not provision real backups, a collector or an external bucket restore."
+      ],
+      "mustNot": [
+        "Infer public readability from an object key or claim a private-download endpoint exists.",
+        "Claim multipart is bounded before parsing by the application service.",
+        "Read or reset server/data, real buckets or actual environment files."
+      ],
+      "checks": ["api-tests", "deploy-tests", "boundaries"]
+    }
+  ],
+  "instructionsReadBySubject": [
+    "AGENTS.md",
+    ".agents/README.md",
+    ".agents/settings.json",
+    ".agents/navigation.json",
+    ".agents/rules/backend.md",
+    ".agents/rules/localization.md",
+    ".agents/rules/safety.md",
+    ".agents/rules/api-collection.md",
+    "apps/api/AGENTS.md",
+    "packages/i18n/AGENTS.md",
+    "packages/contracts/AGENTS.md",
+    "docs/source-navigation.md",
+    "docs/validation.md",
+    "docs/localization.md",
+    "docs/adr/0004-cookie-proxy-and-sessions.md",
+    "docs/deployment.md",
+    "docs/backup-restore.md"
+  ],
+  "instructionsReadEvidence": "Subject report, not host-instrumented automatic loading",
+  "postSnapshotCorrection": {
+    "repository": "api",
+    "files": [
+      "apps/api/src/infrastructure/localization/i18n.ts",
+      "apps/api/src/presentation/http/app.ts"
+    ],
+    "description": "Resolved fallback language now matches Content-Language; original persisted settings stay untouched."
+  },
+  "baselinePathPolicy": "sourceFiles, rubricAtEvaluation and instructionsReadBySubject retain the exact dated snapshot identifiers, prompts and hashes; these are historical evidence, not current guidance or navigation."
+}

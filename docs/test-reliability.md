@@ -20,3 +20,26 @@ after setup or test failures, close each created client independently, and repor
 operation and cleanup failures together. These checks use owned temporary data;
 they do not establish the cause of the recorded Windows file lock or guarantee that
 another process cannot hold a fixture open.
+
+## Investigation record
+
+Record only observed results and label an unconfirmed cause as a hypothesis.
+Do not include real credentials or user data in logs or fixtures.
+
+```text
+Test file and scenario:
+Owner or responsible role:
+First failure date and exact command:
+Runtime, OS, configuration and synthetic fixture:
+Failure evidence and reproduction steps:
+Observed failures and passes, including the first failure:
+Cause or current hypothesis:
+Fix and regression evidence:
+Local record or authorized issue reference:
+Next review date and remaining work:
+Checks not run or unavailable:
+```
+
+After a fix, repeat the relevant conditions and run the checks in the canonical
+[validation policy](validation.md). Distinguish observed results from proposed
+work and report any cleanup failure; this record does not waive a required check.

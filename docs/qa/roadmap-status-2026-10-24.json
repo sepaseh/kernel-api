@@ -1,0 +1,1573 @@
+{
+  "schemaVersion": 3,
+  "date": "2026-10-24",
+  "repository": "api",
+  "scope": {
+    "en": "API-only topic dispositions. These classifications are not new test executions or automatic product requirements.",
+    "fa": "وضعیت موضوع‌ها فقط برای API است. این طبقه‌بندی اجرای تازهٔ آزمون یا نیازمندی خودکار محصول نیست."
+  },
+  "legend": {
+    "I": {
+      "en": "Implemented foundation",
+      "fa": "پایهٔ پیاده‌شده"
+    },
+    "W": {
+      "en": "Documented workflow",
+      "fa": "گردش‌کار مستند"
+    },
+    "C": {
+      "en": "Conditional feature",
+      "fa": "قابلیت مشروط"
+    },
+    "P": {
+      "en": "Foundation; condition remains",
+      "fa": "پایه موجود؛ شرط باقی"
+    },
+    "R": {
+      "en": "Configured; remote run pending",
+      "fa": "تنظیم‌شده؛ اجرای راه‌دور باقی"
+    },
+    "D": {
+      "en": "Intentionally deferred",
+      "fa": "عمداً به تعویق افتاده"
+    },
+    "S": {
+      "en": "Addressed by current architecture",
+      "fa": "پاسخ‌داده‌شده در معماری فعلی"
+    },
+    "N": {
+      "en": "Outside this owner",
+      "fa": "خارج از مالکیت این ریپو"
+    }
+  },
+  "evidence": [
+    "src/application",
+    "src/composition.ts",
+    "src/auth-invariants.test.ts",
+    "src/recovery-drill.test.ts",
+    "src/test/recovery-drill-cases.ts",
+    "src/presentation/http/request-logging.ts",
+    "src/catalogs.test.ts",
+    "scripts/check-boundaries.mjs",
+    ".agents/validation.json",
+    ".agents/navigation.json",
+    "docs/change-workflow.md",
+    "docs/test-reliability.md",
+    "docs/qa/requirements-audit-2026-10-24.md",
+    "docs/qa/standalone-layout-2026-10-24.md"
+  ],
+  "topics": [
+    {
+      "id": "F001",
+      "title": "Next.js — Pages Router",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F002",
+      "title": "Browser APIs",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F003",
+      "title": "React",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F004",
+      "title": "TypeScript",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F005",
+      "title": "JavaScript",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F006",
+      "title": "HTML",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F007",
+      "title": "CSS",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F008",
+      "title": "Server & Client Components",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F009",
+      "title": "Rendering Strategies (CSR, SSR, SSG, ISR)",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F010",
+      "title": "Server Actions & Route Handlers",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F011",
+      "title": "Streaming & Suspense",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F012",
+      "title": "Cache & Revalidation",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F013",
+      "title": "Error & Loading Boundaries",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F014",
+      "title": "Next.js — App Router",
+      "category": "1. ⚛️ Core Frontend",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F015",
+      "title": "State Management",
+      "category": "2. 🏗️ Frontend Architecture",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F016",
+      "title": "Design Systems",
+      "category": "2. 🏗️ Frontend Architecture",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F017",
+      "title": "Monorepo",
+      "category": "2. 🏗️ Frontend Architecture",
+      "state": "S",
+      "evidence": [
+        "docs/qa/standalone-layout-2026-10-24.md",
+        "package.json",
+        "scripts/check-guidance.mjs",
+        "scripts/check-boundaries.mjs"
+      ],
+      "note": {
+        "en": "This API owns one root package, source, contracts and catalogs. npm workspaces are outside its architecture.",
+        "fa": "این API یک package در ریشه، سورس، قرارداد و کاتالوگ محلی دارد. npm workspace خارج از معماری آن است."
+      }
+    },
+    {
+      "id": "F018",
+      "title": "Micro Frontends",
+      "category": "2. 🏗️ Frontend Architecture",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F019",
+      "title": "Module Federation",
+      "category": "2. 🏗️ Frontend Architecture",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F020",
+      "title": "Component Architecture",
+      "category": "2. 🏗️ Frontend Architecture",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F021",
+      "title": "Domain-driven Frontend Architecture",
+      "category": "2. 🏗️ Frontend Architecture",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F022",
+      "title": "Dependency Boundaries",
+      "category": "2. 🏗️ Frontend Architecture",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F023",
+      "title": "Frontend Error Handling Architecture",
+      "category": "2. 🏗️ Frontend Architecture",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F024",
+      "title": "Unit Testing",
+      "category": "3. 🧪 Testing",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F025",
+      "title": "Integration Testing",
+      "category": "3. 🧪 Testing",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F026",
+      "title": "E2E Testing",
+      "category": "3. 🧪 Testing",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F027",
+      "title": "Vitest",
+      "category": "3. 🧪 Testing",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Application, HTTP and catalog checks use Node test; tooling checks also use Vitest. See the canonical validation commands.",
+        "fa": "بررسی برنامه، HTTP و کاتالوگ با Node test است؛ بررسی ابزار از Vitest هم استفاده می‌کند. فرمان مرجع اعتبارسنجی را ببینید."
+      }
+    },
+    {
+      "id": "F028",
+      "title": "React Testing Library",
+      "category": "3. 🧪 Testing",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F029",
+      "title": "Playwright",
+      "category": "3. 🧪 Testing",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F030",
+      "title": "MSW",
+      "category": "3. 🧪 Testing",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F031",
+      "title": "TDD",
+      "category": "3. 🧪 Testing",
+      "state": "W",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "A reusable documented practice, not a new runtime package or proof of every historic action.",
+        "fa": "روش مستند قابل استفاده است، نه پکیج اجرایی تازه یا اثبات همهٔ اقدام‌های تاریخی."
+      }
+    },
+    {
+      "id": "F032",
+      "title": "Testing Strategy",
+      "category": "3. 🧪 Testing",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F033",
+      "title": "Component Testing",
+      "category": "3. 🧪 Testing",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F034",
+      "title": "Visual Regression Testing",
+      "category": "3. 🧪 Testing",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F035",
+      "title": "Accessibility Testing",
+      "category": "3. 🧪 Testing",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F036",
+      "title": "Storybook",
+      "category": "3. 🧪 Testing",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F037",
+      "title": "Contract Testing",
+      "category": "3. 🧪 Testing",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "API HTTP tests and Bruno document the existing provider contract; automated Pact provider verification is not implemented.",
+        "fa": "آزمون HTTP و Bruno قرارداد فعلی ارائه‌دهندهٔ API را مستند می‌کنند؛ تأیید خودکار ارائه‌دهندهٔ Pact پیاده نشده است."
+      }
+    },
+    {
+      "id": "F038",
+      "title": "Flaky Test Management",
+      "category": "3. 🧪 Testing",
+      "state": "W",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "A reusable documented practice, not a new runtime package or proof of every historic action.",
+        "fa": "روش مستند قابل استفاده است، نه پکیج اجرایی تازه یا اثبات همهٔ اقدام‌های تاریخی."
+      }
+    },
+    {
+      "id": "F039",
+      "title": "Core Web Vitals",
+      "category": "4. ⚡ Performance",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F040",
+      "title": "Browser Rendering Pipeline",
+      "category": "4. ⚡ Performance",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F041",
+      "title": "Bundle Optimization",
+      "category": "4. ⚡ Performance",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F042",
+      "title": "Code Splitting",
+      "category": "4. ⚡ Performance",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F043",
+      "title": "Frontend Caching Strategies",
+      "category": "4. ⚡ Performance",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Public/static caching is distinct from private sessions/live settings; no-store boundaries are tested.",
+        "fa": "کش عمومی/ایستا از نشست خصوصی/تنظیم زنده جدا است؛ مرز no-store آزموده شده است."
+      }
+    },
+    {
+      "id": "F044",
+      "title": "Image & Font Optimization",
+      "category": "4. ⚡ Performance",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F045",
+      "title": "Performance Budgets",
+      "category": "4. ⚡ Performance",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F046",
+      "title": "WCAG",
+      "category": "5. ♿ Accessibility",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F047",
+      "title": "Keyboard Navigation",
+      "category": "5. ♿ Accessibility",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F048",
+      "title": "Screen Readers",
+      "category": "5. ♿ Accessibility",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F049",
+      "title": "ARIA",
+      "category": "5. ♿ Accessibility",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F050",
+      "title": "XSS",
+      "category": "6. 🛡️ Security",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Current context-specific rendering/input/gateway protections exist; no blanket rich-HTML sanitizer claim.",
+        "fa": "حفاظت متناسب با زمینهٔ نمایش/ورودی/درگاه موجود است؛ پاک‌سازی عمومی HTML غنی ادعا نمی‌شود."
+      }
+    },
+    {
+      "id": "F051",
+      "title": "CSP",
+      "category": "6. 🛡️ Security",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F052",
+      "title": "OAuth/OIDC",
+      "category": "6. 🛡️ Security",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F053",
+      "title": "Authentication",
+      "category": "6. 🛡️ Security",
+      "state": "P",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Password/session/account flows exist; real OTP delivery is API/provider-owned and still unconfigured.",
+        "fa": "جریان رمز/نشست/حساب موجود است؛ ارسال واقعی OTP متعلق به API/ارائه‌دهنده است و تنظیم نشده است."
+      }
+    },
+    {
+      "id": "F054",
+      "title": "Authorization",
+      "category": "6. 🛡️ Security",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F055",
+      "title": "CSRF",
+      "category": "6. 🛡️ Security",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F056",
+      "title": "Secure Cookies",
+      "category": "6. 🛡️ Security",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The API preserves native authentication cookie headers; client credential storage and proxy adaptation remain consumer responsibilities.",
+        "fa": "API هدر کوکی بومی احراز هویت را حفظ می‌کند؛ نگهداری اعتبارنامه و تبدیل proxy مسئولیت مصرف‌کننده است."
+      }
+    },
+    {
+      "id": "F057",
+      "title": "Dependency & Supply-chain Security",
+      "category": "6. 🛡️ Security",
+      "state": "P",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Audit gates exist; API retains four MinIO moderate findings and zero high/critical.",
+        "fa": "دروازهٔ audit موجود است؛ API چهار moderate زنجیرهٔ MinIO و صفر high/critical دارد."
+      }
+    },
+    {
+      "id": "F058",
+      "title": "Secret Management",
+      "category": "6. 🛡️ Security",
+      "state": "P",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Safe current env/text/file contexts exist; managed secrets or rich-HTML/CMS policies require a real deployment/content need.",
+        "fa": "زمینهٔ امن فعلی env/متن/فایل موجود است؛ secret manager یا سیاست HTML غنی/CMS به نیاز واقعی بستگی دارد."
+      }
+    },
+    {
+      "id": "F059",
+      "title": "Clickjacking Protection",
+      "category": "6. 🛡️ Security",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Current context-specific rendering/input/gateway protections exist; no blanket rich-HTML sanitizer claim.",
+        "fa": "حفاظت متناسب با زمینهٔ نمایش/ورودی/درگاه موجود است؛ پاک‌سازی عمومی HTML غنی ادعا نمی‌شود."
+      }
+    },
+    {
+      "id": "F060",
+      "title": "Input Validation",
+      "category": "6. 🛡️ Security",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Existing forms/wire limits align with authoritative API input/type/size validation.",
+        "fa": "فرم/حد قرارداد فعلی با اعتبارسنجی معتبر ورودی/نوع/اندازه در API هماهنگ است."
+      }
+    },
+    {
+      "id": "F061",
+      "title": "Sanitization",
+      "category": "6. 🛡️ Security",
+      "state": "P",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Safe current env/text/file contexts exist; managed secrets or rich-HTML/CMS policies require a real deployment/content need.",
+        "fa": "زمینهٔ امن فعلی env/متن/فایل موجود است؛ secret manager یا سیاست HTML غنی/CMS به نیاز واقعی بستگی دارد."
+      }
+    },
+    {
+      "id": "F062",
+      "title": "Git",
+      "category": "7. ⚙️ DevOps & Tooling",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F063",
+      "title": "GitHub Actions",
+      "category": "7. ⚙️ DevOps & Tooling",
+      "state": "R",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Pinned workflows exist; hosted activation, credentials and branch protection were not executed here.",
+        "fa": "گردش‌کار ثابت موجود است؛ فعال‌سازی میزبانی‌شده، اعتبارنامه و حفاظت شاخه اینجا اجرا نشده است."
+      }
+    },
+    {
+      "id": "F064",
+      "title": "Docker",
+      "category": "7. ⚙️ DevOps & Tooling",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F065",
+      "title": "CI/CD",
+      "category": "7. ⚙️ DevOps & Tooling",
+      "state": "R",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Pinned workflows exist; hosted activation, credentials and branch protection were not executed here.",
+        "fa": "گردش‌کار ثابت موجود است؛ فعال‌سازی میزبانی‌شده، اعتبارنامه و حفاظت شاخه اینجا اجرا نشده است."
+      }
+    },
+    {
+      "id": "F066",
+      "title": "Turborepo",
+      "category": "7. ⚙️ DevOps & Tooling",
+      "state": "D",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Intentionally deferred for this starter; installing every learning-roadmap technology is not a requirement.",
+        "fa": "عمداً برای این پایه به تعویق افتاده؛ نصب همهٔ فناوری‌های نقشهٔ یادگیری نیازمندی نیست."
+      }
+    },
+    {
+      "id": "F067",
+      "title": "pnpm",
+      "category": "7. ⚙️ DevOps & Tooling",
+      "state": "D",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Intentionally deferred for this starter; installing every learning-roadmap technology is not a requirement.",
+        "fa": "عمداً برای این پایه به تعویق افتاده؛ نصب همهٔ فناوری‌های نقشهٔ یادگیری نیازمندی نیست."
+      }
+    },
+    {
+      "id": "F068",
+      "title": "REST",
+      "category": "8. 🗄️ Backend Awareness",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F069",
+      "title": "GraphQL",
+      "category": "8. 🗄️ Backend Awareness",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F070",
+      "title": "gRPC",
+      "category": "8. 🗄️ Backend Awareness",
+      "state": "D",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Intentionally deferred for this starter; installing every learning-roadmap technology is not a requirement.",
+        "fa": "عمداً برای این پایه به تعویق افتاده؛ نصب همهٔ فناوری‌های نقشهٔ یادگیری نیازمندی نیست."
+      }
+    },
+    {
+      "id": "F071",
+      "title": "Databases",
+      "category": "8. 🗄️ Backend Awareness",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F072",
+      "title": "Backend & Distributed Caching",
+      "category": "8. 🗄️ Backend Awareness",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F073",
+      "title": "Message Queues",
+      "category": "8. 🗄️ Backend Awareness",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F074",
+      "title": "AI SDK",
+      "category": "9. 🤖 AI Engineering",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F075",
+      "title": "MCP",
+      "category": "9. 🤖 AI Engineering",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F076",
+      "title": "Tool Calling",
+      "category": "9. 🤖 AI Engineering",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F077",
+      "title": "Streaming UI",
+      "category": "9. 🤖 AI Engineering",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F078",
+      "title": "RAG",
+      "category": "9. 🤖 AI Engineering",
+      "state": "D",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Intentionally deferred for this starter; installing every learning-roadmap technology is not a requirement.",
+        "fa": "عمداً برای این پایه به تعویق افتاده؛ نصب همهٔ فناوری‌های نقشهٔ یادگیری نیازمندی نیست."
+      }
+    },
+    {
+      "id": "F079",
+      "title": "Prompt Engineering",
+      "category": "9. 🤖 AI Engineering",
+      "state": "P",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Portable guidance/oracles exist; controlled source evaluation is distinct from automatic host discovery/all-assistant benchmarking.",
+        "fa": "راهنما/oracle قابل حمل موجود است؛ ارزیابی منبع کنترل‌شده با کشف خودکار میزبان/بنچمارک همهٔ دستیارها فرق دارد."
+      }
+    },
+    {
+      "id": "F080",
+      "title": "System Design",
+      "category": "10. 🧭 Leadership",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F081",
+      "title": "Requirements Analysis",
+      "category": "10. 🧭 Leadership",
+      "state": "W",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "A reusable documented practice, not a new runtime package or proof of every historic action.",
+        "fa": "روش مستند قابل استفاده است، نه پکیج اجرایی تازه یا اثبات همهٔ اقدام‌های تاریخی."
+      }
+    },
+    {
+      "id": "F082",
+      "title": "Technical Planning",
+      "category": "10. 🧭 Leadership",
+      "state": "W",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "A reusable documented practice, not a new runtime package or proof of every historic action.",
+        "fa": "روش مستند قابل استفاده است، نه پکیج اجرایی تازه یا اثبات همهٔ اقدام‌های تاریخی."
+      }
+    },
+    {
+      "id": "F083",
+      "title": "Code Review",
+      "category": "10. 🧭 Leadership",
+      "state": "W",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "A reusable documented practice, not a new runtime package or proof of every historic action.",
+        "fa": "روش مستند قابل استفاده است، نه پکیج اجرایی تازه یا اثبات همهٔ اقدام‌های تاریخی."
+      }
+    },
+    {
+      "id": "F084",
+      "title": "Mentoring",
+      "category": "10. 🧭 Leadership",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F085",
+      "title": "Architecture Decision Making",
+      "category": "10. 🧭 Leadership",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F086",
+      "title": "Technical Communication & Documentation",
+      "category": "10. 🧭 Leadership",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F087",
+      "title": "HTTP/HTTPS",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F088",
+      "title": "Cookies & Sessions",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F089",
+      "title": "CORS",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F090",
+      "title": "Browser Caching",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Public/static caching is distinct from private sessions/live settings; no-store boundaries are tested.",
+        "fa": "کش عمومی/ایستا از نشست خصوصی/تنظیم زنده جدا است؛ مرز no-store آزموده شده است."
+      }
+    },
+    {
+      "id": "F091",
+      "title": "JavaScript Event Loop",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "W",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "A reusable documented practice, not a new runtime package or proof of every historic action.",
+        "fa": "روش مستند قابل استفاده است، نه پکیج اجرایی تازه یا اثبات همهٔ اقدام‌های تاریخی."
+      }
+    },
+    {
+      "id": "F092",
+      "title": "Web Storage",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F093",
+      "title": "Web Workers",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F094",
+      "title": "WebSockets",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F095",
+      "title": "Server-Sent Events",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F096",
+      "title": "Service Workers",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F097",
+      "title": "Progressive Web App",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F098",
+      "title": "Web Push Notifications",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "D",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Intentionally deferred for this starter; installing every learning-roadmap technology is not a requirement.",
+        "fa": "عمداً برای این پایه به تعویق افتاده؛ نصب همهٔ فناوری‌های نقشهٔ یادگیری نیازمندی نیست."
+      }
+    },
+    {
+      "id": "F099",
+      "title": "Browser Extensions",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F100",
+      "title": "Web Media APIs & Playback",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Generic upload/storage is not a complete DAM/CMS/video pipeline; these remain product-dependent.",
+        "fa": "آپلود/ذخیرهٔ عمومی DAM/CMS/ویدئو کامل نیست؛ آن‌ها وابسته به محصول‌اند."
+      }
+    },
+    {
+      "id": "F101",
+      "title": "TV & Remote-control UI Engineering",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F102",
+      "title": "Cross-platform Frontend Adapters",
+      "category": "11. 🌐 Web Platform & Networking",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F103",
+      "title": "Chrome DevTools",
+      "category": "12. 🔍 Debugging & Observability",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F104",
+      "title": "Network Debugging",
+      "category": "12. 🔍 Debugging & Observability",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F105",
+      "title": "Performance Profiling",
+      "category": "12. 🔍 Debugging & Observability",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F106",
+      "title": "Memory Leak Debugging",
+      "category": "12. 🔍 Debugging & Observability",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F107",
+      "title": "Source Maps",
+      "category": "12. 🔍 Debugging & Observability",
+      "state": "P",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Local diagnostics/report adapters exist; source-map uploads/collectors/alerts depend on deployment.",
+        "fa": "تشخیص/adapter گزارش محلی موجود است؛ آپلود source map/collector/هشدار تابع استقرار است."
+      }
+    },
+    {
+      "id": "F108",
+      "title": "Error Monitoring",
+      "category": "12. 🔍 Debugging & Observability",
+      "state": "P",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Local diagnostics/report adapters exist; source-map uploads/collectors/alerts depend on deployment.",
+        "fa": "تشخیص/adapter گزارش محلی موجود است؛ آپلود source map/collector/هشدار تابع استقرار است."
+      }
+    },
+    {
+      "id": "F109",
+      "title": "Logging & Diagnostics",
+      "category": "12. 🔍 Debugging & Observability",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F110",
+      "title": "Real User Monitoring",
+      "category": "12. 🔍 Debugging & Observability",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F111",
+      "title": "Data Fetching Patterns",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F112",
+      "title": "Server State Management",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F113",
+      "title": "Loading, Error & Empty States",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F114",
+      "title": "Retry",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F115",
+      "title": "Optimistic Updates",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F116",
+      "title": "Forms & Validation",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Existing forms/wire limits align with authoritative API input/type/size validation.",
+        "fa": "فرم/حد قرارداد فعلی با اعتبارسنجی معتبر ورودی/نوع/اندازه در API هماهنگ است."
+      }
+    },
+    {
+      "id": "F117",
+      "title": "Pagination",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F118",
+      "title": "Race Conditions & Stale Data",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F119",
+      "title": "Infinite Loading",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F120",
+      "title": "Timeout",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F121",
+      "title": "Cancellation",
+      "category": "13. 🔄 Data & Async UI",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F122",
+      "title": "Responsive Design",
+      "category": "14. 🎨 UI Engineering",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F123",
+      "title": "CSS Architecture",
+      "category": "14. 🎨 UI Engineering",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F124",
+      "title": "UI Implementation from Design",
+      "category": "14. 🎨 UI Engineering",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F125",
+      "title": "Animation & Motion",
+      "category": "14. 🎨 UI Engineering",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F126",
+      "title": "Internationalization",
+      "category": "14. 🎨 UI Engineering",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F127",
+      "title": "SEO & Metadata",
+      "category": "14. 🎨 UI Engineering",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F128",
+      "title": "Cross-browser Compatibility",
+      "category": "14. 🎨 UI Engineering",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F129",
+      "title": "Typography & Visual Hierarchy",
+      "category": "14. 🎨 UI Engineering",
+      "state": "N",
+      "evidence": [],
+      "note": {
+        "en": "Outside this API runtime; this topic requires no API implementation.",
+        "fa": "خارج از runtime این API است؛ این موضوع پیاده‌سازی در API نیاز ندارد."
+      }
+    },
+    {
+      "id": "F130",
+      "title": "Environment Configuration",
+      "category": "15. 🚀 Production Delivery",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F131",
+      "title": "Deployment",
+      "category": "15. 🚀 Production Delivery",
+      "state": "P",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Docker/native tools and local verification exist; real systemd/ACME/production activation is not run.",
+        "fa": "ابزار Docker/native و بررسی محلی موجود است؛ فعال‌سازی واقعی systemd/ACME/production اجرا نشده است."
+      }
+    },
+    {
+      "id": "F132",
+      "title": "CDN & Edge Delivery",
+      "category": "15. 🚀 Production Delivery",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Conditional on a real product/provider/hosting requirement; not a missing mandatory starter dependency.",
+        "fa": "مشروط به نیاز واقعی محصول/ارائه‌دهنده/میزبانی است؛ وابستگی الزامی جاافتادهٔ پایه نیست."
+      }
+    },
+    {
+      "id": "F133",
+      "title": "Feature Flags",
+      "category": "15. 🚀 Production Delivery",
+      "state": "C",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Simple validated deployment/indexing switches exist; a generalized flag platform is conditional.",
+        "fa": "کلید ساده و معتبر استقرار/ایندکس موجود است؛ پلتفرم عمومی flag مشروط است."
+      }
+    },
+    {
+      "id": "F134",
+      "title": "Release & Rollback Strategies",
+      "category": "15. 🚀 Production Delivery",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "API tests cover local matched DB/object/session restore; real operational backups and production recovery remain operator responsibilities.",
+        "fa": "آزمون API بازیابی محلی هماهنگ DB/فایل/نشست را پوشش می‌دهد؛ پشتیبان واقعی و بازیابی production مسئولیت بهره‌بردار است."
+      }
+    },
+    {
+      "id": "F135",
+      "title": "Dependency Management",
+      "category": "15. 🚀 Production Delivery",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "The appropriate current foundation exists; see the scoped source/test evidence, not a claim of every possible extension.",
+        "fa": "پایهٔ متناسب فعلی موجود است؛ شاهد منبع/آزمون همان حوزه ملاک است، نه ادعای همهٔ گسترش‌های ممکن."
+      }
+    },
+    {
+      "id": "F136",
+      "title": "Package Publishing",
+      "category": "15. 🚀 Production Delivery",
+      "state": "D",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "Intentionally deferred for this starter; installing every learning-roadmap technology is not a requirement.",
+        "fa": "عمداً برای این پایه به تعویق افتاده؛ نصب همهٔ فناوری‌های نقشهٔ یادگیری نیازمندی نیست."
+      }
+    },
+    {
+      "id": "F137",
+      "title": "Incident Debugging",
+      "category": "15. 🚀 Production Delivery",
+      "state": "I",
+      "evidence": ["docs/qa/requirements-audit-2026-10-24.md"],
+      "note": {
+        "en": "API now tests local HTTP request/release/log incident correlation and recovery; production browser/collector/alerting remains conditional.",
+        "fa": "API هم‌بستگی رخداد HTTP/انتشار/لاگ و بازیابی محلی را می‌آزماید؛ مرورگر/collector/هشدار production مشروط است."
+      }
+    }
+  ]
+}
