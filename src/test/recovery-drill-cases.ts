@@ -142,7 +142,7 @@ if (process.env.KERNEL_RECOVERY_CLEANUP_FAILURE_PROBE === "true") {
         },
       },
     ]);
-    throw new Error("synthetic-operation-failure");
+    assert.fail("synthetic-operation-failure");
   });
 }
 
