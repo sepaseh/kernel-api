@@ -33,7 +33,7 @@ npm run validate -- full
 
 The [canonical validation manifest](../.agents/validation.json) defines all
 required checks: snapshot integrity, semantic CI policy, dependency audit, source
-boundaries, types, lint, formatting, coverage-backed tests and audit-helper tests.
+boundaries, types, lint, formatting, guidance, coverage-backed tests and audit-helper tests.
 Run the entire
 `full` profile before an explicitly authorized commit or PR handoff. Focused
 development tests do not replace it.
