@@ -5,7 +5,8 @@
 Open collection/ in Bruno and create a local environment with synthetic values as
 described in the [collection setup](../collection/README.md). Each operation directory
 contains index.bru with method, path, authentication, input
-and contract notes, plus status-named JSON response examples. Saved examples
+and contract notes, plus status-named JSON response examples where applicable.
+Bodyless successes can omit a JSON example. Saved examples
 describe the wire boundary; Hono routes and application services implement it.
 Never save live passwords or tokens in the collection.
 

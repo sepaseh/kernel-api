@@ -3,8 +3,9 @@
 [English](backend-logging.md) · [فارسی](backend-logging.fa.md)
 
 Pino writes structured JSON with UTC timestamps, level, environment and release.
-`LOG_LEVEL`, `SERVER_ENVIRONMENT` and `SERVER_RELEASE_ID` configure it; production
-requires an immutable release identifier. Pretty printing is development-only.
+`LOG_LEVEL`, `SERVER_ENVIRONMENT` and `SERVER_RELEASE_ID` configure it. Production
+requires a release identifier; keeping it immutable across process starts is an
+operator-controlled deployment invariant. Pretty printing is development-only.
 Docker uses stdout/stderr; native services use journald. No logging dashboard or
 external collector is provisioned by these templates.
 
@@ -27,14 +28,16 @@ See the [security review](security/authentication-review.md).
 
 ## Configuration and events
 
-| Variable           | Default / constraint                                                                                           |
-| ------------------ | -------------------------------------------------------------------------------------------------------------- |
-| NODE_ENV           | development; deployed runtime uses production                                                                  |
-| LOG_LEVEL          | debug in development, otherwise info; debug/info/warn/error                                                    |
-| SERVER_ENVIRONMENT | NODE_ENV; 1–64 ASCII letters, digits, underscore, dot or hyphen                                                |
-| SERVER_RELEASE_ID  | development outside production; production requires immutable ID, 1–128 supported characters including @ and / |
+| Variable           | Default / constraint                                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------------------- |
+| NODE_ENV           | development; deployed runtime uses production                                                             |
+| LOG_LEVEL          | debug in development, otherwise info; debug/info/warn/error                                               |
+| SERVER_ENVIRONMENT | NODE_ENV; 1–64 ASCII letters, digits, underscore, dot or hyphen                                           |
+| SERVER_RELEASE_ID  | development outside production; production requires an ID of 1–128 supported characters including @ and / |
 
-Invalid configuration fails without printing the supplied value. A bootstrap
+The configuration loader validates the ID's format and presence in production; it
+does not enforce immutability across process starts. Invalid configuration fails
+without printing the supplied value. A bootstrap
 logger uses environment=bootstrap and release=unknown if normal setup fails.
 Records include time, numeric level, service=kernel-api, environment and release.
 Request records add requestId, method, matched route path, status, durationMs and
