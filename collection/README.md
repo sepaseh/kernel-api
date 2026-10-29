@@ -23,7 +23,7 @@ the full validation gate in a clean checkout without a Bruno environment.
 The saved error examples use English messages. Successful settings examples
 illustrate a system configured with Persian as its active language. The system setting, not `Accept-Language`, selects the response
 language. Errors contain a translated `message`; bodyless success responses have
-no JSON example. Responses include the `X-Request-Id` correlation header.
+no JSON example. Responses from the ready application include the `X-Request-Id` correlation header. An initial `503` response before the application is ready may omit this header.
 
 To change your own mobile number, request a code using
 `POST /account/request-mobile-verification`, then send the same `mobile` and
