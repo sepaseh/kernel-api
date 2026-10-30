@@ -40,6 +40,7 @@ before changing this limit.
 Upgrade `better-auth`, `@better-auth/drizzle-adapter` and the `@better-auth/core`
 override together. Preserve the scoped esbuild override for Drizzle Kit's legacy
 loader, subject to toolchain compatibility and security review; do not override
-every esbuild consumer. Use stable
+every esbuild consumer. The current `package.json` pins that scoped override to
+`0.25.12`; reassess the value when upgrading. Use stable
 releases, refresh the lockfile and run the full validation profile after dependency
 upgrades. Do not use `--force` or `--legacy-peer-deps` to hide an incompatible tree.
