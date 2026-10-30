@@ -6,7 +6,7 @@
   from another application or read populated environment files.
 - Maintain `collection/` as the executable HTTP contract alongside its owning
   feature DTO, routes, application behavior and tests, plus the relevant API
-  documentation.
+  documentation and the documents mapped by `docs/README.md`.
 - Update every affected contract surface in the same change. A request field,
   response field, default value, validation rule, status code, or endpoint
   behavior change is incomplete until local examples, operation docs, DTOs,

@@ -16,3 +16,12 @@ API پروژه‌ای مستقل است؛ کد اجرایی آن را به check
 اجرای محلی و قالب‌های استقرار اثبات آمادگی تولید نیستند؛ ارسال OTP در تولید
 هنوز پیاده‌سازی نشده است. [استقرار](deployment.fa.md) پیش‌نیازهای اپراتور و
 محدودیت بررسی‌ها را توضیح می‌دهد.
+
+## سازگاری وابستگی‌ها
+
+نسخهٔ اصلی Node.js و `@types/node` را یکسان نگه دارید. بازهٔ فعلی peer برای
+`typescript-eslint` از TypeScript `>=4.8.4 <6.1.0` پشتیبانی می‌کند؛ هنگام
+به‌روزرسانی [بازهٔ بالادستی](https://typescript-eslint.io/users/dependency-versions/)
+را بررسی کنید. `better-auth`، `@better-auth/drizzle-adapter` و override مربوط
+به `@better-auth/core` را با هم به‌روز، lockfile را تازه و پروفایل کامل را اجرا
+کنید. ناسازگاری درخت وابستگی را با `--force` یا `--legacy-peer-deps` پنهان نکنید.

@@ -7,6 +7,10 @@ Use [guidance](.agents/README.md), the [settings index](.agents/settings.json)
 and [source navigation](docs/source-navigation.md) to find the rules and
 evidence relevant to the task.
 
+For an API-backed client screen, use the `http-contract` task and
+[client screen contract handoff](docs/collection-guide.md#client-screen-contract-handoff).
+The consuming application owns its components and visual design.
+
 This standalone npm project publishes contracts, application services, ports,
 ten flat API catalogs and infrastructure support for configuration, translation,
 logging, fatal process failures, local/MinIO object storage, a database schema,

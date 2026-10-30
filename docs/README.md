@@ -21,3 +21,5 @@ Update the matching active English/Persian document whenever behavior, configura
 checks or operational workflow changes. Dated reports describe their recorded scope
 and do not establish results for later source; the 2026-10-24 archive has not been
 independently verified.
+
+[API runtime verification — 2026-10-24](qa/standalone-layout-2026-10-24.md)

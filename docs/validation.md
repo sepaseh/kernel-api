@@ -18,3 +18,8 @@ profile does not run them. Use the [deployment guide](deployment.md) and report 
 actual platform and outcome rather than assuming a service manager was exercised.
 
 The snapshot check validates the published file inventory, including collection examples and fixture tests. Additional local files are not automatically part of the proposed snapshot; validate the exact intended contents rather than interpreting an ambient working-tree run as evidence for a different commit.
+
+A network or audit-service failure leaves validation incomplete. Workflow
+configuration alone does not prove that a remote job ran or branch protection
+is enforced; inspect the actual result when that evidence is required. Keep
+the manifest, CI and bilingual guidance aligned when their scope changes.
