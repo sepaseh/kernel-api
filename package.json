@@ -69,9 +69,9 @@
     "drizzle-orm": "0.45.4",
     "i18next": "^26.5.11",
     "pino": "^10.4.0",
-    "@better-auth/drizzle-adapter": "1.7.13",
+    "@better-auth/drizzle-adapter": "1.7.14",
     "@hono/node-server": "2.1.5",
-    "better-auth": "1.7.13",
+    "better-auth": "1.7.14",
     "hono": "^4.13.14"
   },
   "overrides": {
