@@ -37,7 +37,7 @@ const productionHost = (hostname) =>
   /production|mainnet/i.test(hostname) ||
   hostname.toLowerCase() === "api.etherscan.io";
 const productionEndpoint = (text) => {
-  const urls = text.match(/https?:\/\/[^\s"'`<>]+/gi) ?? [];
+  const urls = text.match(/https?:\/\/[^\s"'`<>|;&()]+/gi) ?? [];
   return urls.some((url) => {
     try {
       return productionHost(new URL(url).hostname);

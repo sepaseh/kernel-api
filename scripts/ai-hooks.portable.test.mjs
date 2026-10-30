@@ -127,6 +127,10 @@ test("safety hook rejects non-object payloads and explicitly invalid tool input"
 test("safety hook detects production hosts without blocking ordinary prose", () => {
   for (const payload of [
     { command: "curl https://production.example.com/v1" },
+    { command: "curl https://production.example.com|cat" },
+    { command: "curl https://production.example.com;true" },
+    { command: "curl https://production.example.com&true" },
+    { command: "(curl https://production.example.com)" },
     { content: "endpoint: https://api.mainnet.example.com/data" },
     { command: "curl https://api.etherscan.io/api" },
     { command: "curl api.etherscan.io" },
@@ -141,6 +145,7 @@ test("safety hook detects production hosts without blocking ordinary prose", () 
     { command: "npm run deploy:check -- production" },
     { file_path: "docs/production.md", content: "safe" },
     { content: "See https://example.com/production/mainnet" },
+    { command: "curl https://safe.example.com/path?stage=production&ok=1" },
     { content: "See https://safe.example.com/api.etherscan.io" },
     { command: "curl https://safe.example.com/api.etherscan.io" },
     { content: "Deploy using production.example.com after review." },

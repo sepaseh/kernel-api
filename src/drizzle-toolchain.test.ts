@@ -42,9 +42,17 @@ const coreUtilities = loaderRequire("@esbuild-kit/core-utils") as {
 const compilerVersion = (coreRequire("esbuild") as { version: string }).version;
 const kitDirectory = path.dirname(kitRequire.resolve("drizzle-kit"));
 
-const temporaryDirectory = async (context: TestContext) => {
+const temporaryDirectory = async (
+  context: TestContext,
+  metacharacters = false,
+) => {
   const directory = await mkdtemp(
-    path.join(fixtureRoot, "kernel-drizzle-fixture-"),
+    path.join(
+      fixtureRoot,
+      metacharacters
+        ? "kernel-drizzle-fixture-[x]{y}(z)+!@-"
+        : "kernel-drizzle-fixture-",
+    ),
   );
   context.after(async () => {
     const resolved = path.resolve(directory);
@@ -221,7 +229,7 @@ test("legacy ESM loader resolves and compiles a sibling TypeScript import", asyn
 });
 
 test("repository Drizzle config generates without database credentials and refuses migration", async (context) => {
-  const directory = await temporaryDirectory(context);
+  const directory = await temporaryDirectory(context, true);
   const infrastructure = path.join(directory, "src", "infrastructure");
   const db = path.join(infrastructure, "db");
   await mkdir(db, { recursive: true });
@@ -271,7 +279,7 @@ test(
   "Drizzle generates and migrates only a disposable SQLite database idempotently",
   { timeout: 120_000 },
   async (context) => {
-    const directory = await temporaryDirectory(context);
+    const directory = await temporaryDirectory(context, true);
     const databaseUrl = pathToFileURL(
       path.join(directory, "fixture.sqlite"),
     ).href;
@@ -298,7 +306,10 @@ test(
          dbCredentials: { url: databaseUrl },
          dialect: "sqlite",
          out: output,
-         schema: path.join(directory, "schema.ts").replaceAll("\\", "/"),
+         schema: (path.sep === "\\"
+           ? path.join(directory, "schema.ts").replaceAll("\\", "/")
+           : path.join(directory, "schema.ts")
+         ).replace(/[?*()[\]{}!+@\\]/g, "\\$&"),
        })});`,
     );
     const cli = path.join(kitDirectory, "bin.cjs");

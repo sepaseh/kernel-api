@@ -7,6 +7,17 @@ import { resolveDatabaseUrl } from "./src/infrastructure/config.ts";
 
 const apiDirectory = fileURLToPath(new URL("./", import.meta.url));
 const databaseUrl = process.env.DATABASE_URL;
+const schemaPath = path.join(
+  apiDirectory,
+  "src",
+  "infrastructure",
+  "db",
+  "schema.ts",
+);
+// Drizzle Kit interprets this literal filesystem path as a glob.
+const schemaGlob = (
+  path.sep === "\\" ? schemaPath.replaceAll("\\", "/") : schemaPath
+).replace(/[?*()[\]{}!+@\\]/g, "\\$&");
 
 export default defineConfig({
   ...(databaseUrl
@@ -14,7 +25,5 @@ export default defineConfig({
     : {}),
   dialect: "sqlite",
   out: path.join(apiDirectory, "drizzle").replaceAll("\\", "/"),
-  schema: path
-    .join(apiDirectory, "src", "infrastructure", "db", "schema.ts")
-    .replaceAll("\\", "/"),
+  schema: schemaGlob,
 });
