@@ -20,6 +20,17 @@ tests use synthetic data and do not establish production readiness or real OTP
 delivery. Operator deployment and recovery remain separate procedures; see
 [deployment](deployment.md) and [backup and restore](backup-restore.md).
 
+## MinIO configuration
+
+With `STORAGE_DRIVER=minio`, provide nonempty `MINIO_ACCESS_KEY`,
+`MINIO_SECRET_KEY`, `MINIO_ENDPOINT` and `MINIO_PUBLIC_URL` in protected
+configuration outside Git. `MINIO_ENDPOINT` is a hostname or literal IP, without a
+scheme; use `MINIO_PORT` for its port and set `MINIO_USE_SSL=true` for TLS.
+TLS is required outside `localhost` and literal loopback addresses; a DNS name
+that resolves locally is not a loopback exception. `MINIO_PUBLIC_URL` requires
+HTTPS outside loopback and must not contain credentials, a query or a fragment.
+See [object storage](object-storage.md) for bucket ownership, region and operations.
+
 ## Deleting users and roles
 
 DELETE /users/{user_id} keeps authentication, users.delete permission, self-delete

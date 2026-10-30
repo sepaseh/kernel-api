@@ -6,8 +6,9 @@ API deployment templates are not evidence of production readiness. Real OTP
 delivery and deployed integration remain unverified.
 
 Use a Linux Docker engine and Compose with required `env_file` support. Provision
-the API and host configuration in protected files outside Git; example environment
-files are not included in this published snapshot. Set a generated auth secret,
+the API and host configuration in protected files outside Git. This source snapshot
+includes [API](api.env.example) and [host](hosts.env.example) templates; copy and
+customize them outside Git, keeping real secrets protected. Set a generated auth secret,
 immutable RELEASE_ID, API_HOST,
 API_PUBLIC_ORIGIN, exact external SERVER_ALLOWED_ORIGINS, absolute API_ENV_FILE and
 TLS_CERT_DIRECTORY. The configuration preflight rejects placeholders.

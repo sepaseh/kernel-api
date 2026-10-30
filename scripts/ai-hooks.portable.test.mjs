@@ -115,6 +115,41 @@ test("portable safety hook accepts safe checks and fails closed for malformed in
   assert.equal(run("not-json").status, 2);
 });
 
+test("safety hook rejects non-object payloads and explicitly invalid tool input", () => {
+  for (const payload of [null, true, 42, [], "null", '"text"', "[]"]) {
+    assert.equal(run(payload).status, 2, JSON.stringify(payload));
+  }
+  for (const tool_input of [null, true, 42, [], "text"]) {
+    assert.equal(run({ tool_input }).status, 2, JSON.stringify(tool_input));
+  }
+});
+
+test("safety hook detects production hosts without blocking ordinary prose", () => {
+  for (const payload of [
+    { command: "curl https://production.example.com/v1" },
+    { content: "endpoint: https://api.mainnet.example.com/data" },
+    { command: "curl https://api.etherscan.io/api" },
+    { command: "curl api.etherscan.io" },
+    { command: "curl production.example.com/v1" },
+    { command: "wget --quiet api.mainnet.example.com:443/data" },
+    { command: "curl https://safe.example@production.example.com" },
+  ]) {
+    assert.equal(run(payload).status, 2, JSON.stringify(payload));
+  }
+  for (const payload of [
+    { content: "The production release needs a review." },
+    { command: "npm run deploy:check -- production" },
+    { file_path: "docs/production.md", content: "safe" },
+    { content: "See https://example.com/production/mainnet" },
+    { content: "See https://safe.example.com/api.etherscan.io" },
+    { command: "curl https://safe.example.com/api.etherscan.io" },
+    { content: "Deploy using production.example.com after review." },
+    { command: "curl https://production.example@safe.example.com" },
+  ]) {
+    assert.equal(run(payload).status, 0, JSON.stringify(payload));
+  }
+});
+
 test("Bash safety wrapper preserves canonical guard results without jq", (context) => {
   if (!bash) {
     context.skip("No usable Bash found; portable Node guard remains tested.");

@@ -69,7 +69,9 @@ Expired or ownerless exceptions block claiming readiness until fixed or explicit
 resolved. Security, authorization, session isolation, data loss and restore failures
 remain blocking unless the owner explicitly changes the requirement.
 
-Local tests must clean their owned servers, ports and TEMP state. Docker tests
+Local tests must stop their owned servers and clean their owned ports and TEMP
+state only after server shutdown is confirmed. If shutdown cannot be confirmed,
+report the cleanup failure and retain the owned resources for diagnosis. Docker tests
 use the [disposable lifecycle](../deploy/docker/README.md), including exact test
 images and dedicated builder/cache on success, failure or handled interruption.
 Do not prune another project's resources as a routine test cleanup.

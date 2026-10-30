@@ -17,6 +17,13 @@ The local runtime and deployment templates do not prove production readiness;
 production OTP delivery remains unimplemented. See [deployment](deployment.md)
 for operator prerequisites and limits of the available checks.
 
+## Database migration tooling
+
+`npm run server:generate` generates migrations from the schema without requiring
+`DATABASE_URL`. `npm run server:migrate` applies migrations and requires an
+explicit `DATABASE_URL`; select only a database you are authorized to change.
+Keep real credentials and private environment files outside Git.
+
 ## Dependency compatibility
 
 Review and validate Drizzle Kit and its scoped esbuild override when changing

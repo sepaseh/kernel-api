@@ -21,6 +21,18 @@ Node.js 24 فایل src/index.ts را مستقیم اجرا می‌کند. src/b
 و بازیابی اپراتور فرایندهای جداگانه‌اند؛ [استقرار](deployment.fa.md) و
 [پشتیبان و بازیابی](backup-restore.fa.md) را ببینید.
 
+## تنظیم MinIO
+
+برای `STORAGE_DRIVER=minio` مقادیر غیرخالی `MINIO_ACCESS_KEY`،
+`MINIO_SECRET_KEY`، `MINIO_ENDPOINT` و `MINIO_PUBLIC_URL` را در تنظیمات
+محافظت‌شده بیرون Git فراهم کنید. `MINIO_ENDPOINT` فقط نام میزبان یا IP صریح و
+بدون scheme است؛ درگاه را با `MINIO_PORT` تعیین کنید و برای TLS مقدار
+`MINIO_USE_SSL=true` بگذارید. خارج از `localhost` و نشانی loopback صریح، TLS
+الزامی است؛ نام DNS که به نشانی محلی حل شود استثنای loopback نیست.
+`MINIO_PUBLIC_URL` خارج از loopback به HTTPS نیاز دارد و نباید اعتبارنامه،
+query یا fragment داشته باشد. جزئیات مالکیت bucket، منطقه و عملیات در
+[ذخیره‌سازی شیء](object-storage.fa.md) آمده است.
+
 ## حذف کاربر و نقش
 
 DELETE /users/{user_id} احراز هویت، مجوز users.delete و محافظ حذف خود و آخرین مدیر

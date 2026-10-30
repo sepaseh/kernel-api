@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  copyFile,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -210,6 +218,53 @@ test("legacy ESM loader resolves and compiles a sibling TypeScript import", asyn
     path.join(directory, "entry.ts"),
   ]);
   assert.deepEqual(JSON.parse(output.trim()), { answer: 42, state: "ready" });
+});
+
+test("repository Drizzle config generates without database credentials and refuses migration", async (context) => {
+  const directory = await temporaryDirectory(context);
+  const infrastructure = path.join(directory, "src", "infrastructure");
+  const db = path.join(infrastructure, "db");
+  await mkdir(db, { recursive: true });
+  await copyFile(
+    path.join(repositoryRoot, "drizzle.config.ts"),
+    path.join(directory, "drizzle.config.ts"),
+  );
+  await copyFile(
+    path.join(repositoryRoot, "src", "infrastructure", "config.ts"),
+    path.join(infrastructure, "config.ts"),
+  );
+  await writeFile(
+    path.join(db, "schema.ts"),
+    `import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const note = sqliteTable("note", { id: text("id").primaryKey() });`,
+  );
+  const cli = path.join(kitDirectory, "bin.cjs");
+  runNode(directory, [cli, "generate", "--config=drizzle.config.ts"]);
+  assert.ok(
+    (await readdir(path.join(directory, "drizzle"))).some((file) =>
+      file.endsWith(".sql"),
+    ),
+  );
+  const migration = spawnSync(
+    process.execPath,
+    [cli, "migrate", "--config=drizzle.config.ts"],
+    {
+      cwd: directory,
+      encoding: "utf8",
+      env: childEnvironment(directory),
+      timeout: 30_000,
+      windowsHide: true,
+    },
+  );
+  assert.ifError(migration.error);
+  assert.notEqual(
+    migration.status,
+    0,
+    `Migration must fail without credentials: ${migration.stdout} ${migration.stderr}`,
+  );
+  assert.match(
+    `${migration.stdout} ${migration.stderr}`,
+    /required params|dbCredentials|credentials|DATABASE_URL/i,
+  );
 });
 
 test(

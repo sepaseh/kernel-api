@@ -7,8 +7,9 @@ on the same OS/CPU as the runtime because dependencies may contain native binari
 A Windows-installed dependency tree is not a Linux release.
 
 These templates do not establish production readiness. Real OTP delivery and
-deployed integration remain unverified, and example environment files are not
-included in this published snapshot.
+deployed integration remain unverified. This source snapshot includes [API](api.env.example)
+and [host](hosts.env.example) environment templates. Copy and customize them in
+protected files outside Git; never commit real secrets or host-specific configuration.
 
 From a trusted source checkout run `npm ci`, the relevant validation profile, and
 `npm run deploy:package -- --release=RELEASE_ID`. Packaging is exclusive and never

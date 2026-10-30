@@ -30,6 +30,15 @@ triggered or passed merely because a release PR exists. Do not expose token valu
 Release Please updates the English `CHANGELOG.md`; it does not automatically update
 `CHANGELOG.fa.md`. Before merging a release PR, prepare and review the Persian
 entry to match the generated English notes. Verify both files as part of the PR.
+The Node release strategy updates the package and lockfile, but its generated
+changelog bullets do not match the required formatter. On the release PR branch,
+an authorized maintainer should run `npx prettier --write CHANGELOG.md`, run
+`npm run format:check`, and commit the formatted changelog to that PR. Repeat
+these checks after Release Please updates the PR.
+
+Merging the release PR alone does not create the tag or GitHub release. After
+merging, an authorized maintainer must dispatch the Release workflow again on
+`main` and verify that both the tag and GitHub release were created.
 
 Local tests and checked-in templates do not prove a deployed release or production
 OTP delivery. Never publish credentials, private state or test fixtures as release
