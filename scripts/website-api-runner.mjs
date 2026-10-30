@@ -48,6 +48,21 @@ async function forceStopWebsiteChild(child, timeoutMs) {
   });
 }
 
+async function releaseUnconfirmedChild(child, timeoutMs) {
+  const errors = [];
+  try {
+    await forceStopWebsiteChild(child, timeoutMs);
+  } catch (error) {
+    errors.push(error);
+  }
+  try {
+    child.unref();
+  } catch (error) {
+    errors.push(error);
+  }
+  return errors;
+}
+
 export async function superviseWebsiteApi(
   child,
   cleanup,
@@ -101,16 +116,7 @@ export async function superviseWebsiteApi(
     } else if (child.pid) {
       // Attempt to stop only the child we started. A successful signal does not
       // confirm exit, so preserve the fixture and report the original failure.
-      try {
-        await forceStopWebsiteChild(child, timeoutMs);
-      } catch (error) {
-        errors.push(error);
-      }
-      try {
-        child.unref();
-      } catch (error) {
-        errors.push(error);
-      }
+      errors.push(...(await releaseUnconfirmedChild(child, timeoutMs)));
     }
     if (errors.length === 1) throw errors[0];
     if (errors.length > 1)
