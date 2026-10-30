@@ -440,6 +440,7 @@ const guidanceFiles = [
 ];
 
 const localRuntimeFiles = [
+  ".env.example",
   ".agents/hooks/block-dangerous.mjs",
   ".agents/hooks/block-dangerous.sh",
   ".agents/hooks/post-edit-format.sh",
@@ -580,7 +581,8 @@ export const validateBootstrapPolicy = (policy) => {
       (file.startsWith("src/") && !isPublishedSource(file, policy.phase)) ||
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||
-      /(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/.test(file) ||
+      (/(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/i.test(file) &&
+        !(policy.phase === "local-runtime" && file === ".env.example")) ||
       /\.(?:pem|key|pfx|p12|sqlite|db)$/.test(file) ||
       files.has(file)
     )

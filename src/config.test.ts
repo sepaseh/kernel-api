@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { pathToFileURL } from "node:url";
+import { parseEnv } from "node:util";
 
 import {
   loadConfig,
@@ -118,6 +120,28 @@ test("fixed OTPs and development seeding require an explicit development or test
         /OTP_FIXED_CODE requires NODE_ENV=development or NODE_ENV=test/,
       );
   }
+});
+
+test("the published local environment example supports opt-in development features", () => {
+  const example = parseEnv(
+    readFileSync(new URL("../.env.example", import.meta.url), "utf8"),
+  );
+  const config = loadConfig({
+    ...example,
+    OTP_FIXED_CODE: "synthetic-fixed-code",
+    SERVER_SEED_DEVELOPMENT_DATA: "true",
+  });
+  assert.equal(config.seedDevelopmentData, true);
+  assert.equal(config.otpCode, "synthetic-fixed-code");
+  assert.throws(
+    () =>
+      loadConfig({
+        ...example,
+        NODE_ENV: "production",
+        OTP_FIXED_CODE: "synthetic-fixed-code",
+      }),
+    /OTP_FIXED_CODE requires NODE_ENV=development or NODE_ENV=test/,
+  );
 });
 
 test("database location resolution preserves memory, absolute file and remote URLs", () => {

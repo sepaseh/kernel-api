@@ -17,6 +17,10 @@ The local runtime and deployment templates do not prove production readiness;
 production OTP delivery remains unimplemented. See [deployment](deployment.md)
 for operator prerequisites and limits of the available checks.
 
+The root `.env.example` is a synthetic configuration template. `npm run dev`
+does not load it automatically; supply the required environment explicitly. Keep
+real credentials and private environment files outside Git.
+
 ## Database migration tooling
 
 `npm run server:generate` generates migrations from the schema without requiring
@@ -40,6 +44,7 @@ before changing this limit.
 Upgrade `better-auth`, `@better-auth/drizzle-adapter` and the `@better-auth/core`
 override together. Preserve the scoped esbuild override for Drizzle Kit's legacy
 loader, subject to toolchain compatibility and security review; do not override
-every esbuild consumer. Use stable
+every esbuild consumer. The current `package.json` pins that scoped override to
+`0.25.12`; reassess the value when upgrading. Use stable
 releases, refresh the lockfile and run the full validation profile after dependency
 upgrades. Do not use `--force` or `--legacy-peer-deps` to hide an incompatible tree.

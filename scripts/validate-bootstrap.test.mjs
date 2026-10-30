@@ -511,6 +511,7 @@ const guidanceFiles = [
 ];
 
 const localRuntimeFiles = [
+  ".env.example",
   ".agents/hooks/block-dangerous.mjs",
   ".agents/hooks/block-dangerous.sh",
   ".agents/hooks/post-edit-format.sh",
@@ -587,7 +588,14 @@ test("local runtime requires server, composition and independent lifecycle tests
     "deploy/docker/.env.example",
     "deploy/docker/other.env.example",
     "deploy/docker/api.env",
-    ".env.example",
+    ".env",
+    ".env.local",
+    ".env.production",
+    ".ENV",
+    ".ENV.EXAMPLE",
+    "docs/.env.example",
+    "docs/.ENV.local",
+    ".agents/settings.local.json",
     "collection/environments/development.bru",
     "collection/auth/unreviewed/index.bru",
   ])
@@ -596,6 +604,30 @@ test("local runtime requires server, composition and independent lifecycle tests
         localRuntimePolicy({ allowedFiles: [...complete.allowedFiles, file] }),
       ),
     );
+});
+
+test("only the exact root environment example is allowed in local runtime", () => {
+  const current = localRuntimePolicy();
+  assert.equal(validateBootstrapPolicy(current).has(".env.example"), true);
+  for (const previous of [
+    policy(),
+    foundationPolicy(),
+    applicationServicesPolicy(),
+    localizationPolicy(),
+    infrastructureSupportPolicy(),
+    localStoragePolicy(),
+    objectStoragePolicy(),
+    databasePolicy(),
+    authBootstrapPolicy(),
+    httpTransportPolicy(),
+  ]) {
+    assert.throws(() =>
+      validateBootstrapPolicy({
+        ...previous,
+        allowedFiles: [...previous.allowedFiles, ".env.example"],
+      }),
+    );
+  }
 });
 
 test("HTTP transport requires every route and excludes runnable composition", () => {

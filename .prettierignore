@@ -3,3 +3,4 @@ coverage
 dist
 *.local
 server/data/
+/_local-preserved/

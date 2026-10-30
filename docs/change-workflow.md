@@ -7,6 +7,10 @@ runtime or require a particular assistant. Keep the filled record with the issue
 PR or local task evidence; creating remote issues or sending messages requires
 the owner's authorization.
 
+For historical context, the [2026-10-24 roadmap assessment](qa/roadmap-status-2026-10-24.md)
+identifies requirements analysis (F081) and technical planning (F082) as reusable
+documented practices; it does not establish outcomes for later work.
+
 ## Establish the change contract
 
 - Record the request, its source and date. Mark each item as required, proposed,
