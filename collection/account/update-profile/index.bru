@@ -54,4 +54,5 @@ docs {
   - `401 Unauthorized` — The access token is missing, invalid, or expired.
   - `413 Payload Too Large` — The JSON body exceeds 64 KiB, including when `Content-Length` understates its actual size.
   - `415 Unsupported Media Type` — The request does not use `application/json`.
+  - `429 Too Many Requests` — Mobile-change confirmation attempt limit reached (including a supplied unchanged mobile).
 }

@@ -25,6 +25,11 @@ illustrate a system configured with Persian as its active language. The system s
 language. Errors contain a translated `message`; bodyless success responses have
 no JSON example. Responses from the ready application include the `X-Request-Id` correlation header. An initial `503` response before the application is ready may omit this header.
 
+Authentication and mobile-change operations can return `429`. Saved
+`429.json` examples demonstrate one applicable error; code-issuance cooldowns
+and the in-process attempt limiter can return different messages. See the
+[HTTP transport limits](../docs/http-transport.md) for scopes and `Retry-After`.
+
 To change your own mobile number, request a code using
 `POST /account/request-mobile-verification`, then send the same `mobile` and
 its `otp` to `PATCH /account/update-profile`. To change a user's number through

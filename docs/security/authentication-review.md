@@ -33,3 +33,7 @@ See [authentication adapters](../auth-adapters.md), [mobile-update behavior](../
 [threat model](threat-model.md), and the integration tests
 [`auth-bootstrap-integration.test.mjs`](../../scripts/auth-bootstrap-integration.test.mjs)
 and [`auth-identity-integration.test.mjs`](../../scripts/auth-identity-integration.test.mjs).
+
+The offline bootstrap reads protected JSON STDIN, rejects invalid input before
+opening DB, disables seeding and refuses every preexisting user. No session/token
+is issued. Production prevalidation is a required separate operator step.

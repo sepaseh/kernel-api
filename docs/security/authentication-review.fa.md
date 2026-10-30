@@ -36,3 +36,7 @@
 [`auth-bootstrap-integration.test.mjs`](../../scripts/auth-bootstrap-integration.test.mjs)
 و [`auth-identity-integration.test.mjs`](../../scripts/auth-identity-integration.test.mjs)
 را ببینید.
+
+bootstrap آفلاین JSON محافظت‌شدهٔ STDIN می‌گیرد، ورودی نامعتبر را پیش از DB رد،
+seed را غیرفعال و هر کاربر قبلی را رد می‌کند؛ نشست یا توکن نمی‌سازد. اعتبارسنجی
+تولید مرحلهٔ جداگانهٔ ضروری اپراتور است.

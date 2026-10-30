@@ -14,6 +14,9 @@ For storage or deletion, consult [storage](object-storage.md),
 [database constraints](database-schema.md) and [HTTP transport](http-transport.md).
 For deployment and recovery, start with [deployment](deployment.md) and
 [backup and restore](backup-restore.md).
+For the native smoke lifecycle, inspect the packaging and cleanup owners and their
+synthetic failure-path tests listed in the deployment task. Fixture cleanup tests
+also cover the ownership and failures of temporary database resources.
 
 For a client screen's API handoff, start with the
 [collection guide](collection-guide.md#client-screen-contract-handoff),
