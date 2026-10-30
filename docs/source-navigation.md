@@ -26,3 +26,10 @@ runtime flows; the [decision index](adr/README.md) records architectural choices
 
 Use [validation](validation.md) for executable checks. Never use a real environment
 file, existing data or a production service as a local test fixture.
+
+Runtime source lives in `src/`; pure wire DTOs/constants are in feature-owned `src/contracts`
+modules, imported directly. `contracts/locales.ts` is the single pure supported-
+language metadata source for settings and the catalog code type, with runtime
+message catalogs under `src/infrastructure/localization/catalogs`. Public behavior
+is evidenced by Bruno, DTOs and actual API tests. Other apps are HTTP consumers in
+independent repositories; local contract/catalog source need not be synchronized.

@@ -17,3 +17,13 @@ see [Docker deployment](../deploy/docker/README.md). Native smoke exercises the
 packaged Node payload on the host platform, not necessarily systemd or Nginx.
 If the native smoke server does not stop within 10 seconds, its temporary release and state are preserved and the failure is reported. After a confirmed stop, removal of each owned resource is attempted independently.
 Never delete resources belonging to another project during cleanup.
+
+The collection tests exercise eight authentication rate-limit responses against the saved examples with a controlled clock. They verify `Retry-After` on the in-process limiter; they do not establish distributed rate limiting or production readiness.
+
+The opt-in native smoke installs production-only dependencies in an owned
+release, bootstraps a temporary database and checks health and login against
+the packaged server. It tests the current host platform, not a Linux service
+manager on Windows. Docker smoke uses a per-run builder and removes its owned
+images, cache and fixtures on success, failure or handled cancellation; cleanup
+failures fail the command. See the [Docker cleanup policy](../deploy/docker/README.md)
+and the dated [QA records](qa/README.md) for observed results and limits.

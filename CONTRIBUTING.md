@@ -2,6 +2,9 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
+The working tree may contain unpublished changes. Preserve that work and validate
+the exact proposed snapshot; a passing snapshot check does not verify other local files.
+
 The current [local-runtime phase](docs/bootstrap.md) contains contracts,
 application services, ports, ten static catalogs and configuration, translation,
 logging, fatal-lifecycle support, local/MinIO object storage and real database

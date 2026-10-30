@@ -1,5 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -121,6 +128,28 @@ test("rejects duplicate IDs and unknown profile checks", () => {
   const errors = validateManifest(manifest, settings, ci).join("\n");
   assert.ok(errors.includes("unique"));
   assert.ok(errors.includes("Unknown check ghost"));
+});
+
+test("run template keeps automatic and assisted discovery evidence separate", async () => {
+  const template = JSON.parse(
+    await readFile(
+      new URL("../.agents/evaluation/run-template.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  assert.equal(template.state, "not-run");
+  assert.equal(template.exactPrompt, null);
+  assert.equal(template.instructionDiscovery.status, "unknown");
+  assert.deepEqual(template.instructionDiscovery.reportedLoadedFiles, []);
+  assert.equal(template.instructionDiscovery.evidence, null);
+  assert.deepEqual(template.instructionDiscovery.readingNavigationTrace, []);
+  assert.deepEqual(template.assistedDiscovery, {
+    attempted: null,
+    exactPrompt: null,
+    suppliedPaths: [],
+    readingNavigationTrace: [],
+    evidence: null,
+  });
 });
 
 test("rejects stale instruction-discovery pointers", () => {

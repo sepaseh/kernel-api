@@ -37,3 +37,9 @@ and [`auth-identity-integration.test.mjs`](../../scripts/auth-identity-integrati
 The offline bootstrap reads protected JSON STDIN, rejects invalid input before
 opening DB, disables seeding and refuses every preexisting user. No session/token
 is issued. Production prevalidation is a required separate operator step.
+
+API tests cover concurrency, failed transactions, secure logout, invalid origins,
+password bounds, provider failures and log redaction. Consumer proxy/bearer tests
+remain in their own repos; assess public HTTP compatibility for independent releases.
+Never run security demonstrations against real data or production without explicit
+authorization.

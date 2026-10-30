@@ -15,8 +15,8 @@ assistant or optional tool a runtime dependency.
   links or checked projections, never independent definitions of a complete gate.
 - Task navigation: `.agents/navigation.json`; the readable guide is
   `docs/source-navigation.md`. Open owners and contracts, not just the map.
-- Decisions: document consequences and supersession, not copied source.
-- Evaluation: `.agents/evaluation/cases.json`.
+- Decisions: `docs/adr/`; record consequences and supersession, not copied source.
+- Evaluation: `.agents/evaluation/cases.json` and `docs/comprehension-evaluation.md`.
 
 When a document conflicts with current behavior, verify source and contracts,
 correct the active explanation and keep dated execution results clearly scoped.

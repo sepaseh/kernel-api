@@ -16,3 +16,13 @@ need coordinated rollout when an HTTP contract changes.
 The local runtime and deployment templates do not prove production readiness;
 production OTP delivery remains unimplemented. See [deployment](deployment.md)
 for operator prerequisites and limits of the available checks.
+
+## Dependency compatibility
+
+Keep the Node.js runtime and `@types/node` on the same major. The current
+`typescript-eslint` peer range supports TypeScript `>=4.8.4 <6.1.0`; check the
+[upstream range](https://typescript-eslint.io/users/dependency-versions/) when
+upgrading. Upgrade `better-auth`, `@better-auth/drizzle-adapter` and the
+`@better-auth/core` override together, refresh the lockfile and run the full
+validation profile. Do not use `--force` or `--legacy-peer-deps` to conceal an
+incompatible dependency tree.

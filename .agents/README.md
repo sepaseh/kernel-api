@@ -11,3 +11,8 @@ The rules and skills describe assistant-neutral workflows; they are not runtime
 dependencies. Human-facing documentation has English and Persian versions.
 The [evaluation cases](evaluation/cases.json) are prompts, not evidence that an
 assistant or a production system has been evaluated.
+
+For issue, branch, commit, pull-request or review work, start with
+[Git workflow](rules/git.md). Contract changes also use
+[API collection](rules/api-collection.md), [data lifecycle](rules/data-lifecycle.md)
+and [collection quality](rules/collection-quality.md).

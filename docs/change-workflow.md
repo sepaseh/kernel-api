@@ -38,3 +38,20 @@ Include transaction, session, privacy or recovery scenarios when relevant. Keep
 backend behavior in its owning API and coordinate incompatible HTTP changes with
 consumers. Use the validation manifest rather than copying a separate list of
 required checks, and update the English and Persian documentation together.
+
+For changes to deletion, status or relationships, consult the [data lifecycle rule](../.agents/rules/data-lifecycle.md) and record how the owning transaction protects dependent records. For an API-backed client screen, use the [client screen contract handoff](collection-guide.md#client-screen-contract-handoff) to separate existing behavior from proposed contract changes.
+
+## Establish the change contract
+
+- Record the request, its source and date. Mark each item as required, proposed,
+  conditional or out of scope. A learning-roadmap topic is not automatically a
+  product requirement.
+- Name the owning repository and affected HTTP consumers. Contracts and
+  catalogs are independently owned local copies. Coordinate observable HTTP
+  compatibility when needed; do not impose synchronized catalog edits.
+- Read the matching [task navigation](source-navigation.md), owner source,
+  contracts, rules and tests. Record current behavior and the concrete failure.
+  Include dirty/untracked source in the baseline; exclude real env/state/secrets.
+- Write numbered acceptance scenarios before editing: trigger, observable result,
+  failure/authorization boundary and verification evidence. Cover relevant session
+  races, language/cache/privacy, transactions or recovery as part of that scenario.
