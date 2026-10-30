@@ -26,7 +26,7 @@ evaluated. Supply only its English prompt, without owner paths, expected answers
 or a preloaded conversation. The task plans a branding/logo/language screen from
 API evidence; it does not change files, start services or access real state.
 
-Record discovery separately from answer correctness in the existing run template:
+Record discovery separately from answer correctness in the existing run template. Use `exactPrompt` for the initial prompt, `instructionDiscovery` for automatic loading and the observed reading/navigation trace, and `assistedDiscovery` for a separate attempt with its own prompt, supplied paths, trace and evidence. Leave `attempted` as `null` until that attempt is assessed.
 
 - Record host/model/version when known, source fingerprint and the exact prompt.
 - Distinguish instruction files automatically supplied by the host from files the

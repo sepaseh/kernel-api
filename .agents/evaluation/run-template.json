@@ -4,12 +4,18 @@
   "startedAt": null,
   "repositoryCommit": null,
   "workingTreeFingerprint": null,
-  "assistant": { "name": null, "version": null, "model": null, "host": null },
+  "assistant": {
+    "name": null,
+    "version": null,
+    "model": null,
+    "host": null
+  },
   "configuration": "existing-search",
   "instructionDiscovery": {
     "reportedLoadedFiles": [],
     "evidence": null,
-    "status": "not-verified"
+    "status": "unknown",
+    "readingNavigationTrace": []
   },
   "index": {
     "tool": null,
@@ -21,5 +27,13 @@
   "caseResults": [],
   "limitations": [
     "Template only; no assistant, index or benchmark result has been recorded."
-  ]
+  ],
+  "exactPrompt": null,
+  "assistedDiscovery": {
+    "attempted": null,
+    "exactPrompt": null,
+    "suppliedPaths": [],
+    "readingNavigationTrace": [],
+    "evidence": null
+  }
 }
