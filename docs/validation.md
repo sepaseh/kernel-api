@@ -8,6 +8,9 @@ commands and profiles. Run the smallest relevant check during development, then
 commit or push. A failed or unavailable check is not a pass; report it and its
 scope. The full profile is also used by required PR CI.
 
+The root-level `/_local-preserved/` directory is excluded from Prettier checks.
+It is local archive data, not part of the validated publication snapshot.
+
 The active manifest and validation runner describe this standalone API. They do
 not define or execute a `workspace` profile; the full profile remains the required
 commit and push gate.
