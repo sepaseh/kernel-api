@@ -55,7 +55,9 @@
       "tests": [
         "src/app.test.ts",
         "src/persistence.test.ts",
-        "src/http-transport.test.ts"
+        "src/http-transport.test.ts",
+        "src/management-services.test.ts",
+        "src/test/fixture-cleanup.test.ts"
       ],
       "checks": ["boundaries", "typecheck", "coverage-tests"]
     },
@@ -85,7 +87,10 @@
       "owners": [
         "deploy",
         "scripts/validate-deployment-env.mjs",
-        "src/infrastructure/storage"
+        "src/infrastructure/storage",
+        "scripts/package-release.mjs",
+        "scripts/test-native-release.mjs",
+        "scripts/native-smoke-cleanup.mjs"
       ],
       "contracts": [
         "docs/deployment.md",
@@ -95,7 +100,9 @@
       "tests": [
         "scripts/deployment.test.mjs",
         "src/recovery-drill.test.ts",
-        "src/object-storage.test.ts"
+        "src/object-storage.test.ts",
+        "scripts/package-release.test.mjs",
+        "scripts/native-smoke-cleanup.test.mjs"
       ],
       "checks": ["snapshot", "typecheck", "coverage-tests"]
     },

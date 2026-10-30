@@ -11,6 +11,7 @@ import { apiEn } from "../src/infrastructure/localization/catalogs/en.ts";
 import { createLogger } from "../src/infrastructure/logging/logger.ts";
 import { LocalFileStorage } from "../src/infrastructure/storage/local.ts";
 import { createHttpApp } from "../src/presentation/http/app.ts";
+import { enforceAuthAttempt } from "../src/presentation/http/auth-attempts.ts";
 import { createAccountRoutes } from "../src/presentation/http/routes/account.ts";
 import { createAuthRoutes } from "../src/presentation/http/routes/auth.ts";
 import { createCalendarRoutes } from "../src/presentation/http/routes/calendar.ts";
@@ -145,6 +146,98 @@ test("collection operations match the published HTTP routes", async () => {
         .replace(/\/$/, ""),
     );
     assert.deepEqual(actual.sort(), expected.sort());
+  }
+});
+
+test("saved attempt-limit responses match the HTTP routes", async (context) => {
+  context.mock.method(Date, "now", () => 1_000);
+  const cases = [
+    ["auth/login", "POST", "/auth/login", "login", "synthetic-login", 20],
+    ["auth/register", "POST", "/auth/register", "register", "09120000001", 10],
+    [
+      "auth/forgot-password",
+      "POST",
+      "/auth/forgot-password",
+      "recovery",
+      "09120000001",
+      10,
+    ],
+    [
+      "account/verify-email",
+      "POST",
+      "/account/verify-email",
+      "verify-email",
+      "actor",
+      10,
+    ],
+    [
+      "account/request-mobile-verification",
+      "POST",
+      "/account/request-mobile-verification",
+      "mobile-change-issue",
+      "actor:actor",
+      10,
+    ],
+    [
+      "account/update-profile",
+      "PATCH",
+      "/account/update-profile",
+      "mobile-change-confirm",
+      "actor:actor",
+      10,
+    ],
+    [
+      "users/request-mobile-verification",
+      "POST",
+      "/users/target/request-mobile-verification",
+      "mobile-change-issue",
+      "actor:target",
+      10,
+    ],
+    [
+      "users/update",
+      "PATCH",
+      "/users/target",
+      "mobile-change-confirm",
+      "actor:target",
+      10,
+    ],
+  ];
+  for (const [operation, method, route, scope, identity, maximum] of cases) {
+    const dependencies = {
+      logger: createLogger({ level: "silent", pretty: false }, { write() {} }),
+      config: { allowedOrigins: [] },
+      services: {
+        settings: { getLanguageCode: async () => "en" },
+        auth: {
+          fromRequest: () => ({
+            authenticate: async () => ({
+              account: { id: "actor", isSystemAdmin: true },
+              permissions: ["users.update"],
+              session: { id: "synthetic-session" },
+            }),
+          }),
+        },
+      },
+    };
+    const context = { get: () => dependencies, header: () => {} };
+    for (let index = 0; index < maximum; index++)
+      enforceAuthAttempt(context, scope, identity, maximum);
+    const response = await createHttpApp(dependencies).request(route, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        identifier: "synthetic-login",
+        mobile: "09120000001",
+        otp: "123456",
+      }),
+    });
+    assert.equal(response.status, 429, operation);
+    assert.equal(response.headers.get("Retry-After"), "900", operation);
+    const saved = JSON.parse(
+      await readFile(path.join(root, operation, "429.json"), "utf8"),
+    );
+    assert.deepEqual(await response.json(), saved, operation);
   }
 });
 

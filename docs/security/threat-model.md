@@ -45,3 +45,10 @@ checks. Tests against synthetic local fixtures do not demonstrate protection fro
 distributed abuse, a deployed MinIO service or a production incident. See
 [authentication adapters](../auth-adapters.md), [object storage](../object-storage.md)
 and the [security review checklist](reviews.md).
+
+Production preflight, unprivileged runtime, read-only release code, durable state,
+TLS, ingress caps/rate backstops and coordinated recovery are distinct protections.
+Rate limiting is single-process backstop, not distributed abuse prevention. Real
+SMS/email delivery, distributed rate limiting, automated backups and a private
+HTTP download endpoint are not supplied by this starter. See the
+[security review guidance](reviews.md) for current responsibilities.

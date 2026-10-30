@@ -18,6 +18,18 @@ its 10,000-window capacity, new identities are rejected until space becomes
 available. Deliberate saturation can still deny service, so independent ingress
 or shared-store throttling is essential.
 
+Login is limited to 20 attempts per identity in a 15-minute window. Registration,
+OTP issuance, password recovery and email-verification confirmation are each
+limited to 10 attempts per scope and identity in the same window. Mobile-change
+code requests and confirmations are limited to 10 attempts per scope and
+actor/target pair. A PATCH containing `mobile` consumes an attempt even when the
+number is unchanged. These are process-local limits, not distributed or IP-based.
+
+The attempt limiter returns `429` with `Retry-After` in seconds. OTP issuance
+also has a separate 120-second resend cooldown; that `429` can have a different
+message and need not include `Retry-After`. Email-verification code requests use
+the OTP cooldown; the attempt limit applies to email-verification confirmation.
+
 ## Mobile number changes
 
 Mobile changes require proof of control of the **new** number before the update:
