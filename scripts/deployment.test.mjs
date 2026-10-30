@@ -90,6 +90,8 @@ test("deployment rejects placeholder credentials, development switches and ephem
     { SERVER_ALLOWED_ORIGINS: "https://kernel.test/path" },
     { SERVER_ALLOWED_ORIGINS: "" },
     { SERVER_RELEASE_ID: "../other" },
+    { SERVER_RELEASE_ID: "replace-release-id" },
+    { SERVER_RELEASE_ID: "replace-with-immutable-release-id" },
     { DATABASE_URL: "file::memory:" },
     { DATABASE_URL: "file:release/data.sqlite" },
     { LOCAL_STORAGE_PATH: "release/uploads" },
@@ -215,6 +217,8 @@ test("configuration rendering preserves nginx variables and only exposes approve
     ["API_HOST", "https://admin.kernel.test"],
     ["TLS_CERTIFICATE", "/etc/kernel/../private.key"],
     ["RELEASE_ID", "../release"],
+    ["RELEASE_ID", "replace-release-id"],
+    ["RELEASE_ID", "replace-with-immutable-release-id"],
     ["HTTPS_PORT", "0"],
   ]) {
     assert.throws(() =>
@@ -230,6 +234,40 @@ test("configuration rendering preserves nginx variables and only exposes approve
     }),
   );
   assert.throws(() => renderDeploymentTemplate("${API_HOST}", {}));
+});
+
+test("Docker gateway rejects both checked-in release placeholders", (context) => {
+  const shells =
+    process.platform === "win32"
+      ? [
+          "C:/Program Files/Git/bin/bash.exe",
+          "C:/Program Files/Git/usr/bin/bash.exe",
+        ]
+      : ["/bin/sh", "/usr/bin/sh"];
+  const shell = shells.find(
+    (candidate) =>
+      spawnSync(candidate, ["-c", "exit 0"], { stdio: "ignore" }).status === 0,
+  );
+  if (!shell) return context.skip("No usable shell found.");
+  const script = fileURLToPath(
+    new URL("../deploy/docker/15-validate-configuration.sh", import.meta.url),
+  );
+  for (const release of [
+    "replace-release-id",
+    "replace-with-immutable-release-id",
+  ]) {
+    const result = spawnSync(shell, [script], {
+      encoding: "utf8",
+      env: {
+        PATH: process.env.PATH ?? "",
+        API_HOST: "api.kernel.test",
+        HTTPS_PORT: "443",
+        RELEASE_ID: release,
+      },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /RELEASE_ID must be replaced/);
+  }
 });
 
 test("native nginx templates render with the documented public field contract", async () => {

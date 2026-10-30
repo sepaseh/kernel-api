@@ -6,6 +6,48 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { stopNativeSmokeServer } from "./native-smoke-cleanup.mjs";
 
+async function forceStopWebsiteChild(child, timeoutMs) {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+
+  await new Promise((resolve, reject) => {
+    let finished = false;
+    const finish = (error) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      child.removeListener("exit", onExit);
+      child.removeListener("error", onError);
+      if (error) {
+        // The process may report another error after the bounded wait. Keep an
+        // error listener until it exits so that error is visible, not uncaught.
+        const onLateError = (lateError) => {
+          process.stderr.write(
+            `Website API child error after stop: ${lateError}\n`,
+          );
+        };
+        child.on("error", onLateError);
+        child.once("exit", () => child.removeListener("error", onLateError));
+        reject(error);
+      } else resolve();
+    };
+    const onExit = () => finish();
+    const onError = (error) => finish(error);
+    child.once("exit", onExit);
+    child.once("error", onError);
+    const timer = setTimeout(
+      () => finish(new Error("Website API child did not exit after SIGKILL.")),
+      timeoutMs,
+    );
+    try {
+      if (child.exitCode !== null || child.signalCode !== null) finish();
+      else if (!child.kill("SIGKILL"))
+        finish(new Error("Could not force-stop the website API child."));
+    } catch (error) {
+      finish(error);
+    }
+  });
+}
+
 export async function superviseWebsiteApi(
   child,
   cleanup,
@@ -57,8 +99,13 @@ export async function superviseWebsiteApi(
         errors.push(error);
       }
     } else if (child.pid) {
-      // Preserve the fixture when the process cannot be confirmed stopped, but
-      // do not keep this wrapper alive indefinitely waiting on that process.
+      // Attempt to stop only the child we started. A successful signal does not
+      // confirm exit, so preserve the fixture and report the original failure.
+      try {
+        await forceStopWebsiteChild(child, timeoutMs);
+      } catch (error) {
+        errors.push(error);
+      }
       try {
         child.unref();
       } catch (error) {

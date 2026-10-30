@@ -4,6 +4,10 @@ import { parseArgs, parseEnv } from "node:util";
 
 const hostPattern = /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/;
 const releasePattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const placeholderReleaseIds = new Set([
+  "replace-release-id",
+  "replace-with-immutable-release-id",
+]);
 const publicNames = new Set([
   "API_HOST",
   "TLS_CERTIFICATE",
@@ -36,7 +40,11 @@ export function renderDeploymentTemplate(template, environment) {
         throw new Error(`${name} must be a bare DNS hostname.`);
       }
     } else if (name === "RELEASE_ID") {
-      if (!releasePattern.test(value) || value.includes(".."))
+      if (
+        !releasePattern.test(value) ||
+        value.includes("..") ||
+        placeholderReleaseIds.has(value)
+      )
         throw new Error("Invalid RELEASE_ID.");
     } else if (name === "HTTPS_PORT") {
       if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 65535)

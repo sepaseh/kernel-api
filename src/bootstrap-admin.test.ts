@@ -237,6 +237,10 @@ test("concurrent clients cannot provision two initial administrators", async (co
   assert.equal(credentials.length, 1);
   assert.equal(credentials[0].userId, users[0].id);
   assert.deepEqual(await first.database.select().from(session), []);
+  await assert.rejects(
+    createInitialAdmin(first.database, first.auth, input),
+    /no users/,
+  );
 });
 
 const runCli = (

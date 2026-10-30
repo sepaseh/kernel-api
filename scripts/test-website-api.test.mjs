@@ -85,7 +85,8 @@ test("uncertain stop preserves owned data and both failures", async () => {
     (error) =>
       error instanceof AggregateError &&
       error.errors[0] === failure &&
-      /Could not signal/.test(error.errors[1].message),
+      /Could not signal/.test(error.errors[1].message) &&
+      /Could not force-stop/.test(error.errors[2].message),
   );
   assert.equal(removed, false);
 });
@@ -149,10 +150,19 @@ test("a stop timeout leaves the owned fixture untouched", async () => {
   const signals = new EventEmitter();
   let removed = false;
   let unreferenced = false;
+  const sentSignals = [];
   child.unref = () => {
     unreferenced = true;
   };
-  child.kill = () => true;
+  child.kill = (signal) => {
+    sentSignals.push(signal);
+    if (signal === "SIGKILL")
+      setImmediate(() => {
+        child.signalCode = "SIGKILL";
+        child.emit("exit", null, "SIGKILL");
+      });
+    return true;
+  };
   const result = superviseWebsiteApi(
     child,
     () => {
@@ -164,6 +174,104 @@ test("a stop timeout leaves the owned fixture untouched", async () => {
   await assert.rejects(result, /did not exit/);
   assert.equal(removed, false);
   assert.equal(unreferenced, true);
+  assert.deepEqual(sentSignals, ["SIGTERM", "SIGKILL"]);
+});
+
+test("asynchronous force-stop errors are captured and fixture is preserved", async () => {
+  const child = childFixture();
+  const signals = new EventEmitter();
+  const killFailure = new Error("synthetic asynchronous kill error");
+  let removed = false;
+  child.kill = (signal) => {
+    if (signal === "SIGKILL")
+      setImmediate(() => child.emit("error", killFailure));
+    return true;
+  };
+  const result = superviseWebsiteApi(
+    child,
+    () => {
+      removed = true;
+    },
+    { signals, timeoutMs: 5 },
+  );
+  signals.emit("SIGTERM");
+  await assert.rejects(
+    result,
+    (error) =>
+      error instanceof AggregateError &&
+      /did not exit/.test(error.errors[0].message) &&
+      error.errors[1] === killFailure,
+  );
+  assert.equal(removed, false);
+});
+
+test("force-stop timeout preserves the fixture and reports later child errors", async () => {
+  const child = childFixture();
+  const signals = new EventEmitter();
+  let removed = false;
+  child.kill = () => true;
+  const result = superviseWebsiteApi(
+    child,
+    () => {
+      removed = true;
+    },
+    { signals, timeoutMs: 5 },
+  );
+  signals.emit("SIGTERM");
+  await assert.rejects(
+    result,
+    (error) =>
+      error instanceof AggregateError &&
+      /SIGTERM/.test(error.errors[0].message) &&
+      /SIGKILL/.test(error.errors[1].message),
+  );
+  assert.equal(removed, false);
+  const previousWrite = process.stderr.write;
+  let message = "";
+  process.stderr.write = (value) => {
+    message += value;
+    return true;
+  };
+  try {
+    child.emit("error", new Error("synthetic late child error"));
+  } finally {
+    process.stderr.write = previousWrite;
+  }
+  assert.match(message, /synthetic late child error/);
+  child.emit("exit", null, "SIGKILL");
+  assert.equal(child.listenerCount("error"), 0);
+});
+
+test("force-stop errors and unref errors are both preserved", async () => {
+  const child = childFixture();
+  const signals = new EventEmitter();
+  const killFailure = new Error("synthetic force-stop error");
+  const unrefFailure = new Error("synthetic unref error");
+  let removed = false;
+  child.kill = (signal) => {
+    if (signal === "SIGKILL") throw killFailure;
+    return true;
+  };
+  child.unref = () => {
+    throw unrefFailure;
+  };
+  const result = superviseWebsiteApi(
+    child,
+    () => {
+      removed = true;
+    },
+    { signals, timeoutMs: 5 },
+  );
+  signals.emit("SIGTERM");
+  await assert.rejects(
+    result,
+    (error) =>
+      error instanceof AggregateError &&
+      /did not exit/.test(error.errors[0].message) &&
+      error.errors[1] === killFailure &&
+      error.errors[2] === unrefFailure,
+  );
+  assert.equal(removed, false);
 });
 
 test("an unexpected child signal is not reported as a successful stop", async () => {
@@ -207,7 +315,7 @@ test("a real synthetic child exits before fixture cleanup", async () => {
   assert.equal(removed, true);
 });
 
-test("an unconfirmed real child is unreferenced and explicitly reaped by the test", async () => {
+test("a real synthetic child is force-stopped when graceful stop fails", async () => {
   const child = spawn(
     process.execPath,
     ["--eval", "setInterval(() => {}, 1000)"],
@@ -227,7 +335,7 @@ test("an unconfirmed real child is unreferenced and explicitly reaped by the tes
   const signals = new EventEmitter();
   let unreferenced = false;
   let removed = false;
-  child.kill = () => true;
+  child.kill = (signal) => (signal === "SIGTERM" ? false : realKill(signal));
   child.unref = () => {
     unreferenced = true;
     return realUnref();
@@ -248,14 +356,16 @@ test("an unconfirmed real child is unreferenced and explicitly reaped by the tes
       () => {
         removed = true;
       },
-      { signals, timeoutMs: 10 },
+      { signals, timeoutMs: 5000 },
     );
     signals.emit("SIGTERM");
-    await assert.rejects(result, /did not exit/);
+    await assert.rejects(result, /Could not signal/);
+    await exited;
     assert.equal(unreferenced, true);
     assert.equal(removed, false);
   } finally {
-    realKill("SIGKILL");
+    if (child.exitCode === null && child.signalCode === null)
+      realKill("SIGKILL");
     await exited;
   }
 });

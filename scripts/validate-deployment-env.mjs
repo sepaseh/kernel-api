@@ -3,6 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const releasePattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const placeholderReleaseIds = new Set([
+  "replace-release-id",
+  "replace-with-immutable-release-id",
+]);
 const loopback = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const scriptRoot = fileURLToPath(new URL("../", import.meta.url));
 const defaultReleaseRoot = existsSync(
@@ -146,7 +150,11 @@ export function validateDeploymentEnv(
   if (!origins?.trim()) throw new Error("SERVER_ALLOWED_ORIGINS is required.");
   for (const origin of origins.split(",")) validateOrigin(origin.trim());
   const release = requireValue(environment, "SERVER_RELEASE_ID");
-  if (!releasePattern.test(release) || release.includes("..")) {
+  if (
+    !releasePattern.test(release) ||
+    release.includes("..") ||
+    placeholderReleaseIds.has(release)
+  ) {
     throw new Error(
       "SERVER_RELEASE_ID is not a valid immutable release identifier.",
     );
