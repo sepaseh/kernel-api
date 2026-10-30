@@ -25,6 +25,7 @@ codes resolve to English for translation and Content-Language without rewriting 
 the public settings DTO still rejects invalid language. System-administrator repair is
 separate. The website's explicit-error policy belongs to its own HTTP consumer.
 
-Run the relevant localization and application/HTTP tests and typecheck for a locale change.
+Run relevant localization and application/HTTP tests and typecheck for a locale change.
+`npm run test:i18n` is a focused check and does not replace the full profile.
 Each repository owns its messages independently; assess public wire compatibility when
 releasing changes. See [Localization](../../docs/localization.md).

@@ -120,9 +120,10 @@ user payload text cannot mask unrelated database failures.
 Run `npm run validate -- full` for the complete current-phase gate. Actual LCOV
 comes from this checkout's tests; do not treat these local SQLite results as
 remote database, production rollout, HTTP, OTP delivery or complete authentication
-runtime evidence. Database initialization, optional development seeding, initial
-administrator provisioning and the local server entry point are published;
-Drizzle generation tooling is not. Do not run migrations on existing data without explicit
+runtime evidence. Database initialization, optional development seeding, initial administrator
+provisioning and the local server entry point are part of this project. Drizzle
+generation tooling is available for reviewing migration changes. Do not run
+migrations on existing data without explicit
 authorization and a verified matching backup.
 
 See [architecture](architecture.md), [publication gate](bootstrap.md) and

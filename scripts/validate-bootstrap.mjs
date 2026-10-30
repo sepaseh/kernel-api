@@ -334,6 +334,10 @@ const collectionFiles = new Set([
   "collection/users/update/index.bru",
 ]);
 const operationsFiles = new Set([
+  "deploy/docker/api.env.example",
+  "deploy/docker/hosts.env.example",
+  "deploy/native/api.env.example",
+  "deploy/native/hosts.env.example",
   ".dockerignore",
   ".github/workflows/staging.yml",
   ".github/workflows/deployment-smoke.yml",
@@ -436,6 +440,28 @@ const guidanceFiles = [
 ];
 
 const localRuntimeFiles = [
+  ".agents/hooks/block-dangerous.mjs",
+  ".agents/hooks/block-dangerous.sh",
+  ".agents/hooks/post-edit-format.sh",
+  ".agents/hooks/quality-gate.sh",
+  ".github/CODEOWNERS",
+  ".github/dependabot.yml",
+  ".github/workflows/codeql.yml",
+  ".github/workflows/release.yml",
+  ".release-please-manifest.json",
+  "CHANGELOG.fa.md",
+  "CHANGELOG.md",
+  "CLAUDE.md",
+  "compose.yaml",
+  "drizzle.config.ts",
+  "knip.json",
+  "release-please-config.json",
+  "scripts/ai-hooks.portable.test.mjs",
+  "scripts/test-website-api.mjs",
+  "scripts/test-website-api.test.mjs",
+  "src/auth-invariants.test.ts",
+  "src/bootstrap-admin.test.ts",
+  "src/drizzle-toolchain.test.ts",
   ...guidanceFiles,
   ...operationsFiles,
   ...collectionFiles,
@@ -550,7 +576,7 @@ export const validateBootstrapPolicy = (policy) => {
           "local-runtime",
         ].includes(policy.phase) ||
           !databaseFiles.includes(file))) ||
-      file === "drizzle.config.ts" ||
+      (file === "drizzle.config.ts" && policy.phase !== "local-runtime") ||
       (file.startsWith("src/") && !isPublishedSource(file, policy.phase)) ||
       (policy.phase === "governance" &&
         /^package(?:-lock)?\.json$/.test(file)) ||

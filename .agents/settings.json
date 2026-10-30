@@ -28,7 +28,12 @@
     ".agents/skills/start-issue/SKILL.md",
     ".agents/skills/validate-change/SKILL.md"
   ],
-  "optionalHooks": [],
+  "optionalHooks": [
+    ".agents/hooks/block-dangerous.mjs",
+    ".agents/hooks/block-dangerous.sh",
+    ".agents/hooks/post-edit-format.sh",
+    ".agents/hooks/quality-gate.sh"
+  ],
   "recommendedChecks": [
     "npm run check:snapshot",
     "npm run check:ci",

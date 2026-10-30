@@ -19,9 +19,21 @@ API پروژه‌ای مستقل است؛ کد اجرایی آن را به check
 
 ## سازگاری وابستگی‌ها
 
-نسخهٔ اصلی Node.js و `@types/node` را یکسان نگه دارید. بازهٔ فعلی peer برای
-`typescript-eslint` از TypeScript `>=4.8.4 <6.1.0` پشتیبانی می‌کند؛ هنگام
-به‌روزرسانی [بازهٔ بالادستی](https://typescript-eslint.io/users/dependency-versions/)
-را بررسی کنید. `better-auth`، `@better-auth/drizzle-adapter` و override مربوط
-به `@better-auth/core` را با هم به‌روز، lockfile را تازه و پروفایل کامل را اجرا
-کنید. ناسازگاری درخت وابستگی را با `--force` یا `--legacy-peer-deps` پنهان نکنید.
+هنگام تغییر زنجیرهٔ ابزار یا وابستگی‌های آن، Drizzle Kit و override محدود
+esbuild را بازبینی و اعتبارسنجی کنید. Knip فایل `drizzle.config.ts` و schema را
+نقطهٔ ورود ایستا می‌داند؛ plugin مربوط به Drizzle غیرفعال است و موفقیت Knip
+کشف وابستگی‌ها توسط آن plugin را تأیید نمی‌کند.
+
+نسخهٔ اصلی Node.js 24 و `@types/node` باید یکسان باشد. تا زمانی که نسخهٔ نصب‌شدهٔ
+`typescript-eslint` فقط بازهٔ `>=4.8.4 <6.1.0` را پشتیبانی می‌کند، TypeScript روی
+یک نسخهٔ سازگار 6.0 می‌ماند؛ محدودیت سازگاری را برای نصب TypeScript 7 نادیده نگیرید.
+پیش از تغییر این محدودیت، [بازهٔ پشتیبانی رسمی](https://typescript-eslint.io/users/dependency-versions/)
+را بررسی کنید.
+
+`better-auth`، `@better-auth/drizzle-adapter` و override مربوط به `@better-auth/core`
+را با هم به‌روز کنید. override محدود esbuild برای بارگذار قدیمی Drizzle Kit باید
+حفظ شود و سازگاری و امنیت زنجیرهٔ ابزار بررسی شود؛ نسخهٔ همهٔ مصرف‌کنندگان
+esbuild را به‌اجبار یکسان نکنید. از نسخه‌های
+پایدار استفاده کنید، lockfile را تازه کنید و پس از به‌روزرسانی وابستگی‌ها، پروفایل
+کامل اعتبارسنجی را اجرا کنید. ناسازگاری درخت وابستگی را با `--force` یا
+`--legacy-peer-deps` پنهان نکنید.

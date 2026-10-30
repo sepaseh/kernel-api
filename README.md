@@ -2,6 +2,11 @@
 
 [English](README.md) · [فارسی](README.fa.md)
 
+The working tree may also contain unpublished development and deployment material.
+The [development guide](docs/development.md), [deployment guide](docs/deployment.md),
+[backup and recovery guide](docs/backup-restore.md) and [documentation map](docs/README.md)
+may describe local work; they do not establish deployed-service readiness.
+
 Kernel API is a standalone TypeScript project. The current
 **local-runtime** phase provides contracts, application services,
 feature ports, ten API catalogs, configuration, translation and logging support,

@@ -4,9 +4,10 @@
 
 A release owner approves immutable artifacts, checks evidence and records source,
 lockfile, platform, checksum, public origins, configuration references and migration
-level. An authorized deployment operator activates the approved artifact. Automation
-for release metadata or PRs requires separate configuration and is not included or
-validated in this snapshot; it must not deploy infrastructure.
+level. An authorized deployment operator activates the approved artifact. The
+manually dispatched release metadata workflow requires appropriate remote
+configuration and verification; it must not deploy infrastructure. See
+[manual release metadata](releasing.md).
 Independent admin/website releases must remain compatible with the API wire contract.
 Local catalogs and contracts are intentionally independent; no registry or mandatory
 cross-repository translation synchronization is assumed.

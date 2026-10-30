@@ -1,12 +1,20 @@
-# مرزهای اجرای API
+# اجرای API
 
 [English](api-runtime.md) · [فارسی](api-runtime.fa.md)
 
-این API مستقل، مسیرهای HTTP، سرویس‌های مستقل از چارچوب و آداپتورهای زیرساخت
-را در یک checkout ترکیب می‌کند. پایگاه داده، احراز هویت و ذخیره‌سازی متعلق به
-API هستند و کلاینت‌ها از HTTP استفاده می‌کنند. [معماری](architecture.fa.md)،
+این پروژهٔ مستقل مالک presentation در Hono، سرویس و پورت application مستقل از فریم‌ورک،
+adapterهای persistence/auth/storage، اتصال دستی و migrationهای بازبینی‌شدهٔ SQL است.
+Node.js 24 فایل src/index.ts را مستقیم اجرا می‌کند. src/bootstrap-admin.ts دستور جداگانه و
+صریح بهره‌بردار است و drizzle/ migrationهای بازبینی‌شدهٔ شروع برنامه را نگه می‌دارد.
+
+کلاینت‌ها از HTTP استفاده می‌کنند. [معماری](architecture.fa.md)،
 [انتقال HTTP](http-transport.fa.md) و [محدودیت‌های پایگاه داده](database-schema.fa.md)
 را ببینید.
+
+[راه‌اندازی مخزن](../README.fa.md)، [نقشهٔ سورس](source-navigation.fa.md)،
+[قاعدهٔ بکند](../.agents/rules/backend.md) و [سیاست اعتبارسنجی](validation.fa.md) را بخوانید.
+مسیر نسبی دادهٔ توسعه نسبت به همین مخزن حل می‌شود؛ دادهٔ production باید بیرون release
+تغییرناپذیر باشد.
 
 تا تکمیل مقداردهی، listener پاسخ 503 می‌دهد. آزمون‌های اجرای محلی از دادهٔ
 مصنوعی استفاده می‌کنند و اثبات آمادگی تولید یا ارسال واقعی OTP نیستند. استقرار
