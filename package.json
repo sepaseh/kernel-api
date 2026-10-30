@@ -27,7 +27,7 @@
     "server:test": "npm run test:coverage",
     "test:i18n": "node --test src/catalogs.test.ts",
     "test:tooling": "node --test scripts/check-ci.test.mjs scripts/check-pr-size.test.mjs scripts/validate-bootstrap.test.mjs scripts/collection.test.mjs scripts/http-upload-loopback.test.mjs scripts/runtime-integration.test.mjs scripts/runtime-seed.test.mjs scripts/auth-bootstrap-integration.test.mjs && vitest run scripts/run-audit.test.mjs scripts/validate-workflow-targets.test.mjs",
-    "test:fixture:website": "node scripts/test-website-api.mjs",
+    "test:fixture:website": "node scripts/website-api-runner.mjs",
     "server:generate": "node node_modules/drizzle-kit/bin.cjs generate --config=drizzle.config.ts",
     "server:migrate": "node node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.config.ts",
     "server:bootstrap": "node src/bootstrap-admin.ts",

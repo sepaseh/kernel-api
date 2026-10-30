@@ -402,7 +402,7 @@
     "scripts/runtime-integration.test.mjs",
     "scripts/runtime-seed.test.mjs",
     "scripts/test-native-release.mjs",
-    "scripts/test-website-api.mjs",
+    "scripts/website-api-runner.mjs",
     "scripts/test-website-api.test.mjs",
     "scripts/validate-bootstrap.mjs",
     "scripts/validate-bootstrap.test.mjs",

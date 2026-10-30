@@ -1,9 +1,40 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { EventEmitter } from "node:events";
+import { EventEmitter, once } from "node:events";
+import { mkdtemp, readdir, rmdir, unlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { superviseWebsiteApi } from "./test-website-api.mjs";
+import {
+  createWebsiteTestEnvironment,
+  superviseWebsiteApi,
+} from "./website-api-runner.mjs";
+
+test("child environment uses its owned fixture instead of inherited temporary paths", () => {
+  const environment = createWebsiteTestEnvironment("/isolated/owned-fixture", {
+    PATH: "synthetic-path",
+    SystemRoot: "synthetic-system-root",
+    TEMP: "/shared/unsafe-temp",
+    TMP: "/shared/unsafe-tmp",
+    SECRET: "must-not-be-inherited",
+  });
+  assert.equal(environment.TEMP, "/isolated/owned-fixture");
+  assert.equal(environment.TMP, "/isolated/owned-fixture");
+  assert.equal(environment.PATH, "synthetic-path");
+  assert.equal(environment.SystemRoot, "synthetic-system-root");
+  assert.equal(Object.hasOwn(environment, "SECRET"), false);
+});
+
+test("child environment supports a minimal parent environment", () => {
+  const environment = createWebsiteTestEnvironment(
+    "/isolated/owned-fixture",
+    {},
+  );
+  assert.equal(environment.PATH, "");
+  assert.equal(Object.hasOwn(environment, "SystemRoot"), false);
+});
 
 function childFixture() {
   const child = new EventEmitter();
@@ -226,5 +257,70 @@ test("an unconfirmed real child is unreferenced and explicitly reaped by the tes
   } finally {
     realKill("SIGKILL");
     await exited;
+  }
+});
+
+test("CLI supervises a synthetic child and removes its owned fixture", async () => {
+  const parent = await mkdtemp(path.join(tmpdir(), "kernel-website-cli-test-"));
+  const preload = path.join(parent, "preload.mjs");
+  try {
+    await writeFile(
+      preload,
+      `
+      import childProcess from "node:child_process";
+      import { EventEmitter } from "node:events";
+      import { syncBuiltinESMExports } from "node:module";
+      childProcess.spawn = (executable, args, options) => {
+        if (executable !== process.execPath || args[0] !== "src/index.ts" ||
+            options.env.NODE_ENV !== "test" || options.env.STORAGE_DRIVER !== "local" ||
+            options.env.TEMP !== options.env.TMP ||
+            !options.env.DATABASE_URL.includes("test.sqlite") ||
+            options.env.CLI_TEST_SECRET !== undefined) {
+          throw new Error("Unexpected synthetic child configuration");
+        }
+        const child = new EventEmitter();
+        child.exitCode = 0;
+        child.signalCode = null;
+        setImmediate(() => child.emit("exit", 0, null));
+        return child;
+      };
+      syncBuiltinESMExports();
+    `,
+    );
+    const child = spawn(
+      process.execPath,
+      [
+        "--import",
+        pathToFileURL(preload).href,
+        fileURLToPath(new URL("./website-api-runner.mjs", import.meta.url)),
+      ],
+      {
+        env: {
+          NODE_V8_COVERAGE: process.env.NODE_V8_COVERAGE,
+          PATH: process.env.PATH ?? "",
+          ...(process.env.SystemRoot
+            ? { SystemRoot: process.env.SystemRoot }
+            : {}),
+          TEMP: parent,
+          TMP: parent,
+          TMPDIR: parent,
+          CLI_TEST_SECRET: "do-not-inherit",
+        },
+        stdio: "ignore",
+        windowsHide: true,
+      },
+    );
+    const timeout = setTimeout(() => child.kill(), 10_000);
+    try {
+      const [code, signal] = await once(child, "exit");
+      assert.equal(signal, null);
+      assert.equal(code, 0);
+    } finally {
+      clearTimeout(timeout);
+    }
+    assert.deepEqual(await readdir(parent), ["preload.mjs"]);
+  } finally {
+    await unlink(preload);
+    await rmdir(parent);
   }
 });

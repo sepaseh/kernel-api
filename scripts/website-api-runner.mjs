@@ -79,15 +79,10 @@ export async function superviseWebsiteApi(
   }
 }
 
-async function main() {
-  const repository = fileURLToPath(new URL("../", import.meta.url));
-  const temporaryParent = path.resolve(tmpdir());
-  const directory = await mkdtemp(
-    path.join(temporaryParent, "kernel-website-e2e-"),
-  );
+export function createWebsiteTestEnvironment(directory, parentEnvironment) {
   const apiOrigin = "http://127.0.0.1:3100";
   const websiteOrigin = "http://127.0.0.1:3101";
-  const environment = {
+  return {
     BETTER_AUTH_SECRET:
       "website-e2e-synthetic-secret-at-least-thirty-two-characters",
     BETTER_AUTH_URL: apiOrigin,
@@ -98,7 +93,7 @@ async function main() {
     NODE_ENV: "test",
     NODE_V8_COVERAGE: undefined,
     OTP_FIXED_CODE: "123456",
-    PATH: process.env.PATH ?? "",
+    PATH: parentEnvironment.PATH ?? "",
     PORT: "3100",
     SERVER_ALLOWED_ORIGIN: websiteOrigin,
     SERVER_ALLOWED_ORIGINS: websiteOrigin,
@@ -106,10 +101,21 @@ async function main() {
     SERVER_RELEASE_ID: "website-e2e",
     SERVER_SEED_DEVELOPMENT_DATA: "true",
     STORAGE_DRIVER: "local",
-    ...(process.env.SystemRoot ? { SystemRoot: process.env.SystemRoot } : {}),
-    ...(process.env.TEMP ? { TEMP: process.env.TEMP } : {}),
-    ...(process.env.TMP ? { TMP: process.env.TMP } : {}),
+    ...(parentEnvironment.SystemRoot
+      ? { SystemRoot: parentEnvironment.SystemRoot }
+      : {}),
+    TEMP: directory,
+    TMP: directory,
   };
+}
+
+async function main() {
+  const repository = fileURLToPath(new URL("../", import.meta.url));
+  const temporaryParent = path.resolve(tmpdir());
+  const directory = await mkdtemp(
+    path.join(temporaryParent, "kernel-website-e2e-"),
+  );
+  const environment = createWebsiteTestEnvironment(directory, process.env);
   const child = spawn(process.execPath, ["src/index.ts"], {
     cwd: repository,
     env: environment,
@@ -147,8 +153,10 @@ if (
   process.argv[1] &&
   pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url
 ) {
-  main().catch((error) => {
+  try {
+    await main();
+  } catch (error) {
     console.error("The isolated website API failed:", error);
     process.exitCode = 1;
-  });
+  }
 }

@@ -528,7 +528,7 @@ const localRuntimeFiles = [
   "knip.json",
   "release-please-config.json",
   "scripts/ai-hooks.portable.test.mjs",
-  "scripts/test-website-api.mjs",
+  "scripts/website-api-runner.mjs",
   "scripts/test-website-api.test.mjs",
   "src/auth-invariants.test.ts",
   "src/bootstrap-admin.test.ts",
