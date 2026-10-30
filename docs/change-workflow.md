@@ -38,3 +38,5 @@ Include transaction, session, privacy or recovery scenarios when relevant. Keep
 backend behavior in its owning API and coordinate incompatible HTTP changes with
 consumers. Use the validation manifest rather than copying a separate list of
 required checks, and update the English and Persian documentation together.
+
+For changes to deletion, status or relationships, consult the [data lifecycle rule](../.agents/rules/data-lifecycle.md) and record how the owning transaction protects dependent records. For an API-backed client screen, use the [client screen contract handoff](collection-guide.md#client-screen-contract-handoff) to separate existing behavior from proposed contract changes.

@@ -16,3 +16,5 @@ service, production OTP delivery, or a successful remote review.
 Docker and native deployment smoke commands are explicit opt-in checks; the full
 profile does not run them. Use the [deployment guide](deployment.md) and report the
 actual platform and outcome rather than assuming a service manager was exercised.
+
+The snapshot check validates the published file inventory, including collection examples and fixture tests. Additional local files are not automatically part of the proposed snapshot; validate the exact intended contents rather than interpreting an ambient working-tree run as evidence for a different commit.

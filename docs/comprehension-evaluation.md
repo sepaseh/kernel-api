@@ -16,3 +16,5 @@ Use the current [task map](../.agents/navigation.json) and
 [validation manifest](../.agents/validation.json); a listed check must actually be
 run before its outcome is reported. Do not claim production OTP delivery or an
 operator backup was performed based on these cases.
+
+When evaluating instruction discovery, record separately what the host supplied automatically and what the reviewer opened later. Mark discovery as unknown when it cannot be observed; a correct answer or a passing guidance check alone does not establish automatic loading.

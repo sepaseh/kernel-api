@@ -50,3 +50,5 @@ Checks not run or unavailable:
 After a fix, repeat the relevant conditions and run the checks in the canonical
 [validation policy](validation.md). Distinguish observed results from proposed
 work and report any cleanup failure; this record does not waive a required check.
+
+Recovery drills retain worker and cleanup failures together. Native-smoke cleanup reports failures from independently owned resources and keeps them when server shutdown cannot be confirmed. These failure-path tests use synthetic fixtures; they do not establish why a previous Windows file lock occurred.

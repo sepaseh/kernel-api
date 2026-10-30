@@ -15,3 +15,5 @@ dependent records. See [database constraints](database-schema.md) and
 Add focused tests for behavior and relevant failure paths, using disposable
 fixtures. Update English and Persian human documentation together and run the
 required [validation](validation.md) before an authorized handoff.
+
+For an API-backed client screen, complete the [client screen contract handoff](collection-guide.md#client-screen-contract-handoff) using existing routes, permissions and response examples. Record any proposed contract gap separately and coordinate incompatible HTTP changes with the consuming application.
