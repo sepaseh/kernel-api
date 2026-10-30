@@ -20,10 +20,15 @@ Never delete resources belonging to another project during cleanup.
 
 The collection tests exercise eight authentication rate-limit responses against the saved examples with a controlled clock. They verify `Retry-After` on the in-process limiter; they do not establish distributed rate limiting or production readiness.
 
-The opt-in native smoke installs production-only dependencies in an owned
-release, bootstraps a temporary database and checks health and login against
-the packaged server. It tests the current host platform, not a Linux service
-manager on Windows. Docker smoke uses a per-run builder and removes its owned
-images, cache and fixtures on success, failure or handled cancellation; cleanup
-failures fail the command. See the [Docker cleanup policy](../deploy/docker/README.md)
-and the dated [QA records](qa/README.md) for observed results and limits.
+Use canonical `.agents/validation.json` profiles; no duplicate full checklist belongs
+in prose. All fixtures are synthetic and disposable. `test:deploy:native` installs
+production-only dependencies in a newly packaged release, bootstraps a TEMP DB and
+checks health/login from the packaged release without developer env. It validates Node
+runtime payload on the current platform; it is not evidence systemd or Linux Nginx
+ran on Windows. Docker smoke requires the explicit local Linux engine. It owns an
+isolated per-run builder so its build cache is removed with its images and other
+fixtures after success/failure or handled cancellation; cleanup failures fail the
+command. Deployment regressions cover partial build/create failure, name collisions,
+SIGINT/SIGTERM and continued cleanup after a removal error. Follow the scoped
+[Docker cleanup policy](../deploy/docker/README.md) for manual local tests too.
+[QA](qa/README.md) records dated validation outcomes and their limits.

@@ -1,45 +1,11 @@
-# Planning an API change
+# Change handoff and implementation plan
 
 [English](change-workflow.md) · [فارسی](change-workflow.fa.md)
 
-Record the requested behavior, repository owner, affected clients and observable
-acceptance cases. Read the relevant contract, service, adapter and tests using
-[source navigation](source-navigation.md). Preserve existing local changes and
-exclude real credentials and private state from test fixtures.
-
-Describe invalid input, authorization, data consistency and compatibility where
-relevant. Identify migrations or rollout dependencies before implementation, then
-run focused checks and the required [full validation](validation.md) before an
-authorized handoff. Do not claim execution or remote approval that did not occur.
-
-## Change record
-
-Use this record to connect the request to its implementation and verification.
-Keep completed records with the local task or an authorized issue or PR; examples
-and unexecuted checks are not evidence of completion.
-
-```text
-Request, source and date:
-Required behavior and explicit exclusions:
-Owning repository and affected consumers:
-Baseline and source scope, including existing local changes:
-Acceptance scenario: trigger, observable result and verification:
-Invalid, stale or unauthorized input and expected result:
-Dependencies and operator decisions:
-Implementation steps and owning files:
-Data, migration and HTTP compatibility; rollout and rollback:
-Synthetic fixtures and cleanup:
-Relevant check IDs or profile from .agents/validation.json:
-Observed results, failures and checks not run:
-Remaining work and owner:
-```
-
-Include transaction, session, privacy or recovery scenarios when relevant. Keep
-backend behavior in its owning API and coordinate incompatible HTTP changes with
-consumers. Use the validation manifest rather than copying a separate list of
-required checks, and update the English and Persian documentation together.
-
-For changes to deletion, status or relationships, consult the [data lifecycle rule](../.agents/rules/data-lifecycle.md) and record how the owning transaction protects dependent records. For an API-backed client screen, use the [client screen contract handoff](collection-guide.md#client-screen-contract-handoff) to separate existing behavior from proposed contract changes.
+Use this handoff for a feature, defect or operational change. It does not add an AI
+runtime or require a particular assistant. Keep the filled record with the issue,
+PR or local task evidence; creating remote issues or sending messages requires
+the owner's authorization.
 
 ## Establish the change contract
 
@@ -55,3 +21,40 @@ For changes to deletion, status or relationships, consult the [data lifecycle ru
 - Write numbered acceptance scenarios before editing: trigger, observable result,
   failure/authorization boundary and verification evidence. Cover relevant session
   races, language/cache/privacy, transactions or recovery as part of that scenario.
+
+## Reusable task record
+
+Copy and fill this record; do not retain example placeholders as completed evidence.
+
+```text
+Request/source/date:
+Required items and explicit exclusions:
+Owner and affected consumers:
+Baseline / changed source scope:
+R1: Given ... when ... then ...; verify with ...
+R2: Invalid/stale/unauthorized ... must ...; verify with ...
+Dependencies or operator decisions still needed:
+Implementation steps (small, ordered, with owning files):
+Data/migration/contract compatibility and rollback:
+Synthetic fixtures, resources and cleanup:
+Validation IDs/profile from .agents/validation.json:
+Manual checks / external services not run:
+Observed results, failures and skips:
+Remaining recommendations and owner:
+```
+
+Prefer the smallest coherent implementation. Keep backend behavior in its owning
+API, frontend presentation in its app, and product/provider integrations conditional
+on an actual requirement. Add a short ADR when a durable architectural decision
+changes. Update the matching English/Persian explanation in the same change.
+
+Use the canonical [validation policy](validation.md) for commands rather than
+copying another full gate. Report implemented code, configured workflows, executed
+tests and unexecuted manual checks separately. Review failures using
+[test reliability](test-reliability.md). Do not claim a manual screen-reader review,
+hosted CI, production recovery or an assistant benchmark from source inspection.
+Commit, push and production access retain their existing authorization boundaries.
+Run the focused checks and the required full validation before an authorized
+handoff, and do not claim remote approval that did not occur.
+
+For changes to deletion, status or relationships, consult the [data lifecycle rule](../.agents/rules/data-lifecycle.md) and record how the owning transaction protects dependent records. For an API-backed client screen, use the [client screen contract handoff](collection-guide.md#client-screen-contract-handoff) to separate existing behavior from proposed contract changes.

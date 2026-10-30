@@ -53,8 +53,25 @@ work and report any cleanup failure; this record does not waive a required check
 
 Recovery drills retain worker and cleanup failures together. Native-smoke cleanup reports failures from independently owned resources and keeps them when server shutdown cannot be confirmed. These failure-path tests use synthetic fixtures; they do not establish why a previous Windows file lock occurred.
 
-Prefer deterministic readiness and isolated state over arbitrary delays or
-repeated reruns. Do not hide a required failure with retries or
-`continue-on-error`; record the first failure and any diagnostic rerun. Clean
-only owned servers, temporary data and Docker resources as described in the
-[Docker cleanup policy](../deploy/docker/README.md).
+Prefer deterministic readiness and isolated state; avoid arbitrary sleeps, wider
+visual thresholds and repeated reruns until green. Do not add hidden retries,
+skip a failing required case, use continue-on-error or update screenshots to hide
+a product defect. Existing CI retries may diagnose a failure; the first failure
+and retry outcome still belong in the record.
+
+The following quarantine practice is a proposal requiring owner approval, not an
+implemented exception to a required check. An exceptional quarantine would need
+a named owner, reproducible evidence, an exact
+bounded case, a review date and expiry no later than seven calendar days after
+approval. It must retain meaningful alternative coverage and follow the existing
+gate/authorization policy. Documentation alone does not waive a required check.
+Expired or ownerless exceptions block claiming readiness until fixed or explicitly
+resolved. Security, authorization, session isolation, data loss and restore failures
+remain blocking unless the owner explicitly changes the requirement.
+
+Local tests must stop their owned servers and clean their owned ports and TEMP
+state only after server shutdown is confirmed. If shutdown cannot be confirmed,
+report the cleanup failure and retain the owned resources for diagnosis. Docker tests
+use the [disposable lifecycle](../deploy/docker/README.md), including exact test
+images and dedicated builder/cache on success, failure or handled interruption.
+Do not prune another project's resources as a routine test cleanup.

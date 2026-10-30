@@ -405,6 +405,10 @@ const collectionFiles = [
   "collection/users/update/index.bru",
 ];
 const operationsFiles = [
+  "deploy/docker/api.env.example",
+  "deploy/docker/hosts.env.example",
+  "deploy/native/api.env.example",
+  "deploy/native/hosts.env.example",
   ".dockerignore",
   ".github/workflows/staging.yml",
   ".github/workflows/deployment-smoke.yml",
@@ -507,6 +511,28 @@ const guidanceFiles = [
 ];
 
 const localRuntimeFiles = [
+  ".agents/hooks/block-dangerous.mjs",
+  ".agents/hooks/block-dangerous.sh",
+  ".agents/hooks/post-edit-format.sh",
+  ".agents/hooks/quality-gate.sh",
+  ".github/CODEOWNERS",
+  ".github/dependabot.yml",
+  ".github/workflows/codeql.yml",
+  ".github/workflows/release.yml",
+  ".release-please-manifest.json",
+  "CHANGELOG.fa.md",
+  "CHANGELOG.md",
+  "CLAUDE.md",
+  "compose.yaml",
+  "drizzle.config.ts",
+  "knip.json",
+  "release-please-config.json",
+  "scripts/ai-hooks.portable.test.mjs",
+  "scripts/website-api-runner.mjs",
+  "scripts/test-website-api.test.mjs",
+  "src/auth-invariants.test.ts",
+  "src/bootstrap-admin.test.ts",
+  "src/drizzle-toolchain.test.ts",
   ...guidanceFiles,
   ...operationsFiles,
   ...collectionFiles,
@@ -558,6 +584,10 @@ test("local runtime requires server, composition and independent lifecycle tests
   for (const file of [
     "deploy/unreviewed.sh",
     "deploy/docker/.env.local",
+    "deploy/docker/.env.example",
+    "deploy/docker/other.env.example",
+    "deploy/docker/api.env",
+    ".env.example",
     "collection/environments/development.bru",
     "collection/auth/unreviewed/index.bru",
   ])

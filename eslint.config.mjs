@@ -10,6 +10,7 @@ export default [
       "**/coverage/**",
       "**/dist/**",
       "**/reports/**",
+      "collection/environments/**",
       "server/data/**",
     ],
   },

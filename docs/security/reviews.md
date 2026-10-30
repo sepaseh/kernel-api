@@ -25,3 +25,11 @@ without explicit authorization for the target. See [staging](../staging.md)
 for prerequisites. Use synthetic credentials and data for local tests; do not
 read real credentials or use production data. Local and synthetic tests do not
 prove that a production deployment or third-party security review has occurred.
+
+The following is a proposed review practice, not an established release policy:
+review trust-boundary changes against the threat model and auth/session changes
+against the checklist, and arrange qualified human review before production launch.
+Triage findings by exploitability, exposure and release impact; assign owner and
+deadline. Under the proposal, critical/actively exploited issues block deployment;
+high issues require remediation or an explicit time-limited owner exception with
+compensating controls. Adoption and exception authority require owner approval.

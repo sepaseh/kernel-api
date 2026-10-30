@@ -7,7 +7,8 @@ Run the smallest check that covers the files you changed, then broaden before ha
 - Typecheck: `npm run typecheck`
 - Lint: `npm run lint`
 - Static API build check: `npm run typecheck` (TypeScript validation without emitted artifacts)
-- Review unused exports and dependencies against the published snapshot.
+- Use `npm run knip` as an optional aid when reviewing unused exports and
+  dependencies; it does not replace the full validation profile.
 
 For docs-only tasks, run `npm run format:check` and validate links and referenced
 commands. Code-only checks such as lint, typecheck, and Knip are unnecessary
@@ -77,4 +78,5 @@ files or reorder independent-looking work without checking dependencies.
 ## No unused code
 
 - Remove unused files, exports, dependencies, translations, and routes.
-- Verify cleanup using the available checks in the validation manifest.
+- Verify cleanup using the available checks in the validation manifest. The optional
+  `npm run knip` does not replace the full profile.

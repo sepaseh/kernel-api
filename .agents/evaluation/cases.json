@@ -4,49 +4,96 @@
     {
       "id": "session-lifecycle",
       "prompt": {
-        "en": "Without editing, trace login, password recovery and session revocation in this API using local evidence."
+        "en": "Without editing, trace API login, refresh, logout, password change and recovery. Explain opaque-session semantics, transaction revocation and native cookie handling using local evidence and tests."
       },
       "taskIds": ["auth-session"],
       "evidence": [
         "src/application/auth.ts",
         "src/infrastructure/persistence/auth.ts",
-        "scripts/auth-bootstrap-integration.test.mjs"
+        "scripts/auth-bootstrap-integration.test.mjs",
+        "src/infrastructure/auth/gateway.ts",
+        "src/app.test.ts",
+        "src/auth-application.test.ts"
       ],
       "mustExplain": [
         "Identify public authentication flows and the checks for protected operations.",
-        "Distinguish session revocation from client-side refresh failures."
+        "Distinguish session revocation from client-side refresh failures.",
+        "Refresh returns the existing opaque session token; this is not JWT refresh-token rotation or reuse detection.",
+        "Successful password change/recovery revoke all account sessions; terminal client refresh failure alone does not revoke server sessions.",
+        "The API preserves native provider cookie headers; frontend bearer/cookie adapters are separate HTTP consumers outside this checkout."
       ],
       "mustNot": [
         "Read real environment files or user data.",
-        "Claim production OTP delivery is implemented."
+        "Claim production OTP delivery is implemented.",
+        "Claim JWT rotation exists.",
+        "Read actual environment files or user data.",
+        "Move auth services into Next or copy the admin bearer store into the website."
       ],
       "checks": ["typecheck", "coverage-tests"]
     },
     {
       "id": "persisted-language",
       "prompt": {
-        "en": "Without editing, trace persisted language selection and the API response fallback."
+        "en": "Without editing, trace persisted API language validation, public DTOs and response localization. Explain the ten local catalogs, new defaults, preserved settings and ignored visitor language headers and cookies. Distinguish the backend English fallback and resolved Content-Language from public-settings DTO rejection and the website explicit-error policy; describe authorized repair without resetting data. Explain system-administrator language authority, ordinary branding rights and protection against an interleaved language change."
       },
       "taskIds": ["active-language"],
       "evidence": [
         "src/contracts/locales.ts",
         "src/localization.test.ts",
-        "src/app.test.ts"
+        "src/app.test.ts",
+        "src/application/settings.ts",
+        "src/presentation/http/routes/settings.ts"
       ],
       "mustExplain": [
         "Describe the ten local catalogs and persisted-language behavior.",
-        "Describe the invalid-language recovery path using the tests."
+        "Describe the invalid-language recovery path using the tests.",
+        "Persisted API settings select response language; new settings are English and existing rows remain.",
+        "All ten local catalogs are complete; request headers/cookies cannot override configured API language.",
+        "Public settings are no-store metadata for HTTP consumers; website implementation is outside this repository.",
+        "Unsupported/missing API translation codes resolve to English for translator and Content-Language without rewriting persisted settings; public settings DTO still rejects unsupported values and authorized settings repair remains possible. Website language errors are a separate policy.",
+        "Only isSystemAdmin may change persisted language. Ordinary settings.update branding saves omit the language column even when accepting an explicitly unchanged compatibility input, preserving a concurrent system-administrator change."
       ],
       "mustNot": [
         "Claim visitor language headers replace the configured language.",
-        "Read private state."
+        "Read private state.",
+        "Add a visitor language selector or locale negotiation.",
+        "Treat React per-render cache as a distributed settings cache.",
+        "Reset existing settings or use real owner data to demonstrate the flow.",
+        "Grant language administration through settings.update or allow an ordinary branding save to write a stale language code."
       ],
       "checks": ["boundaries", "coverage-tests"]
     },
     {
+      "id": "api-message",
+      "prompt": {
+        "en": "Without editing, locate API catalogs, the locale registry, pure application message vocabulary and integrity/layer tests. Explain all ten genuine catalogs, i18next {{variable}} syntax, type-only vocabulary imports and independent ownership without source dependencies on frontend repositories."
+      },
+      "taskIds": ["api-translation"],
+      "evidence": [
+        "src/infrastructure/localization/catalogs/index.ts",
+        "src/infrastructure/localization/catalogs/en.ts",
+        "src/application/localization.ts",
+        "src/contracts/locales.ts",
+        "src/catalogs.test.ts",
+        "src/architecture.test.ts"
+      ],
+      "mustExplain": [
+        "API catalogs and the engine adapter are infrastructure-owned; application vocabulary is a pure type-only module.",
+        "All ten registered codes need genuine, nonempty complete keys and matching i18next interpolation variables.",
+        "Message vocabulary and physical catalog files match the supportedLanguages metadata in contracts/locales.ts; settings consume this single codes/directions/calendar/names source directly, retaining public language-list order.",
+        "Each project owns only its required catalogs; frontend UI/common/calendar messages live in frontend repositories and need no mandatory synchronization."
+      ],
+      "mustNot": [
+        "Import runtime catalogs, i18next or infrastructure into application services.",
+        "Use English fallback spreads, blanks or duplicate aliases to fill missing translations.",
+        "Restore npm workspaces, shared package aliases or source imports from another checkout."
+      ],
+      "checks": ["boundaries", "typecheck", "coverage-tests"]
+    },
+    {
       "id": "administrator-concurrency",
       "prompt": {
-        "en": "Without editing files, trace how user deactivation, deletion or demotion protects the last active system administrator. Explain the transaction boundary and the tests for a stale earlier read."
+        "en": "Without editing files, trace how user deactivation, deletion or demotion protects the last active system administrator. Explain application rules, the write-transaction invariant and tests showing that stale requests cannot bypass it."
       },
       "taskIds": ["api-feature"],
       "evidence": [
@@ -55,26 +102,72 @@
         "src/infrastructure/persistence/users.ts",
         "src/presentation/http/routes/users.ts",
         "src/users-application.test.ts",
-        "src/app.test.ts"
+        "src/app.test.ts",
+        "src/management-services.test.ts"
       ],
       "mustExplain": [
         "Distinguish transport authorization, application policy and the persistence transaction.",
         "Explain how the target state and active administrator count are read within the write transaction, including self-protection and final-administrator rules.",
-        "Cite the stale-state and intervening-promotion test cases and describe what their synthetic fixtures actually establish."
+        "Cite the stale-state and intervening-promotion test cases and describe what their synthetic fixtures actually establish.",
+        "HTTP routes authenticate/authorize and adapt transport; application services own policy/order and infrastructure owns Drizzle transactions.",
+        "The persistence mutation rereads current target state and counts active system administrators within the write transaction.",
+        "Self-deactivation/deletion and losing the final active system administrator are distinct rules.",
+        "A stale earlier read cannot authorize an unsafe later write; cite the real concurrency/rollback tests rather than a hidden menu."
       ],
       "mustNot": [
         "Claim a hidden frontend control enforces server authorization.",
         "Read or mutate a real database or user data.",
-        "Claim that a local test proves deployed concurrency behavior."
+        "Claim that a local test proves deployed concurrency behavior.",
+        "Move ORM queries into routes or application services.",
+        "Introduce a generic repository, CQRS or a DI container.",
+        "Mutate the real database to demonstrate the invariant."
       ],
       "checks": ["boundaries", "typecheck", "coverage-tests"]
     },
     {
+      "id": "private-media",
+      "prompt": {
+        "en": "Without editing files, explain public versus private upload authorization and URL/read behavior, metadata failure cleanup and deployment upload limits. Explain the bounded multipart stream before parsing, application file limits after parsing and separate ingress limits; identify storage/data files that must remain untouched. Explain matched SQLite/public-private object recovery and what the executable local recovery/incident drills verify versus operator-owned production backup/collector work."
+      },
+      "taskIds": ["media-storage", "deployment"],
+      "evidence": [
+        "src/application/files.ts",
+        "src/application/ports/object-storage.ts",
+        "src/infrastructure/persistence/files.ts",
+        "src/presentation/http/routes/files.ts",
+        "src/files-application.test.ts",
+        "src/upload-body-limit.test.ts",
+        "docs/backup-restore.md",
+        "docs/recovery-drills.md",
+        "src/recovery-drill.test.ts",
+        "src/test/recovery-drill-cases.ts"
+      ],
+      "mustExplain": [
+        "Public uploads require settings.update or system-admin access; private uploads require an active authenticated account.",
+        "Private metadata does not expose a public URL and no private-download endpoint is currently implemented.",
+        "A metadata failure triggers compensating object deletion while preserving the original error; cleanup failure has separate operational evidence.",
+        "After authentication, the HTTP route bounds the multipart stream before parsing; application file-size validation runs after parsing and gateway limits are separate.",
+        "SQLite metadata and matching public/private objects must be recovered together; ignored owner state is not evaluation input.",
+        "The executable synthetic recovery/incident cases validate local matched state, sessions and request/release/log correlation; they do not provision real backups, a collector or an external bucket restore."
+      ],
+      "mustNot": [
+        "Infer public readability from an object key or claim a private-download endpoint exists.",
+        "Claim multipart is bounded before parsing by the application service.",
+        "Read or reset server/data, real buckets or actual environment files."
+      ],
+      "checks": ["coverage-tests", "boundaries"]
+    },
+    {
       "id": "client-screen-contract",
       "prompt": {
-        "en": "Without editing files, plan the HTTP integration for a settings screen containing branding, logo and language. Identify allowed actions, request fields, response metadata and failure states using local contracts and tests."
+        "en": "Without editing files, plan HTTP integration for a settings screen containing branding, logo and language. Identify allowed actions, request fields, response metadata and failure states using local source and tests, and report evidence of how repository instructions were discovered."
       },
-      "taskIds": ["http-contract", "active-language", "auth-session"],
+      "taskIds": [
+        "http-contract",
+        "active-language",
+        "auth-session",
+        "media-storage"
+      ],
       "evidence": [
         "docs/collection-guide.md",
         "collection/settings/get/index.bru",
@@ -85,18 +178,32 @@
         "src/application/settings.ts",
         "src/application/files.ts",
         "src/presentation/http/routes/settings.ts",
-        "src/management-services.test.ts"
+        "src/management-services.test.ts",
+        "AGENTS.md",
+        "docs/comprehension-evaluation.md",
+        "src/app.test.ts"
       ],
       "mustExplain": [
         "Identify the authentication and permission requirements of the public settings read, language list, settings update and public file upload.",
         "Describe complete palettes, public logo IDs, replacement semantics and preserving existing selections on unrelated saves.",
         "Explain system-administrator language authority and how ordinary branding saves avoid overwriting a concurrent language change.",
-        "Use the API-provided language metadata and identify documented failure statuses with source evidence."
+        "Use the API-provided language metadata and identify documented failure statuses with source evidence.",
+        "GET /settings is public and no-store; GET /languages requires authentication, and PUT /settings requires a system administrator or settings.update.",
+        "Both complete theme palettes are required. Logo IDs are optional public-file IDs obtained through an authorized POST /files upload. PUT replaces palettes and logo selections: retain existing logo IDs on unrelated saves because omitted IDs clear selections. Inspect actual validation and response/status contracts rather than inventing form fields or pagination for this screen.",
+        "An ordinary settings.update editor retains branding rights and omits language_code. Only isSystemAdmin may change language; ordinary saves never write even an accepted unchanged code, preserving concurrent administrator changes.",
+        "Public settings return the persisted language object with authoritative code, direction, calendar and names. The client applies returned settings; there is no visitor language negotiation or second inferred metadata registry.",
+        "Identify documented validation, missing-resource, unauthenticated and forbidden failures with owning source/test evidence. A hidden control is not server authorization, and frontend component/visual decisions belong to the consuming application.",
+        "Separate host-provided instruction-loading evidence from subsequent assistant file reads and answer correctness; missing host evidence makes automatic discovery unknown, and manually supplied paths mean assisted discovery."
       ],
       "mustNot": [
         "Invent endpoints, permission names, response fields or public URLs for private files.",
         "Infer language metadata from a code or claim frontend presentation belongs to this API.",
-        "Read real environment files or user data, start a developer or deployed service, run tests or edit files."
+        "Read real environment files or user data, start a developer or deployed service, run tests or edit files.",
+        "Claim this API owns Ant Design, shadcn, frontend components or a visual design system, or add a source dependency on another checkout.",
+        "Grant language changes to all settings.update holders, write a stale language during an ordinary branding save, or infer direction/calendar from a language code.",
+        "Invent endpoints, permission names, response fields, status codes, private-file public URLs or visitor-language selection.",
+        "Read real environment/state, start a service or edit files for this read-only task.",
+        "Treat CLAUDE.md, a settings index, a template, a correct answer or passing static guidance checks as proof of actual host loading or a completed cross-assistant run."
       ],
       "checks": ["guidance", "boundaries", "coverage-tests"]
     },

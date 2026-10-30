@@ -2,77 +2,61 @@
   "schemaVersion": 1,
   "tasks": [
     {
-      "id": "auth-session",
-      "when": "Trace or change authentication, sessions, passwords or OTP.",
-      "owners": [
-        "src/application/auth.ts",
-        "src/infrastructure/auth/gateway.ts",
-        "src/infrastructure/persistence/auth.ts",
-        "src/presentation/http/routes/auth.ts"
-      ],
-      "contracts": [
-        "src/contracts/auth.ts",
-        "docs/auth-adapters.md",
-        "docs/security/authentication-review.md"
-      ],
-      "tests": [
-        "src/auth-gateway.test.ts",
-        "scripts/auth-bootstrap-integration.test.mjs",
-        "src/app.test.ts"
-      ],
-      "checks": ["typecheck", "lint", "coverage-tests"]
-    },
-    {
-      "id": "active-language",
-      "when": "Change the persisted system language or API localization.",
-      "owners": [
-        "src/contracts/locales.ts",
-        "src/infrastructure/localization",
-        "src/application/localization.ts"
-      ],
-      "contracts": ["docs/http-transport.md", ".agents/rules/localization.md"],
-      "tests": [
-        "src/catalogs.test.ts",
-        "src/localization.test.ts",
-        "src/app.test.ts"
-      ],
-      "checks": ["boundaries", "typecheck", "coverage-tests"]
-    },
-    {
       "id": "api-feature",
-      "when": "Change API behavior, authorization, persistence or a wire contract.",
+      "when": "Change an API use case, validation, authorization, persistence or a wire contract.",
       "owners": [
         "src/application",
         "src/infrastructure/persistence",
-        "src/presentation/http/routes"
+        "src/presentation/http/routes",
+        "src/application/users.ts",
+        "src/application/ports/users.ts",
+        "src/infrastructure/persistence/users.ts",
+        "src/presentation/http/routes/users.ts",
+        "src/composition.ts",
+        "src/application/validation.ts",
+        "src/application/account.ts"
       ],
       "contracts": [
         "collection",
         "src/contracts",
         ".agents/rules/backend.md",
-        ".agents/rules/data-lifecycle.md"
+        ".agents/rules/data-lifecycle.md",
+        "collection/users",
+        "src/contracts/account.ts",
+        "src/contracts/profile.ts",
+        "src/contracts/permissions.ts",
+        "docs/input-validation.md"
       ],
       "tests": [
         "src/app.test.ts",
         "src/persistence.test.ts",
         "src/http-transport.test.ts",
+        "src/users-application.test.ts",
         "src/management-services.test.ts",
+        "src/architecture.test.ts",
+        "src/validation.test.ts",
+        "src/input-validation-http.test.ts",
         "src/test/fixture-cleanup.test.ts"
       ],
-      "checks": ["boundaries", "typecheck", "coverage-tests"]
+      "checks": ["boundaries", "typecheck", "coverage-tests", "lint"]
     },
     {
       "id": "http-contract",
-      "when": "Plan or change a client screen's API contract and observable HTTP behavior.",
+      "when": "Plan an API-backed client screen or change a request or response field, HTTP method, endpoint path or status.",
       "owners": [
         "src/presentation/http/routes",
         "src/application",
-        "collection"
+        "collection",
+        "src/contracts"
       ],
       "contracts": [
         "src/contracts",
         "docs/collection-guide.md",
-        "docs/http-transport.md"
+        "docs/http-transport.md",
+        ".agents/rules/api-collection.md",
+        "docs/contract-testing.md",
+        ".agents/rules/data-lifecycle.md",
+        ".agents/rules/collection-quality.md"
       ],
       "tests": [
         "scripts/collection.test.mjs",
@@ -82,45 +66,172 @@
       "checks": ["boundaries", "typecheck", "coverage-tests"]
     },
     {
+      "id": "auth-session",
+      "when": "Trace or change authentication, sessions, passwords, OTP or native cookie handling.",
+      "owners": [
+        "src/application/auth.ts",
+        "src/infrastructure/auth/gateway.ts",
+        "src/infrastructure/persistence/auth.ts",
+        "src/presentation/http/routes/auth.ts"
+      ],
+      "contracts": [
+        "src/contracts/auth.ts",
+        "docs/auth-adapters.md",
+        "docs/security/authentication-review.md",
+        "collection/auth",
+        "collection/account",
+        "src/contracts/otp.ts",
+        "src/contracts/account.ts",
+        "src/contracts/permissions.ts",
+        "src/contracts/profile.ts",
+        "docs/sequences.md",
+        "docs/adr/0004-cookie-proxy-and-sessions.md"
+      ],
+      "tests": [
+        "src/auth-gateway.test.ts",
+        "scripts/auth-bootstrap-integration.test.mjs",
+        "src/app.test.ts",
+        "src/auth-application.test.ts",
+        "src/http-transport.test.ts"
+      ],
+      "checks": ["typecheck", "lint", "coverage-tests"]
+    },
+    {
+      "id": "active-language",
+      "when": "Change persisted language, system-administrator language authority, branding-save isolation or API localization.",
+      "owners": [
+        "src/contracts/locales.ts",
+        "src/infrastructure/localization",
+        "src/application/localization.ts",
+        "src/application/settings.ts",
+        "src/presentation/http/routes/settings.ts",
+        "src/application/ports/settings.ts",
+        "src/infrastructure/persistence/settings.ts"
+      ],
+      "contracts": [
+        "docs/http-transport.md",
+        ".agents/rules/localization.md",
+        "collection/settings",
+        "src/contracts/settings.ts",
+        "src/contracts/locales.ts"
+      ],
+      "tests": [
+        "src/catalogs.test.ts",
+        "src/localization.test.ts",
+        "src/app.test.ts",
+        "src/management-services.test.ts",
+        "src/persistence.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "coverage-tests"]
+    },
+    {
+      "id": "api-translation",
+      "when": "Add or retire an API message or supported locale.",
+      "owners": [
+        "src/infrastructure/localization/catalogs",
+        "src/application/localization.ts",
+        "src/contracts/locales.ts",
+        "src/infrastructure/localization/i18n.ts"
+      ],
+      "contracts": [".agents/rules/localization.md", "docs/localization.md"],
+      "tests": ["src/catalogs.test.ts", "src/architecture.test.ts"],
+      "checks": ["boundaries", "typecheck", "coverage-tests"]
+    },
+    {
+      "id": "media-storage",
+      "when": "Change upload validation, public/private metadata, storage drivers or file delivery.",
+      "owners": [
+        "src/application/files.ts",
+        "src/application/ports/files.ts",
+        "src/application/ports/object-storage.ts",
+        "src/infrastructure/persistence/files.ts",
+        "src/infrastructure/storage",
+        "src/presentation/http/routes/files.ts"
+      ],
+      "contracts": [
+        "collection/files",
+        "docs/backup-restore.md",
+        ".agents/rules/backend.md",
+        ".agents/rules/data-lifecycle.md"
+      ],
+      "tests": [
+        "src/files-application.test.ts",
+        "src/app.test.ts",
+        "src/request-logging.test.ts",
+        "src/upload-body-limit.test.ts",
+        "src/recovery-drill.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "coverage-tests"]
+    },
+    {
       "id": "deployment",
-      "when": "Review deployment, recovery, storage or operational readiness.",
+      "when": "Review or change deployment, recovery, storage, release packaging, TLS, origins, bootstrap or operational readiness.",
       "owners": [
         "deploy",
         "scripts/validate-deployment-env.mjs",
         "src/infrastructure/storage",
+        "deploy/docker",
+        "deploy/native",
         "scripts/package-release.mjs",
+        "scripts/healthcheck.mjs",
+        "docs/backup-restore.md",
+        "docs/release-operations.md",
         "scripts/test-native-release.mjs",
         "scripts/native-smoke-cleanup.mjs"
       ],
       "contracts": [
         "docs/deployment.md",
         "docs/backup-restore.md",
-        "docs/object-storage.md"
+        "docs/object-storage.md",
+        "docs/recovery-drills.md",
+        "docs/release-operations.md"
       ],
       "tests": [
         "scripts/deployment.test.mjs",
         "src/recovery-drill.test.ts",
         "src/object-storage.test.ts",
         "scripts/package-release.test.mjs",
-        "scripts/native-smoke-cleanup.test.mjs"
+        "src/test/recovery-drill-cases.ts",
+        "deploy/docker/smoke.mjs",
+        "scripts/auth-bootstrap-integration.test.mjs",
+        "scripts/native-smoke-cleanup.test.mjs",
+        "src/test/fixture-cleanup.test.ts"
       ],
-      "checks": ["snapshot", "typecheck", "coverage-tests"]
+      "checks": [
+        "snapshot",
+        "typecheck",
+        "coverage-tests",
+        "guidance",
+        "format"
+      ]
     },
     {
       "id": "guidance",
-      "when": "Change project instructions, navigation or validation guidance.",
+      "when": "Change project instructions, navigation, decision records, validation policy or evaluation cases.",
       "owners": [
         "AGENTS.md",
         ".agents/settings.json",
         ".agents/navigation.json",
-        "scripts/check-guidance.mjs"
+        "scripts/check-guidance.mjs",
+        ".agents/validation.json"
       ],
       "contracts": [
         "docs/source-navigation.md",
         ".agents/rules/guidance.md",
-        ".agents/validation.json"
+        ".agents/validation.json",
+        "docs/validation.md",
+        "docs/comprehension-evaluation.md",
+        "docs/adr/README.md",
+        ".agents/rules/git.md",
+        ".agents/rules/branches.md",
+        ".agents/skills/commit/SKILL.md",
+        ".agents/skills/start-issue/SKILL.md"
       ],
-      "tests": ["scripts/guidance.test.mjs", "scripts/validate.test.mjs"],
+      "tests": [
+        "scripts/guidance.test.mjs",
+        "scripts/validate.test.mjs",
+        "scripts/validate-bootstrap.test.mjs"
+      ],
       "checks": [
         "snapshot",
         "ci-policy",

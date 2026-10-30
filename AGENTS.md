@@ -1,15 +1,61 @@
-# Kernel API local runtime instructions
+# Kernel API assistant instructions
+
+Read [.agents/README.md](.agents/README.md), [settings](.agents/settings.json),
+[task navigation](docs/source-navigation.md) and matching canonical rules before changes.
+This is one standalone npm project: source is in src/, SQL migrations in drizzle/,
+and package.json, the lockfile and configuration files are at the repository root.
+Work within this repository and preserve user-owned environment and runtime state.
+
+The API exclusively owns DB access, migrations, authentication and storage.
+Preserve framework-free application services/feature ports, concrete infrastructure
+adapters, thin Hono presentation/http routes, manual composition and transaction
+boundaries. Read [backend](.agents/rules/backend.md). Wire DTOs/constants are pure
+feature-owned modules in src/contracts; permissions, profile bounds and OTP concepts
+keep one local definition across their consumers. Do not add a catch-all contract
+barrel. Independent frontends communicate through HTTP.
+For deletion, deactivation or relation changes, read
+[data lifecycle](.agents/rules/data-lifecycle.md) before changing contracts or schema.
+Soft deletion is prohibited. Records used by other business records or assignments must not be deleted;
+return a localized 409 conflict explaining that dependent uses must be resolved
+first, with no partial deletion or silent removal of references.
+
+For an API-backed screen plan, use the `http-contract` task and the
+[client screen contract handoff](docs/collection-guide.md#client-screen-contract-handoff).
+This repository supplies API behavior and evidence; component and visual design
+belong to the consuming frontend's own stack and guidance.
+
+Read [localization](.agents/rules/localization.md). API message catalogs live in
+src/infrastructure/localization/catalogs, with genuine complete translations for
+all ten codes from supportedLanguages in src/contracts/locales.ts, the sole source
+of language codes, direction, calendar and public names. Application message vocabulary lives
+in src/application/localization.ts and may be imported only as erased types.
+Application services must never import runtime catalogs or translation engines.
+
+Use synthetic disposable fixtures. Never read, copy or reset another checkout's
+real environment, DB/uploads or buckets. Source restructuring does not authorize
+runtime data migration. Never commit, push, edit real secrets, contact production
+or send remote messages/reviews without explicit user authorization.
+
+The canonical [.agents/validation.json](.agents/validation.json) owns commands and
+profiles. Start with the smallest relevant check; run the full profile before an
+authorized commit/PR. Preserve failing checks and Docker cleanup requirements.
+Before requesting or re-requesting CodeRabbit, enforce the
+[CodeRabbit preflight](.agents/rules/pull-requests.md#before-requesting-coderabbit):
+all required non-CodeRabbit checks, Sonar scanner and actual quality gate must pass
+for the current head, with zero open/unresolved Sonar issues at all severities.
+Every new commit invalidates that evidence.
+Keep assistant instructions, rules, skills and active evaluation prompts in English;
+do not create Persian instruction companions or translated evaluation prompts.
+Maintain the separate human documentation in English and Persian, plus current
+navigation/evaluation evidence and ADRs.
+Record actual check results and limitations; guidance configuration does not prove
+automatic assistant instruction loading.
+
+## Published-phase checkpoint
 
 Read [README](README.md), [Contributing](CONTRIBUTING.md), the current
 [publication inventory](.github/bootstrap-policy.json) and the canonical
 [validation manifest](.agents/validation.json) before changes.
-Use [guidance](.agents/README.md), the [settings index](.agents/settings.json)
-and [source navigation](docs/source-navigation.md) to find the rules and
-evidence relevant to the task.
-
-For an API-backed client screen, use the `http-contract` task and
-[client screen contract handoff](docs/collection-guide.md#client-screen-contract-handoff).
-The consuming application owns its components and visual design.
 
 This standalone npm project publishes contracts, application services, ports,
 ten flat API catalogs and infrastructure support for configuration, translation,
@@ -58,7 +104,7 @@ renames; the total repository may grow beyond 100 files. Preserve private state,
 never read real environment files or credentials, and require explicit user
 authorization for commits, pushes, remote comments and merging.
 
-Every PR, including drafts and documentation-only changes, runs all required
+Every PR, including drafts and documentation-only changes, runs all ten required
 checks for the published local-runtime snapshot through that same full
 profile. Keep the semantic CI policy check: no PR path/branch filters, conditional
 or advisory full execution, hidden command omissions or implicit runner/job

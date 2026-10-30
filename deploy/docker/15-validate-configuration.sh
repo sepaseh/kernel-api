@@ -19,6 +19,8 @@ for name in API_HOST; do
   valid_host "$value" || fail "$name must be a lowercase bare DNS hostname."
 done
 case "${RELEASE_ID:-}" in
+  replace-release-id|replace-with-immutable-release-id)
+    fail "RELEASE_ID must be replaced with an immutable release identifier." ;;
   ''|*[!A-Za-z0-9_.-]*|*..*) fail "RELEASE_ID contains unsafe characters." ;;
 esac
 printf '%s\n' "$RELEASE_ID" |

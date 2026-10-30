@@ -1,0 +1,9 @@
+* @sepaseh
+/.github/ @sepaseh
+/.agents/ @sepaseh
+/package.json @sepaseh
+/package-lock.json @sepaseh
+/deploy/ @sepaseh
+/docs/security/ @sepaseh
+/SECURITY.md @sepaseh
+/SECURITY.fa.md @sepaseh

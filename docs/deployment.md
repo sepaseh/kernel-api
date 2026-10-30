@@ -18,8 +18,8 @@ API uses native Node.js 24 TypeScript and reviewed startup migrations. Durable
 SQLite and public/private object state live outside immutable releases. Deployment
 preflight rejects placeholder credentials, insecure public origins, relative local
 state, database/upload paths inside the immutable release (including resolved
-directory links), development OTP/seed flags and missing release identity. Unknown
-HTTP hosts are dropped and unknown TLS names fail their handshake. Docker entrypoint
+directory links), development OTP/seed flags and missing release identity. The checked-in release-ID placeholders must be replaced with an actual immutable
+release identifier. Unknown HTTP hosts are dropped and unknown TLS names fail their handshake. Docker entrypoint
 and native ExecStartPre enforce it. Native bootstrap is a separate explicit operator
 operation on an empty database, using protected JSON STDIN and supplied environment.
 The preflight accepts only a local SQLite `file:` URL with an absolute persistent

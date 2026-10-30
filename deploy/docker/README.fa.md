@@ -6,8 +6,9 @@
 یکپارچگی محیط عملیاتی هنوز تأیید نشده‌اند.
 
 از موتور Linux Docker و Compose دارای پشتیبانی env_file الزامی استفاده کنید.
-تنظیمات API و میزبان را در فایل‌های محافظت‌شده بیرون Git فراهم کنید؛ فایل محیط
-نمونه در این نسخهٔ منتشرشده وجود ندارد. secret تصادفی، RELEASE_ID تغییرناپذیر، API_HOST،
+تنظیمات API و میزبان را در فایل‌های محافظت‌شده بیرون Git فراهم کنید. این نسخهٔ
+سورس قالب‌های نمونهٔ [API](api.env.example) و [میزبان](hosts.env.example) را دارد؛
+آن‌ها را بیرون Git کپی و تنظیم کنید و secretهای واقعی را محافظت کنید. secret تصادفی، RELEASE_ID تغییرناپذیر، API_HOST،
 API_PUBLIC_ORIGIN، SERVER_ALLOWED_ORIGINS خارجی دقیق و مسیر مطلق API_ENV_FILE و
 TLS_CERT_DIRECTORY را تعیین کنید. پیش‌بررسی مقادیر placeholder را رد می‌کند.
 

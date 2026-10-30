@@ -1,35 +1,51 @@
-# Navigating the API source
+# API task navigation
 
 [English](source-navigation.md) · [فارسی](source-navigation.fa.md)
 
-Start with [AGENTS.md](../AGENTS.md), then select the relevant task in
-[the task map](../.agents/navigation.json). Read the owning contract, application
-service, adapter, route and tests together; a matching type alone does not establish
-the behavior of a complete request.
+The machine-readable `.agents/navigation.json` is the canonical task map. Start
+with root AGENTS, then open only the selected owners, contracts, rules
+and tests. Follow complete behavior through transport, application, adapter and
+transaction boundaries rather than relying on a symbol match or passing typecheck.
 
-The API owns its runtime and data. Other applications consume its HTTP contracts
-through independent checkouts. For changes to authentication or sessions, consult
-[authentication](auth-adapters.md) and the [security checklist](security/authentication-review.md).
-For storage or deletion, consult [storage](object-storage.md),
-[database constraints](database-schema.md) and [HTTP transport](http-transport.md).
-For deployment and recovery, start with [deployment](deployment.md) and
-[backup and restore](backup-restore.md).
-For the native smoke lifecycle, inspect the packaging and cleanup owners and their
-synthetic failure-path tests listed in the deployment task. Fixture cleanup tests
-also cover the ownership and failures of temporary database resources.
+The task map references source files and tests. Run each relevant check before
+reporting it as successful; the presence of a file is not evidence that a check ran.
 
-For a client screen's API handoff, start with the
-[collection guide](collection-guide.md#client-screen-contract-handoff),
-[contract testing](contract-testing.md), and [input validation](input-validation.md).
-Use [request sequences](sequences.md) and [logging](backend-logging.md) to trace
-runtime flows; the [decision index](adr/README.md) records architectural choices.
-
-Use [validation](validation.md) for executable checks. Never use a real environment
-file, existing data or a production service as a local test fixture.
-
-Runtime source lives in `src/`; pure wire DTOs/constants are in feature-owned `src/contracts`
+Tasks cover API features, HTTP contracts, auth/session, active language, local
+translation catalogs, media storage, deployment/recovery and guidance. Runtime source
+lives in `src/`; pure wire DTOs/constants are in feature-owned `src/contracts`
 modules, imported directly. `contracts/locales.ts` is the single pure supported-
 language metadata source for settings and the catalog code type, with runtime
 message catalogs under `src/infrastructure/localization/catalogs`. Public behavior
 is evidenced by Bruno, DTOs and actual API tests. Other apps are HTTP consumers in
 independent repositories; local contract/catalog source need not be synchronized.
+
+For authentication and sessions, consult [authentication adapters](auth-adapters.md)
+and the [security checklist](security/authentication-review.md). For storage and
+deletion, consult [object storage](object-storage.md), [database constraints](database-schema.md)
+and [HTTP transport](http-transport.md). For deployment and recovery, start with
+[deployment](deployment.md) and [backup and restore](backup-restore.md).
+For the native smoke lifecycle, inspect the packaging and cleanup owners and their
+synthetic failure-path tests listed in the deployment task. Fixture cleanup tests
+also cover the ownership and failures of temporary database resources.
+
+The API feature and contract tasks include the [data lifecycle rule](../.agents/rules/data-lifecycle.md)
+for delete/status/assignment changes. Issue, branch, commit and review work starts
+at [Git workflow](../.agents/rules/git.md), which routes to canonical rules and the
+matching skills. Verify branch/base state and preserve unrelated work; the full
+validation manifest remains required before an authorized commit or PR.
+
+For an API-backed screen plan, select `http-contract` and complete the
+[client screen contract handoff](collection-guide.md#client-screen-contract-handoff).
+Follow `auth-session`, `active-language` or `media-storage` when the screen uses
+those behaviors. The API provides contracts and authorization/error evidence;
+component selection, layout and visual checks belong to the consuming frontend.
+Use [contract testing](contract-testing.md), [input validation](input-validation.md),
+[request sequences](sequences.md) and [logging](backend-logging.md) to trace the
+behavior; the [decision index](adr/README.md) records architectural choices.
+
+Deployment tasks include API-only Docker/native artifacts, immutable packaging,
+prevalidation, durable state, health/bootstrap and coordinated recovery. Guidance
+and evaluation use only the root project. [Validation](validation.md),
+[architecture](architecture.md), [deployment](deployment.md) and
+[evaluation](comprehension-evaluation.md) describe their limits. Never use real env,
+ignored server/data or production as a comprehension fixture.

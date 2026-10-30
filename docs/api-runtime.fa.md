@@ -1,17 +1,37 @@
-# مرزهای اجرای API
+# اجرای API
 
 [English](api-runtime.md) · [فارسی](api-runtime.fa.md)
 
-این API مستقل، مسیرهای HTTP، سرویس‌های مستقل از چارچوب و آداپتورهای زیرساخت
-را در یک checkout ترکیب می‌کند. پایگاه داده، احراز هویت و ذخیره‌سازی متعلق به
-API هستند و کلاینت‌ها از HTTP استفاده می‌کنند. [معماری](architecture.fa.md)،
+این پروژهٔ مستقل مالک presentation در Hono، سرویس و پورت application مستقل از فریم‌ورک،
+adapterهای persistence/auth/storage، اتصال دستی و migrationهای بازبینی‌شدهٔ SQL است.
+Node.js 24 فایل src/index.ts را مستقیم اجرا می‌کند. src/bootstrap-admin.ts دستور جداگانه و
+صریح بهره‌بردار است و drizzle/ migrationهای بازبینی‌شدهٔ شروع برنامه را نگه می‌دارد.
+
+کلاینت‌ها از HTTP استفاده می‌کنند. [معماری](architecture.fa.md)،
 [انتقال HTTP](http-transport.fa.md) و [محدودیت‌های پایگاه داده](database-schema.fa.md)
 را ببینید.
+
+[راه‌اندازی مخزن](../README.fa.md)، [نقشهٔ سورس](source-navigation.fa.md)،
+[قاعدهٔ بکند](../.agents/rules/backend.md) و [سیاست اعتبارسنجی](validation.fa.md) را بخوانید.
+مسیر نسبی دادهٔ توسعه نسبت به همین مخزن حل می‌شود؛ دادهٔ production باید بیرون release
+تغییرناپذیر باشد.
 
 تا تکمیل مقداردهی، listener پاسخ 503 می‌دهد. آزمون‌های اجرای محلی از دادهٔ
 مصنوعی استفاده می‌کنند و اثبات آمادگی تولید یا ارسال واقعی OTP نیستند. استقرار
 و بازیابی اپراتور فرایندهای جداگانه‌اند؛ [استقرار](deployment.fa.md) و
 [پشتیبان و بازیابی](backup-restore.fa.md) را ببینید.
+
+## تنظیم MinIO
+
+برای `STORAGE_DRIVER=minio` مقادیر غیرخالی `MINIO_ACCESS_KEY`،
+`MINIO_SECRET_KEY`، `MINIO_ENDPOINT` و `MINIO_PUBLIC_URL` را در تنظیمات
+محافظت‌شده بیرون Git فراهم کنید. `MINIO_ENDPOINT` فقط نام میزبان یا IP صریح و
+بدون scheme است؛ درگاه را با `MINIO_PORT` تعیین کنید و برای TLS مقدار
+`MINIO_USE_SSL=true` بگذارید. خارج از `localhost` و نشانی loopback صریح، TLS
+الزامی است؛ نام DNS که به نشانی محلی حل شود استثنای loopback نیست.
+`MINIO_PUBLIC_URL` خارج از loopback به HTTPS نیاز دارد و نباید اعتبارنامه،
+query یا fragment داشته باشد. جزئیات مالکیت bucket، منطقه و عملیات در
+[ذخیره‌سازی شیء](object-storage.fa.md) آمده است.
 
 ## حذف کاربر و نقش
 

@@ -30,7 +30,8 @@ Do not create Persian instruction companions or translated evaluation-prompt cop
 Keep the separate human documentation bilingual in its established locations.
 `.agents/settings.json` inventories guidance; it does not register itself with every
 assistant. Optional hooks are host-dependent fast checks, not a full validation gate.
-Keep all rules in canonical sources. Do not add installers, plugins or remote
+The optional [CLAUDE.md](../../CLAUDE.md) adapter references AGENTS.md;
+keep all rules in canonical sources. Do not add installers, plugins or remote
 services merely for discovery. An adapter's presence does not prove a host loaded it.
 
 Keep navigation paths relative to the repository root and maintained Markdown links

@@ -2,8 +2,12 @@
 
 [English](CONTRIBUTING.md) · [فارسی](CONTRIBUTING.fa.md)
 
-The working tree may contain unpublished changes. Preserve that work and validate
-the exact proposed snapshot; a passing snapshot check does not verify other local files.
+The working tree may also contain unpublished source and guides. Preserve that
+work, validate each proposed publication against its exact snapshot, and do not
+treat a passing snapshot gate as proof for every local file. The local
+[development](docs/development.md), [release](docs/releasing.md),
+[security](SECURITY.md), and [recovery](docs/backup-restore.md) guides describe
+additional work, not evidence of a deployed service.
 
 The current [local-runtime phase](docs/bootstrap.md) contains contracts,
 application services, ports, ten static catalogs and configuration, translation,

@@ -16,8 +16,6 @@ Add focused tests for behavior and relevant failure paths, using disposable
 fixtures. Update English and Persian human documentation together and run the
 required [validation](validation.md) before an authorized handoff.
 
-For an API-backed client screen, complete the [client screen contract handoff](collection-guide.md#client-screen-contract-handoff) using existing routes, permissions and response examples. Record any proposed contract gap separately and coordinate incompatible HTTP changes with the consuming application.
-
 For delete, status or relation changes, read the canonical
 [data lifecycle rule](../.agents/rules/data-lifecycle.md) and the owning schema,
 transaction and HTTP examples. Preserve current session, assignment and file
@@ -30,3 +28,8 @@ authentication accounts are removed with an allowed user delete; role permission
 are removed with an allowed role delete. User-role memberships and uploaded-file
 ownership block user deletion until resolved. Verify new paths against the same
 policy and transaction guarantees.
+
+For a client screen plan, first complete the
+[client screen contract handoff](collection-guide.md#client-screen-contract-handoff).
+It identifies existing API behavior and any proposed contract gap before frontend
+implementation; component libraries and visual decisions stay with that frontend.
