@@ -5,7 +5,7 @@ Explain the concrete problem, change and any prerequisite PR.
 ## Published scope
 
 - Phase:
-- GitHub changed-file count (maximum 100, including deletions/renames/binaries):
+- GitHub changed-file count (initial target up to 80; hard CI maximum 100; includes deletions/renames/binaries):
 - Application readiness and limitations:
 
 ## Verification

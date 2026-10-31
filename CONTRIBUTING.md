@@ -45,7 +45,8 @@ The exact maintained inventory is declared by
 [`.github/bootstrap-policy.json`](.github/bootstrap-policy.json). Update that
 inventory deliberately when adding a reviewed phase file. Its allowlist is
 not the 100-file PR limit: the repository may contain more than 100 files, while
-each PR must still change no more than 100 GitHub file entries.
+each PR must still change no more than 100 GitHub file entries. Target 80 or fewer
+entries when opening a PR, leaving 20 entries for review fixes under that hard limit.
 
 Preserve unrelated work, private environment files, credentials and runtime data.
 Application tests use synthetic fake ports and local fixtures. Configuration tests
@@ -136,7 +137,8 @@ repository, including current and recent PRs. Honor any later provider retry tim
 
 1. Work on a focused `codex/<purpose>` branch and inspect the entire base-to-head
    diff. Creating a branch does not authorize committing or publishing it.
-2. Keep the PR at **100 or fewer GitHub changed-file entries**. Additions,
+2. Target **80 or fewer GitHub changed-file entries** when opening a PR, leaving
+   20 entries for review fixes under the **hard 100-file CI limit**. Additions,
    removals, renames and binary files count; a GitHub rename is one entry.
 3. Use a Conventional Commit title and the existing
    [PR template](.github/PULL_REQUEST_TEMPLATE.md). Describe the change, phase,

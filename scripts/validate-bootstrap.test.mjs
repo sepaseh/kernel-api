@@ -534,6 +534,7 @@ const localRuntimeFiles = [
   "src/auth-invariants.test.ts",
   "src/bootstrap-admin.test.ts",
   "src/drizzle-toolchain.test.ts",
+  "src/test/architecture/lint-toolchain.test.ts",
   ...guidanceFiles,
   ...operationsFiles,
   ...collectionFiles,

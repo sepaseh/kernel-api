@@ -228,7 +228,7 @@ test("legacy ESM loader resolves and compiles a sibling TypeScript import", asyn
   assert.deepEqual(JSON.parse(output.trim()), { answer: 42, state: "ready" });
 });
 
-test("repository Drizzle config generates without database credentials and refuses migration", async (context) => {
+test("repository Drizzle config generates idempotently without database credentials and refuses migration", async (context) => {
   const directory = await temporaryDirectory(context, true);
   const infrastructure = path.join(directory, "src", "infrastructure");
   const db = path.join(infrastructure, "db");
@@ -247,11 +247,23 @@ test("repository Drizzle config generates without database credentials and refus
   );
   const cli = path.join(kitDirectory, "bin.cjs");
   runNode(directory, [cli, "generate", "--config=drizzle.config.ts"]);
-  assert.ok(
-    (await readdir(path.join(directory, "drizzle"))).some((file) =>
-      file.endsWith(".sql"),
-    ),
+  const output = path.join(directory, "drizzle");
+  const sqlFiles = (await readdir(output)).filter((file) =>
+    file.endsWith(".sql"),
   );
+  assert.equal(sqlFiles.length, 1);
+
+  const repeated = runNode(directory, [
+    cli,
+    "generate",
+    "--config=drizzle.config.ts",
+  ]);
+  assert.match(repeated, /No schema changes/);
+  assert.deepEqual(
+    (await readdir(output)).filter((file) => file.endsWith(".sql")),
+    sqlFiles,
+  );
+
   const migration = spawnSync(
     process.execPath,
     [cli, "migrate", "--config=drizzle.config.ts"],

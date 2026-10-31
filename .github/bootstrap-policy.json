@@ -520,6 +520,7 @@
     "src/presentation/http/routes/users.ts",
     "src/recovery-drill.test.ts",
     "src/request-logging.test.ts",
+    "src/test/architecture/lint-toolchain.test.ts",
     "src/test/composition-dependencies.ts",
     "src/test/create-app-fixture.ts",
     "src/test/fixture-cleanup.test.ts",
