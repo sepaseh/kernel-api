@@ -53,7 +53,7 @@ export async function withSmokeResources(
       result.code === 1 &&
       !result.stdout.trim() &&
       new RegExp(
-        `^(?:ERROR:\\s*)?no builder ["']?${builder}["']? found[.!]?$`,
+        String.raw`^(?:ERROR:\s*)?no builder ["']?${builder}["']? found[.!]?$`,
         "i",
       ).test(result.stderr.trim())
     )
@@ -111,11 +111,15 @@ export async function withSmokeResources(
           "--format",
           "{{.Names}}",
         ]);
-        for (const name of containers)
-          if (present.includes(name))
-            await attempt(() =>
-              run(["container", "rm", "--force", name], { cleanup: true }),
-            );
+        await Promise.all(
+          containers
+            .filter((name) => present.includes(name))
+            .map((name) =>
+              attempt(() =>
+                run(["container", "rm", "--force", name], { cleanup: true }),
+              ),
+            ),
+        );
       });
       // Quiesce a cancelled exporter before taking the final image inventory;
       // otherwise its last loaded tag could arrive after image cleanup.
@@ -130,9 +134,13 @@ export async function withSmokeResources(
           "--format",
           "{{.Repository}}:{{.Tag}}",
         ]);
-        for (const image of images)
-          if (present.includes(image))
-            await attempt(() => run(["image", "rm", image], { cleanup: true }));
+        await Promise.all(
+          images
+            .filter((image) => present.includes(image))
+            .map((image) =>
+              attempt(() => run(["image", "rm", image], { cleanup: true })),
+            ),
+        );
       });
     }
     await attempt(removeDirectory);
