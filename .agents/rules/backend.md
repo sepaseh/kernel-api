@@ -67,7 +67,7 @@ parsing and enforce the configured file limit on the parsed file as well.
 
 ## Validation and local state
 
-`src/architecture.test.ts` inspects static, type-only and dynamic
+`src/test/architecture/boundaries.test.ts` inspects static, type-only and dynamic
 imports to enforce the application/presentation boundaries, including global
 HTTP types in application code. Run it after moving modules, and keep its narrow
 transport exceptions explicit. Do not allow a forbidden dependency merely to
@@ -82,4 +82,4 @@ running production migrations or changing deployment configuration.
 
 See [Architecture](../../docs/architecture.md),
 [Feature development](../../docs/feature-development.md),
-[Testing](../../docs/testing.md) and the [API guide](../../docs/api-runtime.md).
+[Testing](../../docs/testing.md) and the [API guide](../../docs/architecture.md).

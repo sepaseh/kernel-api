@@ -2,57 +2,17 @@ import assert from "node:assert/strict";
 import {
   access,
   mkdir,
-  mkdtemp,
   readdir,
   readFile,
-  realpath,
   rm,
   symlink,
   writeFile,
 } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { finishNativeSmoke } from "./native-smoke-cleanup.mjs";
 import { packageRelease, parseReleaseArguments } from "./package-release.mjs";
-async function fixture(context) {
-  const temporary = await mkdtemp(path.join(tmpdir(), "kernel-api-package-"));
-  context.after(async () => {
-    assert.equal(path.dirname(path.resolve(temporary)), path.resolve(tmpdir()));
-    assert.ok(path.basename(temporary).startsWith("kernel-api-package-"));
-    await rm(temporary, { recursive: true, force: true });
-  });
-  const repository = path.join(temporary, "repository");
-  const put = async (file, content = "synthetic source") => {
-    const target = path.join(repository, file);
-    await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, content);
-  };
-  await put("package.json", JSON.stringify({ name: "kernel-api" }));
-  await put(
-    "package-lock.json",
-    JSON.stringify({
-      lockfileVersion: 3,
-      packages: { "": { name: "kernel-api" } },
-    }),
-  );
-  for (const file of [
-    "src/index.ts",
-    "src/bootstrap-admin.ts",
-    "drizzle/0000_init.sql",
-    "drizzle/meta/_journal.json",
-    "src/contracts/account.ts",
-    "src/contracts/permissions.ts",
-    "src/contracts/settings.ts",
-    "src/contracts/locales.ts",
-    "src/infrastructure/localization/catalogs/index.ts",
-    "scripts/healthcheck.mjs",
-    "scripts/validate-deployment-env.mjs",
-  ])
-    await put(file);
-  return { temporary, repository, put };
-}
+import { fixture } from "./package-release.test-support.mjs";
 async function inventory(directory, prefix = "") {
   const files = [];
   for (const entry of await readdir(path.join(directory, prefix), {
@@ -90,7 +50,7 @@ test("packages a self-contained API source release and excludes credentials, sta
     "src/id_rsa",
     "src/test/fixture.ts",
     "src/node_modules/private.js",
-    "src/catalogs.test.ts",
+    "src/infrastructure/localization/catalogs.test.ts",
   ])
     await put(file);
   const { directory, release } = await packageRelease({
@@ -142,133 +102,6 @@ test("an immutable release is never overwritten", async (context) => {
   assert.equal(
     await readFile(path.join(directory, "release.json"), "utf8"),
     before,
-  );
-});
-test("native smoke can clean an owned partial release when packaging fails", async (context) => {
-  const { repository } = await fixture(context);
-  let owned;
-  const failures = [];
-  try {
-    await packageRelease({
-      repositoryRoot: repository,
-      releaseId: "partial-owned",
-      onOutputCreated: async (directory) => {
-        owned = directory;
-        await mkdir(path.join(directory, "api"));
-        await writeFile(path.join(directory, "api/package.json"), "synthetic");
-      },
-    });
-  } catch (error) {
-    failures.push(error);
-  }
-  assert.equal(failures.length, 1);
-  assert.equal(failures[0].code, "EEXIST");
-  assert.equal(
-    owned,
-    path.join(await realpath(repository), "dist/releases/partial-owned"),
-  );
-  let stateRemoved = false;
-  await assert.rejects(
-    finishNativeSmoke(
-      failures,
-      () => {},
-      () => rm(owned, { recursive: true, force: true }),
-      () => {
-        stateRemoved = true;
-      },
-    ),
-    (error) => error === failures[0],
-  );
-  assert.equal(stateRemoved, true);
-  await assert.rejects(access(owned), { code: "ENOENT" });
-});
-test("native smoke preserves packaging and partial-release cleanup failures", async (context) => {
-  const { repository } = await fixture(context);
-  let owned;
-  const failures = [];
-  try {
-    await packageRelease({
-      repositoryRoot: repository,
-      releaseId: "partial-cleanup-failure",
-      onOutputCreated: async (directory) => {
-        owned = directory;
-        await mkdir(path.join(directory, "api"));
-        await writeFile(path.join(directory, "api/package.json"), "synthetic");
-      },
-    });
-  } catch (error) {
-    failures.push(error);
-  }
-  assert.equal(failures.length, 1);
-  assert.equal(failures[0].code, "EEXIST");
-  assert.equal(
-    owned,
-    path.join(
-      await realpath(repository),
-      "dist/releases/partial-cleanup-failure",
-    ),
-  );
-  const cleanupFailure = new Error("synthetic removal failure");
-  let stateRemoved = false;
-  await assert.rejects(
-    finishNativeSmoke(
-      failures,
-      () => {},
-      () => {
-        throw cleanupFailure;
-      },
-      () => {
-        stateRemoved = true;
-      },
-    ),
-    (error) => {
-      assert.ok(error instanceof AggregateError);
-      assert.deepEqual(error.errors, [failures[0], cleanupFailure]);
-      return true;
-    },
-  );
-  assert.equal(stateRemoved, true);
-  await access(owned);
-});
-test("native smoke never claims or deletes a preexisting release", async (context) => {
-  const { repository } = await fixture(context);
-  const existing = path.join(repository, "dist/releases/preexisting");
-  await mkdir(existing, { recursive: true });
-  await writeFile(path.join(existing, "keep.txt"), "synthetic original");
-  let owned;
-  const failures = [];
-  try {
-    await packageRelease({
-      repositoryRoot: repository,
-      releaseId: "preexisting",
-      onOutputCreated: (directory) => {
-        owned = directory;
-      },
-    });
-  } catch (error) {
-    failures.push(error);
-  }
-  assert.equal(failures.length, 1);
-  assert.equal(failures[0].code, "EEXIST");
-  assert.equal(owned, undefined);
-  let stateRemoved = false;
-  await assert.rejects(
-    finishNativeSmoke(
-      failures,
-      () => {},
-      async () => {
-        if (owned) await rm(owned, { recursive: true });
-      },
-      () => {
-        stateRemoved = true;
-      },
-    ),
-    (error) => error === failures[0],
-  );
-  assert.equal(stateRemoved, true);
-  assert.equal(
-    await readFile(path.join(existing, "keep.txt"), "utf8"),
-    "synthetic original",
   );
 });
 test("missing root lock entries fail before release directories are created", async (context) => {

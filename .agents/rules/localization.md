@@ -12,7 +12,7 @@ Frontend UI/common/calendar catalogs belong to their independent frontend reposi
 src/application/localization.ts defines the pure message-key/resource types without
 reading runtime catalogs. Application imports from it must be erased type references.
 When adding or retiring a message, update this vocabulary and all ten catalogs together;
-src/catalogs.test.ts checks exact parity, data purity and registry/settings consistency.
+src/infrastructure/localization/catalogs.test.ts checks exact parity, data purity and registry/settings consistency.
 Only infrastructure/localization/i18n.ts initializes i18next.
 
 Persisted API settings select response language. Fresh settings default to English;

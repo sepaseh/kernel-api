@@ -12,8 +12,8 @@
         "src/infrastructure/persistence/auth.ts",
         "scripts/auth-bootstrap-integration.test.mjs",
         "src/infrastructure/auth/gateway.ts",
-        "src/app.test.ts",
-        "src/auth-application.test.ts"
+        "src/test/integration/app.test.ts",
+        "src/application/auth.test.ts"
       ],
       "mustExplain": [
         "Identify public authentication flows and the checks for protected operations.",
@@ -39,8 +39,8 @@
       "taskIds": ["active-language"],
       "evidence": [
         "src/contracts/locales.ts",
-        "src/localization.test.ts",
-        "src/app.test.ts",
+        "src/infrastructure/localization/i18n.test.ts",
+        "src/test/integration/app.test.ts",
         "src/application/settings.ts",
         "src/presentation/http/routes/settings.ts"
       ],
@@ -74,8 +74,8 @@
         "src/infrastructure/localization/catalogs/en.ts",
         "src/application/localization.ts",
         "src/contracts/locales.ts",
-        "src/catalogs.test.ts",
-        "src/architecture.test.ts"
+        "src/infrastructure/localization/catalogs.test.ts",
+        "src/test/architecture/boundaries.test.ts"
       ],
       "mustExplain": [
         "API catalogs and the engine adapter are infrastructure-owned; application vocabulary is a pure type-only module.",
@@ -101,9 +101,9 @@
         "src/application/ports/users.ts",
         "src/infrastructure/persistence/users.ts",
         "src/presentation/http/routes/users.ts",
-        "src/users-application.test.ts",
-        "src/app.test.ts",
-        "src/management-services.test.ts"
+        "src/application/users.test.ts",
+        "src/test/integration/app.test.ts",
+        "src/test/integration/management-services.test.ts"
       ],
       "mustExplain": [
         "Distinguish transport authorization, application policy and the persistence transaction.",
@@ -135,12 +135,12 @@
         "src/application/ports/object-storage.ts",
         "src/infrastructure/persistence/files.ts",
         "src/presentation/http/routes/files.ts",
-        "src/files-application.test.ts",
-        "src/upload-body-limit.test.ts",
+        "src/application/files.test.ts",
+        "src/test/integration/upload-body-limit.test.ts",
         "docs/backup-restore.md",
         "docs/recovery-drills.md",
-        "src/recovery-drill.test.ts",
-        "src/test/recovery-drill-cases.ts"
+        "src/test/integration/recovery-drill.test.ts",
+        "src/test/support/recovery-drill-cases.ts"
       ],
       "mustExplain": [
         "Public uploads require settings.update or system-admin access; private uploads require an active authenticated account.",
@@ -178,10 +178,10 @@
         "src/application/settings.ts",
         "src/application/files.ts",
         "src/presentation/http/routes/settings.ts",
-        "src/management-services.test.ts",
+        "src/test/integration/management-services.test.ts",
         "AGENTS.md",
         "docs/comprehension-evaluation.md",
-        "src/app.test.ts"
+        "src/test/integration/app.test.ts"
       ],
       "mustExplain": [
         "Identify the authentication and permission requirements of the public settings read, language list, settings update and public file upload.",
@@ -215,7 +215,7 @@
       "taskIds": ["deployment"],
       "evidence": [
         "docs/recovery-drills.md",
-        "src/recovery-drill.test.ts",
+        "src/test/integration/recovery-drill.test.ts",
         "docs/backup-restore.md"
       ],
       "mustExplain": [

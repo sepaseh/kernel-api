@@ -103,6 +103,30 @@ export const validateOrigin = (value, publicOrigin = true) => {
   return url;
 };
 
+function validateGatewayOrigin(environment, publicOrigin) {
+  if (
+    environment.API_HOST === undefined &&
+    environment.HTTPS_PORT === undefined
+  )
+    return;
+  const host = requireValue(environment, "API_HOST");
+  const port = requireValue(environment, "HTTPS_PORT");
+  if (
+    host.length > 253 ||
+    !host
+      .split(".")
+      .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))
+  )
+    throw new Error("API_HOST must be a lowercase bare DNS hostname.");
+  if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535)
+    throw new Error("HTTPS_PORT must be between 1 and 65535.");
+  if (
+    publicOrigin.hostname !== host ||
+    publicOrigin.origin !== new URL(`https://${host}:${port}`).origin
+  )
+    throw new Error("BETTER_AUTH_URL must match API_HOST and HTTPS_PORT.");
+}
+
 function validateMinio(environment) {
   for (const name of [
     "MINIO_ACCESS_KEY",
@@ -144,7 +168,10 @@ export function validateDeploymentEnv(
     throw new Error(
       "BETTER_AUTH_SECRET must be a generated production secret of at least 32 characters.",
     );
-  validateOrigin(requireValue(environment, "BETTER_AUTH_URL"));
+  const publicOrigin = validateOrigin(
+    requireValue(environment, "BETTER_AUTH_URL"),
+  );
+  validateGatewayOrigin(environment, publicOrigin);
   const origins =
     environment.SERVER_ALLOWED_ORIGINS ?? environment.SERVER_ALLOWED_ORIGIN;
   if (!origins?.trim()) throw new Error("SERVER_ALLOWED_ORIGINS is required.");

@@ -3,7 +3,7 @@
 [English](recovery-drills.md) · [فارسی](recovery-drills.fa.md)
 
 Run `npm run test:recovery` from this checkout. The command runs three executable
-acceptance cases in [recovery-drill.test.ts](../src/recovery-drill.test.ts).
+acceptance cases in [recovery-drill.test.ts](../src/test/integration/recovery-drill.test.ts).
 They also run inside the required `test:coverage` gate and CI. No additional dependency, Docker engine,
 browser, external bucket, real environment file or production service is needed.
 

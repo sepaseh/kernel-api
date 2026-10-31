@@ -11,6 +11,8 @@
 **/dist
 **/coverage
 **/test-results
+src/test
+**/*.test.ts
 **/.cache
 **/uploads
 **/backups
