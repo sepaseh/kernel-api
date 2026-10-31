@@ -1,6 +1,6 @@
 # Repository guidance and evidence
 
-Read this rule when changing instructions, navigation, validation policy, ADRs or
+Read this rule when changing instructions, navigation, validation policy or
 comprehension evaluation. Keep the starter assistant-neutral and do not make an
 assistant or optional tool a runtime dependency.
 
@@ -15,11 +15,10 @@ assistant or optional tool a runtime dependency.
   links or checked projections, never independent definitions of a complete gate.
 - Task navigation: `.agents/navigation.json`; the readable guide is
   `docs/source-navigation.md`. Open owners and contracts, not just the map.
-- Decisions: `docs/adr/`; record consequences and supersession, not copied source.
-- Evaluation: `.agents/evaluation/cases.json` and `docs/comprehension-evaluation.md`.
+- Evaluation: `.agents/evaluation/cases.json` and `.agents/evaluation/README.md`.
 
 When a document conflicts with current behavior, verify source and contracts,
-correct the active explanation and keep dated execution results clearly scoped.
+correct the active explanation and report actual outcomes in the current task.
 Never describe a proposed tool, template or past test as a current executed result.
 
 ## Progressive reading and verification
@@ -53,9 +52,11 @@ all-client portability or improved agent performance without measured evidence.
 This repository owns its contracts, catalogs, tests and operating instructions.
 HTTP changes require compatibility review with affected consumers. Maintained API
 Markdown is checked for safe local links, including nested operating guides.
-Dated execution reports retain their real dates, scope and limitations; they do
-not establish that a check ran against later source.
+Display QA/test outcomes in the terminal or current chat by default. Keep docs for
+current guides and do not commit execution reports. Create a local report only
+when explicitly requested, under ignored `test-results/`; required coverage stays
+in its configured location.
 
 ## Change acceptance and test failures
 
-Use the [change handoff and implementation plan](../../docs/change-workflow.md) to distinguish required behavior, proposals and provider-dependent work, and link observable acceptance scenarios to the canonical checks. Use [test reliability](../../docs/test-reliability.md) to record ownership, first failures, reproduction and time-bounded exceptions. These are portable workflows, not automatic assistant discovery, flaky-test detection or permission to weaken a required gate.
+Use the [change checklist](../../docs/feature-development.md#plan-the-change) to distinguish required behavior, proposals and provider-dependent work, and link observable acceptance scenarios to the canonical checks. Use [test reliability](../../docs/test-reliability.md) to record ownership, first failures, reproduction and time-bounded exceptions. These are portable workflows, not automatic assistant discovery, flaky-test detection or permission to weaken a required gate.

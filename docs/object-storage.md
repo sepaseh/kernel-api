@@ -7,7 +7,7 @@ with local files and S3-compatible MinIO. `storage/create.ts` selects the adapte
 from `ServerConfig.storageDriver`; an unsupported driver fails explicitly.
 Creating an adapter does not start the API or call `ensureReady`. Local server
 startup must await storage readiness before accepting uploads. See
-[architecture](architecture.md) and the [phase gate](bootstrap.md).
+[architecture](architecture.md) and the [phase gate](architecture.md).
 
 ## Local files
 

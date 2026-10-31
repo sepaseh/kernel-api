@@ -79,7 +79,7 @@ PR و نتیجهٔ دروازهٔ کیفیت سرویس را بررسی کنید
 می‌گیرد. این شاهد اعتبارسنجی تولید یا دیتابیس راه‌دور نیست؛
 [شمای دیتابیس](database-schema.fa.md) را بخوانید.
 
-در [مرحلهٔ اجرای محلی](bootstrap.fa.md)،
+در [مرحلهٔ اجرای محلی](architecture.fa.md)،
 [sonar-project.properties](../sonar-project.properties) پوشهٔ منتشرشدهٔ `scripts`
 و `src` را تحلیل می‌کند؛ فایل‌های `.test.ts` و `.test.mjs`، ابزارهای آزمون `src/test`
 و فایل `scripts/test-native-release.mjs` را به‌عنوان آزمون می‌شناسد و گزارش واقعی

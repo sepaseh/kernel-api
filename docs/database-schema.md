@@ -126,5 +126,5 @@ generation tooling is available for reviewing migration changes. Do not run
 migrations on existing data without explicit
 authorization and a verified matching backup.
 
-See [architecture](architecture.md), [publication gate](bootstrap.md) and
+See [architecture](architecture.md), [publication gate](architecture.md) and
 [Contributing](../CONTRIBUTING.md).

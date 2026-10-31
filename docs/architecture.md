@@ -2,7 +2,7 @@
 
 [English](architecture.md) · [فارسی](architecture.fa.md)
 
-The current [local-runtime phase](bootstrap.md) contains a framework-free
+The current [local-runtime phase](architecture.md) contains a framework-free
 application layer, local contracts, feature ports, ten static API catalogs and
 configuration, translation, logging, fatal-lifecycle support and real database
 schema, migrations, authentication/OTP persistence, administrator provisioning
@@ -11,6 +11,8 @@ Hono HTTP route adapters, application composition and a local Node server.
 production OTP delivery or deployed service readiness. See [authentication adapters](auth-adapters.md).
 Local and S3-compatible MinIO adapters implement the object-storage port; their
 factory is not an application composition root.
+
+## Startup and readiness
 
 The Node entry point binds the configured listener before opening the database
 or preparing storage. While initialization is incomplete it serves a 503 with

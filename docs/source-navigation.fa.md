@@ -36,13 +36,12 @@ manifest کامل اعتبارسنجی همچنان الزامی است.
 را کامل کنید. اگر صفحه از نشست، زبان یا فایل استفاده می‌کند، کار `auth-session`،
 `active-language` یا `media-storage` را هم دنبال کنید. API قرارداد و شاهد مجوز/خطا
 را می‌دهد؛ انتخاب مؤلفه، چیدمان و بررسی ظاهر متعلق به فرانت‌اند مصرف‌کننده است.
-برای دنبال‌کردن رفتار از [آزمون قرارداد](contract-testing.fa.md)،
+برای دنبال‌کردن رفتار از [آزمون قرارداد](testing.md#http-contract-tests)،
 [اعتبارسنجی ورودی](input-validation.fa.md)، [توالی درخواست‌ها](sequences.fa.md)
-و [ثبت رویداد](backend-logging.fa.md) استفاده کنید؛ [فهرست تصمیم‌ها](adr/README.fa.md)
-انتخاب‌های معماری را ثبت می‌کند.
+و [ثبت رویداد](backend-logging.fa.md) استفاده کنید.
 
 کار استقرار شامل Docker/native مخصوص API، release تغییرناپذیر، preflight، state پایدار،
 health/bootstrap و بازیابی هماهنگ است. راهنما و ارزیابی فقط همین پروژه را مصرف می‌کنند.
 [اعتبارسنجی](validation.fa.md)، [معماری](architecture.fa.md)، [استقرار](deployment.fa.md) و
-[ارزیابی](comprehension-evaluation.fa.md) محدودیت شواهد را توضیح می‌دهند. env واقعی،
+[ارزیابی](../.agents/evaluation/README.md) محدودیت شواهد را توضیح می‌دهند. env واقعی،
 server/data نادیده‌گرفته‌شده یا production ورودی آزمون و ارزیابی نیستند.

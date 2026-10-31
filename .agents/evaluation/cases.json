@@ -138,7 +138,6 @@
         "src/application/files.test.ts",
         "src/test/integration/upload-body-limit.test.ts",
         "docs/backup-restore.md",
-        "docs/recovery-drills.md",
         "src/test/integration/recovery-drill.test.ts",
         "src/test/support/recovery-drill-cases.ts"
       ],
@@ -180,7 +179,7 @@
         "src/presentation/http/routes/settings.ts",
         "src/test/integration/management-services.test.ts",
         "AGENTS.md",
-        "docs/comprehension-evaluation.md",
+        ".agents/evaluation/README.md",
         "src/test/integration/app.test.ts"
       ],
       "mustExplain": [
@@ -214,9 +213,8 @@
       },
       "taskIds": ["deployment"],
       "evidence": [
-        "docs/recovery-drills.md",
-        "src/test/integration/recovery-drill.test.ts",
-        "docs/backup-restore.md"
+        "docs/backup-restore.md",
+        "src/test/integration/recovery-drill.test.ts"
       ],
       "mustExplain": [
         "Separate synthetic recovery evidence from deployed production verification."

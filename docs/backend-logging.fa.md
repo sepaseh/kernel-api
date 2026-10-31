@@ -20,7 +20,7 @@ Docker از stdout/stderr و سرویس بومی از journald استفاده م
 هنگام شروع پیش از فعال‌شدن این میان‌افزار درخواست ارائه می‌شود.
 
 آزمون‌های گزارش، درخواست و lifecycle با `npm run test:coverage` اجرا می‌شوند.
-`npm run test:recovery` نیز [رخداد مصنوعی storage](recovery-drills.fa.md) را با
+`npm run test:recovery` نیز [رخداد مصنوعی storage](backup-restore.md#isolated-recovery-drills) را با
 ارتباط واقعی درخواست HTTP، نسخهٔ انتشار و لاگ و سپس بازیابی می‌سنجد؛ مرورگر یا
 collector راه نمی‌اندازد.
 [بازبینی امنیت](security/authentication-review.fa.md) را ببینید.

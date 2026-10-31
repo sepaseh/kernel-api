@@ -536,13 +536,6 @@ const collectMarkdown = async (root) => {
       .map((name) => path.join(root, name)),
     path.join(root, "AGENTS.md"),
   ];
-  for (const name of [
-    "source-navigation",
-    "validation",
-    "comprehension-evaluation",
-  ])
-    for (const suffix of [".md", ".fa.md"])
-      markdown.push(path.join(root, `docs/${name}${suffix}`));
   markdown.push(
     ...source.filter((filename) =>
       /(?:^|[\\/])AGENTS(?:\.fa)?\.md$/.test(filename),

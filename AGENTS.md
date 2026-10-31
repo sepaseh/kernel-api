@@ -47,7 +47,9 @@ Every new commit invalidates that evidence.
 Keep assistant instructions, rules, skills and active evaluation prompts in English;
 do not create Persian instruction companions or translated evaluation prompts.
 Maintain the separate human documentation in English and Persian, plus current
-navigation/evaluation evidence and ADRs.
+navigation/evaluation prompts and reusable guides.
+Report QA outcomes in the current task; create a local report only on explicit
+request under ignored `test-results/`, never in docs or the evaluation directory.
 Record actual check results and limitations; guidance configuration does not prove
 automatic assistant instruction loading.
 

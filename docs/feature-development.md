@@ -33,3 +33,19 @@ For a client screen plan, first complete the
 [client screen contract handoff](collection-guide.md#client-screen-contract-handoff).
 It identifies existing API behavior and any proposed contract gap before frontend
 implementation; component libraries and visual decisions stay with that frontend.
+
+## Plan the change
+
+Identify the requested behavior, the owning repository and affected HTTP consumers.
+Separate required work, proposals, dependencies and explicit exclusions. Read the
+owning source, contracts and tests before choosing the smallest coherent change.
+Describe acceptance scenarios by trigger, observable result, authorization/failure
+boundary and the check that establishes it. Include session, language, transaction,
+data/migration compatibility and rollback concerns when they apply.
+
+Use synthetic disposable fixtures and plan their cleanup. Keep observed check
+results, failures, skips and limits in the current task; use the canonical
+[validation policy](validation.md) before an authorized commit or PR.
+Commit, push, remote messages and production access retain their separate
+authorization requirements. For API-backed screen work, use the existing
+[client screen handoff](collection-guide.md#client-screen-contract-handoff).

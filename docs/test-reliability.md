@@ -12,21 +12,16 @@ required failure with retries, skips or weakened assertions. Clean up only fixtu
 created by the test. Report checks that were not run or could not complete, and
 use [validation](validation.md) to choose the final required checks.
 
-The [2026-10-29 OTP cleanup incident](qa/otp-cleanup-2026-10-29.md) records a
-Windows failure and later checks; its cause remains unconfirmed.
-
 The multi-connection bootstrap, OTP and development-seed fixtures attempt cleanup
 after setup or test failures, close each created client independently, and report
 operation and cleanup failures together. These checks use owned temporary data;
-they do not establish the cause of the recorded Windows file lock or guarantee that
-another process cannot hold a fixture open.
+close each owned client before removing its fixture, while another process may still hold a file open.
 
 The application, persistence and management database fixtures attempt each owned
 client close and temporary-directory removal independently, including after partial
 setup. Cleanup failures are not suppressed: persistence and management test hooks
 also emit diagnostics so cleanup errors remain visible when a test fails as well.
-The recorded Windows `EBUSY` lock's cause remains unconfirmed; these changes do not
-guarantee that an external process cannot hold a file open.
+Another process can still hold a fixture file open.
 
 ## Investigation record
 
@@ -51,7 +46,7 @@ After a fix, repeat the relevant conditions and run the checks in the canonical
 [validation policy](validation.md). Distinguish observed results from proposed
 work and report any cleanup failure; this record does not waive a required check.
 
-Recovery drills retain worker and cleanup failures together. Native-smoke cleanup reports failures from independently owned resources and keeps them when server shutdown cannot be confirmed. These failure-path tests use synthetic fixtures; they do not establish why a previous Windows file lock occurred.
+Recovery drills retain worker and cleanup failures together. Native-smoke cleanup reports failures from independently owned resources and keeps them when server shutdown cannot be confirmed. These failure-path tests use synthetic fixtures.
 
 Prefer deterministic readiness and isolated state; avoid arbitrary sleeps, wider
 visual thresholds and repeated reruns until green. Do not add hidden retries,
@@ -75,3 +70,10 @@ report the cleanup failure and retain the owned resources for diagnosis. Docker 
 use the [disposable lifecycle](../deploy/docker/README.md), including exact test
 images and dedicated builder/cache on success, failure or handled interruption.
 Do not prune another project's resources as a routine test cleanup.
+
+## Reporting results
+
+Display QA/test outcomes in the terminal or current chat by default. Keep docs for
+current guides and do not commit execution reports. Create a local report only
+when explicitly requested, under ignored `test-results/`; required coverage stays
+in its configured location.
