@@ -99,7 +99,8 @@ columns in one bound SQL update. Authentication, OTP persistence, initialization
 and initial administrator provisioning are included; production OTP delivery remains unpublished.
 
 Run `npm run validate -- full` before an authorized commit or PR. Test the exact
-proposed tree. Keep each PR at 100 or fewer changed files, including deletions and
+proposed tree. Target 80 or fewer changed files in an initial PR, reserving 20
+entries for review fixes under the hard 100-file CI limit. Count deletions and
 renames; the total repository may grow beyond 100 files. Preserve private state,
 never read real environment files or credentials, and require explicit user
 authorization for commits, pushes, remote comments and merging.

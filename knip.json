@@ -1,6 +1,6 @@
 {
   "entry": [
-    "src/*.test.ts",
+    "src/**/*.test.ts",
     "scripts/*.mjs",
     "deploy/docker/*.mjs",
     "src/infrastructure/db/schema.ts",
