@@ -74,7 +74,7 @@ review, including recent PRs. Respect any later retry time reported by the provi
 
 ## Current scope
 
-During the [local-runtime phase](bootstrap.md),
+During the [local-runtime phase](architecture.md),
 [sonar-project.properties](../sonar-project.properties) includes the published
 `src` and `scripts` directories, classifies `.test.ts` and `.test.mjs` files,
 the `src/test` fixtures and `scripts/test-native-release.mjs` as tests, and

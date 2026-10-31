@@ -33,5 +33,5 @@ Docker از tag تغییرناپذیر و نام پروژه و volume ثابت �
 نامرتبط و عجولانه ندهید.
 
 [روش‌های استقرار](deployment.fa.md)، [بازیابی](backup-restore.fa.md) و
-[staging و smoke دستی](staging.fa.md) را ببینید. موارد امنیتی را به‌صورت خصوصی با
+[staging و smoke دستی](deployment.md#protected-manual-api-checks) را ببینید. موارد امنیتی را به‌صورت خصوصی با
 نگهدارندگان هماهنگ کنید.

@@ -39,13 +39,13 @@ For an API-backed screen plan, select `http-contract` and complete the
 Follow `auth-session`, `active-language` or `media-storage` when the screen uses
 those behaviors. The API provides contracts and authorization/error evidence;
 component selection, layout and visual checks belong to the consuming frontend.
-Use [contract testing](contract-testing.md), [input validation](input-validation.md),
+Use [contract testing](testing.md#http-contract-tests), [input validation](input-validation.md),
 [request sequences](sequences.md) and [logging](backend-logging.md) to trace the
-behavior; the [decision index](adr/README.md) records architectural choices.
+behavior and its owning layer.
 
 Deployment tasks include API-only Docker/native artifacts, immutable packaging,
 prevalidation, durable state, health/bootstrap and coordinated recovery. Guidance
 and evaluation use only the root project. [Validation](validation.md),
 [architecture](architecture.md), [deployment](deployment.md) and
-[evaluation](comprehension-evaluation.md) describe their limits. Never use real env,
+[evaluation](../.agents/evaluation/README.md) describe their limits. Never use real env,
 ignored server/data or production as a comprehension fixture.

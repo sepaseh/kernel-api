@@ -21,7 +21,7 @@ The [DAST workflow](../../.github/workflows/dast.yml) is a manual staging-only
 template that can send mutating scan traffic. It reads target settings from the
 staging environment and rejects the configured production host; environment
 protections must be configured and verified separately. Do not dispatch it
-without explicit authorization for the target. See [staging](../staging.md)
+without explicit authorization for the target. See [staging](../deployment.md#protected-manual-api-checks)
 for prerequisites. Use synthetic credentials and data for local tests; do not
 read real credentials or use production data. Local and synthetic tests do not
 prove that a production deployment or third-party security review has occurred.

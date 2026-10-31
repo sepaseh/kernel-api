@@ -21,7 +21,7 @@ separate event without replacing the original metadata failure. The startup 503
 responses are served before this request middleware is installed.
 
 Run the API logging, request and lifecycle tests through `npm run test:coverage`.
-`npm run test:recovery` also exercises a [synthetic storage incident](recovery-drills.md)
+`npm run test:recovery` also exercises a [synthetic storage incident](backup-restore.md#isolated-recovery-drills)
 with actual HTTP request/release/log correlation and recovery; it does not run a
 browser or provision a collector.
 See the [security review](security/authentication-review.md).

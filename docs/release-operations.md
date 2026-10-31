@@ -37,5 +37,5 @@ incident/release ID, evidence, data-loss window and recovery duration. Retain lo
 and follow-up remediation; do not improvise unrelated forward fixes during rollback.
 
 See [production modes](deployment.md), [backup/recovery](backup-restore.md),
-and [protected manual staging/smoke](staging.md). Coordinate security concerns
+and [protected manual staging/smoke](deployment.md#protected-manual-api-checks). Coordinate security concerns
 privately with the maintainers.

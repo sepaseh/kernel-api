@@ -54,7 +54,7 @@
         "docs/collection-guide.md",
         "docs/http-transport.md",
         ".agents/rules/api-collection.md",
-        "docs/contract-testing.md",
+        "docs/testing.md",
         ".agents/rules/data-lifecycle.md",
         ".agents/rules/collection-quality.md"
       ],
@@ -85,7 +85,7 @@
         "src/contracts/permissions.ts",
         "src/contracts/profile.ts",
         "docs/sequences.md",
-        "docs/adr/0004-cookie-proxy-and-sessions.md"
+        "docs/architecture.md"
       ],
       "tests": [
         "src/infrastructure/auth/gateway.test.ts",
@@ -186,7 +186,6 @@
         "docs/deployment.md",
         "docs/backup-restore.md",
         "docs/object-storage.md",
-        "docs/recovery-drills.md",
         "docs/release-operations.md"
       ],
       "tests": [
@@ -228,8 +227,8 @@
         ".agents/rules/guidance.md",
         ".agents/validation.json",
         "docs/validation.md",
-        "docs/comprehension-evaluation.md",
-        "docs/adr/README.md",
+        ".agents/evaluation/README.md",
+        "docs/architecture.md",
         ".agents/rules/git.md",
         ".agents/rules/branches.md",
         ".agents/skills/commit/SKILL.md",

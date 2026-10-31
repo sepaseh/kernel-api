@@ -8,7 +8,7 @@ fixtures. The exact commands are maintained in [the validation manifest](../.age
 and `package.json`; do not infer coverage from a list of filenames.
 
 `npm run test:recovery` runs three isolated recovery and incident drills. They also
-run as part of `test:coverage`. [Recovery drills](recovery-drills.md) describes
+run as part of `test:coverage`. [Recovery drills](backup-restore.md#isolated-recovery-drills) describes
 their scope. The signed object-storage fixture is loopback-only; it is not a deployed
 MinIO service. Local HTTP tests do not establish a deployed client or SMS provider.
 
@@ -31,4 +31,25 @@ fixtures after success/failure or handled cancellation; cleanup failures fail th
 command. Deployment regressions cover partial build/create failure, name collisions,
 SIGINT/SIGTERM and continued cleanup after a removal error. Follow the scoped
 [Docker cleanup policy](../deploy/docker/README.md) for manual local tests too.
-[QA](qa/README.md) records dated validation outcomes and their limits.
+
+## HTTP contract tests
+
+`npm run test:coverage` runs the published HTTP, collection, architecture and
+input-validation suites along with application, persistence and other tests.
+`npm run check:boundaries` checks source and contract import boundaries.
+The boundary tests cover static, type-only, dynamic, re-export, require and
+resolved-alias guards. Use the [validation manifest](../.agents/validation.json)
+for the full required profile: `npm run validate -- full` before an authorized
+commit or PR handoff. Synthetic tests do not prove deployed authorization.
+
+Consumer contract tests belong to their independently released clients. Automated
+Pact provider verification is not implemented and is not claimed here. Independent contracts
+are intentional snapshots; public field, status, auth and cookie compatibility,
+not identical package source, is the release contract.
+
+## Reporting results
+
+Display QA/test outcomes in the terminal or current chat by default. Keep docs for
+current guides and do not commit execution reports. Create a local report only
+when explicitly requested, under ignored `test-results/`; required coverage stays
+in its configured location.

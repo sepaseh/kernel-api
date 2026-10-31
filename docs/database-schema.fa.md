@@ -117,5 +117,5 @@ SQLite یا پیام معتبر و سازگار با ابتدای مشخص، ت�
 پروژه‌اند. ابزار تولید Drizzle برای بازبینی تغییرات migration موجود است.
 بدون مجوز صریح و backup هماهنگ و تأییدشده، migration را روی دادهٔ موجود اجرا نکنید.
 
-[معماری](architecture.fa.md)، [بررسی مرحله](bootstrap.fa.md) و
+[معماری](architecture.fa.md)، [بررسی مرحله](architecture.fa.md) و
 [راهنمای مشارکت](../CONTRIBUTING.fa.md) را ببینید.
