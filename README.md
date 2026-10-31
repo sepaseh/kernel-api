@@ -121,7 +121,7 @@ and [security policy](SECURITY.md) for further guidance.
 ## Contribute
 
 Read [Contributing](CONTRIBUTING.md) and the
-[publication phase guide](docs/bootstrap.md). Keep each PR at **100 or fewer
+[publication phase guide](docs/architecture.md). Keep each PR at **100 or fewer
 GitHub changed-file entries**; this limits each PR's diff, not the repository's
 file count.
 

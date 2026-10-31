@@ -2,10 +2,10 @@
   "entry": [
     "src/**/*.test.ts",
     "scripts/*.mjs",
-    "deploy/docker/*.mjs",
+    "!scripts/*.test-support.mjs",
     "src/infrastructure/db/schema.ts",
     "drizzle.config.ts"
   ],
-  "project": ["src/**/*.ts", "scripts/**/*.mjs", "deploy/**/*.mjs"],
+  "project": ["src/**/*.ts", "scripts/**/*.mjs"],
   "drizzle": false
 }

@@ -7,5 +7,5 @@ concrete adapters own persistence/auth/storage and Hono stays in presentation/ht
 Manual composition connects them. HTTP may use logging and localization adapters; application imports no infrastructure.
 The application localization vocabulary is consumed across that boundary only as erased types. Transaction-time invariants
 stay in concrete persistence writes. Do not add generic repositories, DDD, CQRS,
-mediators or a DI container. [Architecture tests](../../src/architecture.test.ts)
+mediators or a DI container. [Architecture tests](../../src/test/architecture/boundaries.test.ts)
 and real-DB tests cover separate concerns.

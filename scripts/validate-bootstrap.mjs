@@ -21,8 +21,8 @@ const foundationFiles = [
   "scripts/validate.test.mjs",
   "scripts/check-ci.mjs",
   "scripts/check-ci.test.mjs",
-  "src/foundation.test.ts",
-  "src/validation.test.ts",
+  "src/application/foundation.test.ts",
+  "src/application/validation.test.ts",
   "tsconfig.json",
 ];
 const foundationCore = new Set(
@@ -39,7 +39,10 @@ const foundationCore = new Set(
 const isFoundationSource = (file) =>
   foundationCore.has(file) ||
   /^src\/(?:contracts|application\/ports)\/[\w-]+\.ts$/.test(file) ||
-  ["src/foundation.test.ts", "src/validation.test.ts"].includes(file);
+  [
+    "src/application/foundation.test.ts",
+    "src/application/validation.test.ts",
+  ].includes(file);
 const serviceFiles = [
   "account",
   "auth",
@@ -50,14 +53,14 @@ const serviceFiles = [
   "users",
 ].map((name) => `src/application/${name}.ts`);
 const serviceTests = ["account", "auth", "files", "management", "users"].map(
-  (name) => `src/${name}-application.test.ts`,
+  (name) => `src/application/${name}.test.ts`,
 );
 const applicationServicesFiles = [...serviceFiles, ...serviceTests];
 const localizationFiles = [
   ...["ar", "de", "en", "es", "fa", "fr", "it", "pt", "ru", "tr", "index"].map(
     (code) => `src/infrastructure/localization/catalogs/${code}.ts`,
   ),
-  "src/catalogs.test.ts",
+  "src/infrastructure/localization/catalogs.test.ts",
 ];
 const infrastructureSupportFiles = [
   "src/infrastructure/config.ts",
@@ -65,21 +68,21 @@ const infrastructureSupportFiles = [
   "src/infrastructure/localization/i18n.ts",
   "src/infrastructure/logging/logger.ts",
   "src/infrastructure/logging/sanitization.ts",
-  "src/config.test.ts",
-  "src/lifecycle.test.ts",
-  "src/localization.test.ts",
-  "src/logger.test.ts",
+  "src/infrastructure/config.test.ts",
+  "src/infrastructure/lifecycle.test.ts",
+  "src/infrastructure/localization/i18n.test.ts",
+  "src/infrastructure/logging/logger.test.ts",
 ];
 const localStorageFiles = [
   "src/infrastructure/storage/local.ts",
   "src/infrastructure/storage/operations.ts",
-  "src/local-storage.test.ts",
+  "src/infrastructure/storage/local.test.ts",
 ];
 const objectStorageFiles = [
   "src/infrastructure/storage/minio.ts",
   "src/infrastructure/storage/create.ts",
   "src/infrastructure/storage/url.ts",
-  "src/object-storage.test.ts",
+  "src/infrastructure/storage/minio.test.ts",
   "docs/object-storage.md",
   "docs/object-storage.fa.md",
 ];
@@ -96,9 +99,9 @@ const databaseFiles = [
     "settings",
     "users",
   ].map((name) => `src/infrastructure/persistence/${name}.ts`),
-  "src/management-services.test.ts",
-  "src/users-lifecycle.test.ts",
-  "src/persistence.test.ts",
+  "src/test/integration/management-services.test.ts",
+  "src/test/integration/users-lifecycle.test.ts",
+  "src/test/integration/persistence.test.ts",
   "docs/database-schema.md",
   "docs/database-schema.fa.md",
   ...[
@@ -124,7 +127,7 @@ const authBootstrapFiles = [
   "docs/auth-adapters.fa.md",
   "scripts/auth-bootstrap-integration.test.mjs",
   "scripts/auth-identity-integration.test.mjs",
-  "src/auth-gateway.test.ts",
+  "src/infrastructure/auth/gateway.test.ts",
   "src/bootstrap-admin.ts",
   "src/infrastructure/admin/bootstrap.ts",
   "src/infrastructure/auth/better-auth.ts",
@@ -137,17 +140,15 @@ const httpTransportFiles = [
   "docs/http-transport.md",
   "docs/http-transport.fa.md",
   "scripts/http-upload-loopback.test.mjs",
-  "src/http-transport.test.ts",
-  "src/upload-body-limit.test.ts",
-  "src/app.test.ts",
-  "src/input-validation-http.test.ts",
-  "src/deletion-lifecycle-http.test.ts",
-  "src/request-logging.test.ts",
-  "src/architecture.test.ts",
-  "src/test/create-app-fixture.ts",
-  "src/test/composition-dependencies.ts",
-  "src/test/logging.ts",
-  "src/test/memory-object-storage.ts",
+  "src/test/integration/http-transport.test.ts",
+  "src/test/integration/upload-body-limit.test.ts",
+  "src/test/integration/app.test.ts",
+  "src/test/integration/input-validation-http.test.ts",
+  "src/test/integration/deletion-lifecycle-http.test.ts",
+  "src/test/integration/request-logging.test.ts",
+  "src/test/architecture/boundaries.test.ts",
+  "src/test/support/logging.ts",
+  "src/test/support/memory-object-storage.ts",
   ...["app", "auth-attempts", "dependencies", "http", "request-logging"].map(
     (name) => `src/presentation/http/${name}.ts`,
   ),
@@ -349,9 +350,9 @@ const operationsFiles = new Set([
   "deploy/docker/nginx.conf.template",
   "deploy/docker/README.md",
   "deploy/docker/README.fa.md",
-  "deploy/docker/smoke-resources.mjs",
-  "deploy/docker/smoke-resources.test.mjs",
-  "deploy/docker/smoke.mjs",
+  "scripts/docker-smoke-cleanup.mjs",
+  "scripts/docker-smoke-cleanup.test.mjs",
+  "scripts/test-docker-release.mjs",
   "deploy/native/nginx/bootstrap.conf.template",
   "deploy/native/nginx/kernel.conf.template",
   "deploy/native/README.md",
@@ -377,13 +378,20 @@ const operationsFiles = new Set([
   "scripts/package-release.test.mjs",
   "scripts/package-release.mjs",
   "scripts/healthcheck.mjs",
-  "scripts/deployment.test.mjs",
+  "scripts/deployment.integration.test.mjs",
+  "scripts/healthcheck.test.mjs",
+  "scripts/render-deployment.test.mjs",
+  "scripts/validate-deployment-env.test.mjs",
+  "scripts/package-release.integration.test.mjs",
+  "scripts/check-deployed-api.integration.test.mjs",
+  "scripts/deployment.test-support.mjs",
+  "scripts/package-release.test-support.mjs",
   "scripts/check-deployed-api.test.mjs",
   "scripts/check-deployed-api.mjs",
-  "src/recovery-drill.test.ts",
-  "src/test/fixture-cleanup.ts",
-  "src/test/fixture-cleanup.test.ts",
-  "src/test/recovery-drill-cases.ts",
+  "src/test/integration/recovery-drill.test.ts",
+  "src/test/support/fixture-cleanup.ts",
+  "src/test/support/fixture-cleanup.test.ts",
+  "src/test/support/recovery-drill-cases.ts",
 ]);
 const guidanceFiles = [
   ".agents/README.md",
@@ -436,7 +444,7 @@ const guidanceFiles = [
   "docs/validation.fa.md",
   "docs/validation.md",
   "scripts/check-guidance.mjs",
-  "scripts/guidance.test.mjs",
+  "scripts/check-guidance.test.mjs",
 ];
 
 const localRuntimeFiles = [
@@ -459,10 +467,10 @@ const localRuntimeFiles = [
   "release-please-config.json",
   "scripts/ai-hooks.portable.test.mjs",
   "scripts/website-api-runner.mjs",
-  "scripts/test-website-api.test.mjs",
-  "src/auth-invariants.test.ts",
-  "src/bootstrap-admin.test.ts",
-  "src/drizzle-toolchain.test.ts",
+  "scripts/website-api-runner.test.mjs",
+  "src/test/integration/auth-invariants.test.ts",
+  "src/test/integration/bootstrap-admin.test.ts",
+  "src/test/architecture/drizzle-toolchain.test.ts",
   "src/test/architecture/lint-toolchain.test.ts",
   ...guidanceFiles,
   ...operationsFiles,

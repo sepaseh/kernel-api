@@ -13,7 +13,7 @@ Wire contracts may import only other pure local contract modules. Runtime catalo
 contain plain API data and erased application message types; the translation engine
 stays in the infrastructure adapter. Never import source from another checkout or
 restore shared package aliases. scripts/check-boundaries.mjs checks source containment
-and contract purity; src/architecture.test.ts checks the narrower layer boundaries.
+and contract purity; src/test/architecture/boundaries.test.ts checks the narrower layer boundaries.
 Import ordering is enforced by eslint-plugin-simple-import-sort.
 
 ## Erased type imports and exports

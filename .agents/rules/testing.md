@@ -11,6 +11,18 @@ purity and key/placeholder integrity are separate source boundaries. API HTTP te
 and Bruno/DTOs define wire behavior; independently released clients own their own
 component/browser/Pact consumer checks.
 
+## Test placement
+
+Keep focused application and infrastructure tests beside their owners as
+`<module>.test.ts`. Put broad suites in `src/test/integration/`, dependency and
+toolchain checks in `src/test/architecture/`, and shared source fixtures in
+`src/test/support/`. Production code must not import test support.
+
+Keep `scripts/` flat: focused tests use `<script>.test.mjs`; cross-script scenarios
+use descriptive integration suites. Share setup in `deployment.test-support.mjs`
+and `package-release.test-support.mjs`; these are helpers, not runnable suites or
+production dependencies. Move existing cases without duplicating assertions.
+
 Test observable success/failure and atomic invariants, not implementation copies.
 Use small synthetic factories, deterministic clocks/data where needed, and actual
 concurrent transaction/rollback cases when stale reads matter. Preserve provider

@@ -3,7 +3,7 @@
 [English](recovery-drills.md) · [فارسی](recovery-drills.fa.md)
 
 از ریشهٔ همین مخزن `npm run test:recovery` را اجرا کنید. این دستور سه سناریوی
-پذیرش اجرایی در [recovery-drill.test.ts](../src/recovery-drill.test.ts)
+پذیرش اجرایی در [recovery-drill.test.ts](../src/test/integration/recovery-drill.test.ts)
 را اجرا می‌کند. این سناریوها در بررسی الزامی `test:coverage` و CI هم
 اجرا می‌شوند. وابستگی جدید،
 موتور Docker، مرورگر، bucket خارجی، فایل محیط واقعی یا سرویس عملیاتی لازم نیست.

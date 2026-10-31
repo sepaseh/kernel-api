@@ -9,7 +9,7 @@ treat a passing snapshot gate as proof for every local file. The local
 [security](SECURITY.md), and [recovery](docs/backup-restore.md) guides describe
 additional work, not evidence of a deployed service.
 
-The current [local-runtime phase](docs/bootstrap.md) contains contracts,
+The current [local-runtime phase](docs/architecture.md) contains contracts,
 application services, ports, ten static catalogs and configuration, translation,
 logging, fatal-lifecycle support, local/MinIO object storage and real database
 schema, migrations, authentication, initial administrator provisioning, HTTP

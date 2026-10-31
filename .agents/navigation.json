@@ -28,15 +28,15 @@
         "docs/input-validation.md"
       ],
       "tests": [
-        "src/app.test.ts",
-        "src/persistence.test.ts",
-        "src/http-transport.test.ts",
-        "src/users-application.test.ts",
-        "src/management-services.test.ts",
-        "src/architecture.test.ts",
-        "src/validation.test.ts",
-        "src/input-validation-http.test.ts",
-        "src/test/fixture-cleanup.test.ts"
+        "src/test/integration/app.test.ts",
+        "src/test/integration/persistence.test.ts",
+        "src/test/integration/http-transport.test.ts",
+        "src/application/users.test.ts",
+        "src/test/integration/management-services.test.ts",
+        "src/test/architecture/boundaries.test.ts",
+        "src/application/validation.test.ts",
+        "src/test/integration/input-validation-http.test.ts",
+        "src/test/support/fixture-cleanup.test.ts"
       ],
       "checks": ["boundaries", "typecheck", "coverage-tests", "lint"]
     },
@@ -60,8 +60,8 @@
       ],
       "tests": [
         "scripts/collection.test.mjs",
-        "src/http-transport.test.ts",
-        "src/app.test.ts"
+        "src/test/integration/http-transport.test.ts",
+        "src/test/integration/app.test.ts"
       ],
       "checks": ["boundaries", "typecheck", "coverage-tests"]
     },
@@ -88,11 +88,11 @@
         "docs/adr/0004-cookie-proxy-and-sessions.md"
       ],
       "tests": [
-        "src/auth-gateway.test.ts",
+        "src/infrastructure/auth/gateway.test.ts",
         "scripts/auth-bootstrap-integration.test.mjs",
-        "src/app.test.ts",
-        "src/auth-application.test.ts",
-        "src/http-transport.test.ts"
+        "src/test/integration/app.test.ts",
+        "src/application/auth.test.ts",
+        "src/test/integration/http-transport.test.ts"
       ],
       "checks": ["typecheck", "lint", "coverage-tests"]
     },
@@ -116,11 +116,11 @@
         "src/contracts/locales.ts"
       ],
       "tests": [
-        "src/catalogs.test.ts",
-        "src/localization.test.ts",
-        "src/app.test.ts",
-        "src/management-services.test.ts",
-        "src/persistence.test.ts"
+        "src/infrastructure/localization/catalogs.test.ts",
+        "src/infrastructure/localization/i18n.test.ts",
+        "src/test/integration/app.test.ts",
+        "src/test/integration/management-services.test.ts",
+        "src/test/integration/persistence.test.ts"
       ],
       "checks": ["boundaries", "typecheck", "coverage-tests"]
     },
@@ -134,7 +134,10 @@
         "src/infrastructure/localization/i18n.ts"
       ],
       "contracts": [".agents/rules/localization.md", "docs/localization.md"],
-      "tests": ["src/catalogs.test.ts", "src/architecture.test.ts"],
+      "tests": [
+        "src/infrastructure/localization/catalogs.test.ts",
+        "src/test/architecture/boundaries.test.ts"
+      ],
       "checks": ["boundaries", "typecheck", "coverage-tests"]
     },
     {
@@ -155,11 +158,11 @@
         ".agents/rules/data-lifecycle.md"
       ],
       "tests": [
-        "src/files-application.test.ts",
-        "src/app.test.ts",
-        "src/request-logging.test.ts",
-        "src/upload-body-limit.test.ts",
-        "src/recovery-drill.test.ts"
+        "src/application/files.test.ts",
+        "src/test/integration/app.test.ts",
+        "src/test/integration/request-logging.test.ts",
+        "src/test/integration/upload-body-limit.test.ts",
+        "src/test/integration/recovery-drill.test.ts"
       ],
       "checks": ["boundaries", "typecheck", "coverage-tests"]
     },
@@ -187,15 +190,20 @@
         "docs/release-operations.md"
       ],
       "tests": [
-        "scripts/deployment.test.mjs",
-        "src/recovery-drill.test.ts",
-        "src/object-storage.test.ts",
+        "src/test/integration/recovery-drill.test.ts",
+        "src/infrastructure/storage/minio.test.ts",
         "scripts/package-release.test.mjs",
-        "src/test/recovery-drill-cases.ts",
-        "deploy/docker/smoke.mjs",
+        "src/test/support/recovery-drill-cases.ts",
+        "scripts/test-docker-release.mjs",
         "scripts/auth-bootstrap-integration.test.mjs",
         "scripts/native-smoke-cleanup.test.mjs",
-        "src/test/fixture-cleanup.test.ts"
+        "src/test/support/fixture-cleanup.test.ts",
+        "scripts/deployment.integration.test.mjs",
+        "scripts/healthcheck.test.mjs",
+        "scripts/render-deployment.test.mjs",
+        "scripts/validate-deployment-env.test.mjs",
+        "scripts/package-release.integration.test.mjs",
+        "scripts/check-deployed-api.integration.test.mjs"
       ],
       "checks": [
         "snapshot",
@@ -228,7 +236,7 @@
         ".agents/skills/start-issue/SKILL.md"
       ],
       "tests": [
-        "scripts/guidance.test.mjs",
+        "scripts/check-guidance.test.mjs",
         "scripts/validate.test.mjs",
         "scripts/validate-bootstrap.test.mjs"
       ],
