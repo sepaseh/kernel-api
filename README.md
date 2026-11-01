@@ -1,16 +1,23 @@
 # Kernel API
 
-Standalone TypeScript backend API for Kernel with authentication, role-based
-access, multilingual responses, and local or MinIO object storage.
+Kernel API is a standalone TypeScript project. Its current **foundation** phase
+publishes pure contracts and core application modules with tests and repository
+validation tooling.
 
-## First publication
+## Published scope
 
-This PR establishes repository rules, assistant guidance, GitHub protection
-configuration, CodeRabbit review policy and SonarQube Cloud analysis.
-The small published scripts validate and enforce those rules. API source and
-deployment assets are reserved for subsequent focused PRs.
+The fifteen source files contain language, OTP, permission and profile
+contracts; authorization, semantic errors, identity, localization vocabulary,
+models, permission definitions and string validation; authentication port
+definitions; and two foundation test suites. These modules remain independent
+of HTTP, database, authentication and storage frameworks.
 
-This governance scope establishes no application or production readiness.
+The previous governance publication established repository rules, assistant
+guidance, review configuration and their enforcing tools. Those controls remain
+part of the foundation publication. Application services, runtime catalogs,
+adapters, migrations, HTTP routes and a server belong to later focused PRs.
+`applicationReady` remains false. This phase establishes no running API or
+production readiness.
 See the [documentation map](docs/README.md), [contribution guide](CONTRIBUTING.md)
 and [security policy](SECURITY.md).
 
@@ -20,10 +27,11 @@ Use the Node.js release in [.nvmrc](.nvmrc). From an isolated export containing
 only the [publication inventory](.github/bootstrap-policy.json), run:
 
 ```sh
-npm ci --strict-peer-deps --no-audit --no-fund
+npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
 npm run validate -- full
 ```
 
-The current [manifest](.agents/validation.json) validates governance only.
-Application PRs must establish their own complete source and behavior gate;
-governance tests do not establish API, authentication, database or storage behavior.
+The current [manifest](.agents/validation.json) runs all ten required checks,
+including source boundaries, typechecking, lint, measured foundation and tooling
+tests, and audit-helper tests. These results cover the published snapshot;
+they do not establish HTTP, authentication, database or storage behavior.

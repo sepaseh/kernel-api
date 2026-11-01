@@ -31,8 +31,10 @@ not establish trusted default-branch enforcement.
 The [bootstrap ruleset](../.github/rulesets/bootstrap.json) requires native CI,
 bootstrap file budgeting, scanner, Sonar gate, CodeRabbit and an approving review.
 Before any separately authorized first merge, verify the actual current-head
-CodeRabbit approval and every provider result manually. Keep incomplete work in
-draft. Do not remove an active requirement merely to unblock bootstrap.
+CodeRabbit approval and every provider result manually. Use draft for incomplete
+work unless the owner explicitly requests ready-for-review status; that status
+does not establish merge readiness. Do not remove an active requirement merely
+to unblock bootstrap.
 
 After the reviewed guard is on the default branch, apply the
 [complete main ruleset](../.github/rulesets/main.json), retaining the bootstrap

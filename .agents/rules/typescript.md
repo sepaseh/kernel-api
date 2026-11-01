@@ -1,7 +1,8 @@
 # TypeScript
 
-This rule constrains later API source publication. The current governance
-phase publishes no application source and establishes no API test results.
+The current publication inventory declares which source owners are published.
+This rule applies when its corresponding owner is published. Unpublished local
+source and rule text do not establish validated behavior.
 
 ## Object shapes
 

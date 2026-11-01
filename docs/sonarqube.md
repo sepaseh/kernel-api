@@ -13,10 +13,12 @@ separately as a Dependabot secret when Dependabot analysis is needed.
 Set `SONAR_PROJECT_KEY` to the actual imported key; `SONAR_HOST_URL` defaults
 to `https://sonarcloud.io`. Inspect names only, never secret values.
 
-The first publication analyzes its published governance scripts and imports real
-`coverage/lcov.info` measured by that CI run. The provenance manifest binds
-coverage to the source, workflow and producing attempt. Do not reuse another
-head's report or attribute this coverage to unpublished API source.
+The foundation publication analyzes its published `src` and `scripts` and imports
+real `coverage/lcov.info` measured by that CI run. Full validation includes the
+two pure foundation suites and tooling/audit-helper tests. The provenance
+manifest binds coverage to the tested commit/tree, PR head/base, workflow and
+producing attempt. Do not reuse another head's report or attribute this coverage
+to unpublished application services, adapters or HTTP behavior.
 
 Require both **SonarQube Cloud analysis** from GitHub Actions and the actual
 **SonarCloud Code Analysis** provider gate from the verified Sonar application.
@@ -27,6 +29,14 @@ project configuration and a green provider gate are distinct facts.
 Fork PRs do not receive Sonar credentials. Review external code before placing it
 on an authorized branch for credentialed analysis. Never expose a token through
 a privileged checkout of fork code.
+
+Full CI and scanner analysis can run on stacked PRs targeting prerequisite
+branches. The trusted file-limit and CodeRabbit approval evaluators target
+`main` only, so their enforcement remains pending for those stacks and during
+initial default-branch bootstrap. After retargeting to `main`, require fresh
+head/base evidence and actual provider results. A user-authorized ready-for-review
+status with pending checks does not establish analysis, authorize merging or
+relax the preflight below.
 
 ## Before requesting CodeRabbit
 

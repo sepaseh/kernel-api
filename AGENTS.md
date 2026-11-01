@@ -8,11 +8,14 @@ clones or implementation copies require prior explicit user authorization.
 
 ## Published scope
 
-The first publication is **governance only**: assistant instructions, Git and
-review policy, configuration and the small tools that enforce those policies.
-The publication inventory is [.github/bootstrap-policy.json](.github/bootstrap-policy.json).
-Local API source may exist outside that inventory; do not stage it in this PR.
-No API, database, storage, authentication or deployment readiness is established.
+The current **foundation** phase publishes pure contracts, core application
+modules, the authentication port definitions needed by those modules, their
+tests and repository tooling. The publication inventory is
+[.github/bootstrap-policy.json](.github/bootstrap-policy.json).
+Other local source may exist outside that inventory; preserve it without
+including it in the proposed snapshot. Application services, adapters, catalogs,
+migrations, HTTP routes and a server are not published in this phase.
+`applicationReady` remains false; no running API or production readiness is established.
 
 Keep initial PRs at **80 or fewer changed files**, reserving 20 for review fixes.
 The hard maximum is **100** including additions, deletions, renames and binaries.
@@ -32,11 +35,12 @@ inventory before an authorized commit or PR. Report actual outcomes in chat.
 Create QA reports only on explicit request under ignored `test-results/`.
 Never claim that checking an ambient working tree validates a partial PR.
 
-The governance profile validates its own rules, workflow security, package audit,
-formatting, documentation and measured governance tests. It does not run API
-tests. Before publishing application source, restore all ten full application
-checks and complete source, HTTP, database, authentication and storage validation.
-Do not replace those checks with governance evidence or hide missing tests.
+The foundation profile runs all ten required checks from the manifest, including
+real source boundaries, typechecking, lint, measured foundation tests and
+audit-helper tests. Run the full profile for drafts and documentation changes
+too. Add the relevant real HTTP, database, authentication and storage tests as
+their owners are published; pure foundation or governance tests cannot establish
+those behaviors. Do not hide failed or missing checks.
 
 ## Review and main-branch protection
 
@@ -56,13 +60,23 @@ results to avoid a cycle. Respect provider quotas, one in-flight request per hea
 and at least one hour since both the latest manual request and substantive review.
 Never enable automatic reviews to bypass the order.
 
-## Future API changes
+Successive PRs may target their prerequisite branches. Full CI and the read-only
+bootstrap file budget run for those PRs; privileged trusted guards target `main`
+only. Their enforcement remains pending until the reviewed prerequisites are on
+`main` and the PR is retargeted with fresh checks. Honor an explicit instruction
+to publish ready for review while disclosing pending provider results; that
+status does not authorize merging or waive any review prerequisite.
+
+## Source boundaries
 
 The API exclusively owns DB access, migrations, authentication and storage.
 Preserve framework-free services and feature ports, concrete adapters, thin Hono
 HTTP routes, manual composition and atomic transactions. Read the relevant
 [backend](.agents/rules/backend.md), [data lifecycle](.agents/rules/data-lifecycle.md)
-and [localization](.agents/rules/localization.md) rules before future source work.
+and [localization](.agents/rules/localization.md) rules for the published owners.
+Wire definitions stay in pure feature-owned `src/contracts` modules without a
+catch-all barrel. Application imports of `src/application/localization.ts` are
+erased types; runtime catalogs and translation engines belong to infrastructure.
 Business references must block hard deletion with a localized 409 conflict,
 without partial effects. Soft deletion is prohibited.
 

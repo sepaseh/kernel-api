@@ -13,11 +13,105 @@ const scriptNames = {
   snapshot: "check:snapshot",
   "ci-policy": "check:ci",
   audit: "audit",
+  boundaries: "check:boundaries",
+  typecheck: "typecheck",
+  lint: "lint",
   format: "format:check",
   guidance: "check:guidance",
   "coverage-tests": "test:coverage",
+  "audit-helper-tests": "test:audit",
 };
-export const requiredChecks = Object.keys(scriptNames);
+export const requiredChecks = [
+  "snapshot",
+  "ci-policy",
+  "audit",
+  "format",
+  "guidance",
+  "coverage-tests",
+];
+export const sourceChecks = Object.keys(scriptNames);
+const sourcePhases = new Set([
+  "foundation",
+  "application-services",
+  "localization-data",
+  "infrastructure-support",
+  "storage-local",
+  "storage-adapters",
+  "configured-storage",
+  "database-persistence",
+  "auth-bootstrap",
+  "http-transport",
+  "http-composition",
+  "runtime-operations",
+  "collection-core",
+  "collection-account-auth",
+  "collection-management",
+  "local-runtime",
+]);
+export const checksForPhase = (phase) => {
+  assert(
+    phase === "governance" || sourcePhases.has(phase),
+    "A known explicit publication phase is required.",
+  );
+  return phase === "governance" ? requiredChecks : sourceChecks;
+};
+export const foundationFiles = [
+  "src/application/authorization.ts",
+  "src/application/errors.ts",
+  "src/application/foundation.test.ts",
+  "src/application/identity.ts",
+  "src/application/localization.ts",
+  "src/application/models.ts",
+  "src/application/permissions.ts",
+  "src/application/ports/auth.ts",
+  "src/application/validation.test.ts",
+  "src/application/validation.ts",
+  "src/contracts/locales.ts",
+  "src/contracts/otp.ts",
+  "src/contracts/permissions.ts",
+  "src/contracts/profile.ts",
+  "src/contracts/settings.ts",
+];
+const sourceToolingFiles = [
+  "eslint.config.mjs",
+  "tsconfig.json",
+  "scripts/check-boundaries.mjs",
+  "scripts/check-boundaries.test.mjs",
+  "scripts/run-audit.mjs",
+  "scripts/run-audit.test.mjs",
+  "scripts/merge-coverage.mjs",
+  "scripts/merge-coverage.test.mjs",
+];
+const governanceDependencies = { prettier: "3.9.10", yaml: "2.9.1" };
+export const reviewedOverrides = { "minimatch@10.2.6": "11.0.3" };
+export const foundationDependencies = {
+  "@eslint/js": "10.0.1",
+  "@types/node": "24.19.2",
+  eslint: "10.14.0",
+  "eslint-plugin-simple-import-sort": "14.0.0",
+  globals: "17.13.0",
+  ...governanceDependencies,
+  typescript: "6.0.3",
+  "typescript-eslint": "8.72.1",
+};
+const scriptCommand = (id, phase) => {
+  if (phase !== "governance") {
+    if (id === "audit") return "node scripts/run-audit.mjs";
+    if (id === "boundaries") return "node scripts/check-boundaries.mjs";
+    if (id === "typecheck") return "tsc --noEmit -p tsconfig.json";
+    if (id === "lint") return "eslint .";
+  }
+  return `node scripts/check-governance.mjs ${id}`;
+};
+export const packageScripts = (phase) => ({
+  validate: "node scripts/check-governance.mjs",
+  ...Object.fromEntries(
+    checksForPhase(phase).map((id) => [
+      scriptNames[id],
+      scriptCommand(id, phase),
+    ]),
+  ),
+});
 export const testFiles = [
   "scripts/check-governance.test.mjs",
   "scripts/check-pr-size.test.mjs",
@@ -25,6 +119,10 @@ export const testFiles = [
   "scripts/check-coderabbit-approval.test.mjs",
 ];
 const sourceFiles = testFiles.map((file) => file.replace(".test.mjs", ".mjs"));
+const optInTestFiles = [
+  "scripts/test-native-release.mjs",
+  "scripts/test-docker-release.mjs",
+];
 export const actions = {
   checkout: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
   node: "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
@@ -44,28 +142,59 @@ const safePath = (value) =>
   typeof value === "string" &&
   /^[A-Za-z0-9_.\-/]+$/.test(value) &&
   value.split("/").every((part) => part && part !== "." && part !== "..") &&
-  !/(?:^|\/)(?:\.git|node_modules|coverage|test-results|src|drizzle|deploy|collection)(?:\/|$)/.test(
-    value,
-  ) &&
-  !/(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/i.test(value) &&
+  !/(?:^|\/)(?:\.git|node_modules|coverage|test-results)(?:\/|$)/.test(value) &&
+  (!/(?:^|\/)(?:\.env(?:\.|$)|settings\.local\.json$)/i.test(value) ||
+    value === ".env.example") &&
   !/\.(?:pem|key|pfx|p12|sqlite|db)$/i.test(value);
 
 export const validateInventory = (policy) => {
   assert(
     policy?.schemaVersion === 1 &&
-      policy.phase === "governance" &&
+      (policy.phase === "governance" || sourcePhases.has(policy.phase)) &&
       policy.applicationReady === false &&
       policy.maximumChangedFiles === 100 &&
       policy.targetChangedFiles === 80 &&
       Array.isArray(policy.allowedFiles) &&
       policy.allowedFiles.length > 0,
-    "Declare governance scope, target 80, hard limit 100, and no application readiness.",
+    "Declare an explicit scope, target 80, hard limit 100, and no application readiness.",
   );
   const files = new Set(policy.allowedFiles);
   assert(
     files.size === policy.allowedFiles.length && [...files].every(safePath),
     "The publication inventory must contain unique safe governance file paths.",
   );
+  if (policy.phase === "governance")
+    assert(
+      [...files].every(
+        (file) =>
+          !/^(?:src|drizzle|deploy|collection)(?:\/|$)/.test(file) &&
+          file !== ".env.example",
+      ),
+      "Governance publication cannot contain API source or runtime fixtures.",
+    );
+  if (policy.phase === "foundation")
+    assert(
+      [...files]
+        .filter((file) =>
+          /^(?:src|drizzle|deploy|collection)(?:\/|$)/.test(file),
+        )
+        .every(
+          (file) =>
+            foundationFiles.includes(file) ||
+            file === "src/test/architecture/lint-toolchain.test.ts",
+        ),
+      "Foundation publication is limited to its pure source closure.",
+    );
+  if (files.has(".env.example"))
+    assert(
+      ![
+        "governance",
+        "foundation",
+        "application-services",
+        "localization-data",
+      ].includes(policy.phase),
+      "Only infrastructure publication may include the synthetic environment example.",
+    );
   const mandatory = [
     inventoryPath,
     manifestPath,
@@ -79,6 +208,9 @@ export const validateInventory = (policy) => {
     "sonar-project.properties",
     ...sourceFiles,
     ...testFiles,
+    ...(policy.phase === "governance"
+      ? []
+      : [...foundationFiles, ...sourceToolingFiles]),
   ];
   assert(
     mandatory.every((file) => files.has(file)),
@@ -94,61 +226,81 @@ const regularFile = async (root, relative) => {
     rootInfo.isDirectory() && !rootInfo.isSymbolicLink(),
     "The validation root must be an ordinary directory.",
   );
-  for (const [index, part] of relative.split("/").entries()) {
+  const parts = relative.split("/");
+  const inspectPart = async (index) => {
+    const part = parts[index];
     filename = path.join(filename, part);
     const info = await lstat(filename);
     assert(
       !info.isSymbolicLink() &&
-        (index === relative.split("/").length - 1
-          ? info.isFile()
-          : info.isDirectory()),
+        (index === parts.length - 1 ? info.isFile() : info.isDirectory()),
       "Published files must not contain symbolic links or special files.",
     );
-  }
-  return filename;
+    return index === parts.length - 1 ? filename : inspectPart(index + 1);
+  };
+  return inspectPart(0);
 };
 const readJson = async (root, relative) =>
   JSON.parse(await readFile(await regularFile(root, relative), "utf8"));
+const readText = async (root, relative) =>
+  readFile(await regularFile(root, relative), "utf8");
 const readInventory = async (root) => {
   const policy = await readJson(root, inventoryPath);
   return { policy, files: validateInventory(policy) };
 };
 
-export const validatePackage = (pkg, lock) => {
+const validatePackageDefinition = (pkg, phase) => {
   assert(
     pkg?.name === "kernel-api" && pkg.private === true && pkg.type === "module",
     "The governance package must remain private and use Node ES modules.",
   );
   for (const field of [
-    "dependencies",
     "optionalDependencies",
     "peerDependencies",
     "workspaces",
-    "overrides",
   ])
     assert(
       !Object.hasOwn(pkg, field),
-      "PR1 must not publish API dependencies.",
+      "The standalone package must not introduce workspace links or hidden dependency categories.",
     );
-  equal(
-    pkg.devDependencies,
-    { prettier: "3.9.10", yaml: "2.9.1" },
-    "Governance tooling versions must match the reviewed pinned dependencies.",
-  );
-  const expected = {
-    validate: "node scripts/check-governance.mjs",
-    ...Object.fromEntries(
-      Object.entries(scriptNames).map(([id, name]) => [
-        name,
-        `node scripts/check-governance.mjs ${id}`,
-      ]),
-    ),
-  };
+  const expectedDependencies =
+    phase === "governance" ? governanceDependencies : foundationDependencies;
+  if (["governance", "foundation"].includes(phase)) {
+    assert(
+      !Object.hasOwn(pkg, "dependencies"),
+      "Pure governance and foundation phases must not introduce runtime dependencies.",
+    );
+    equal(
+      pkg.devDependencies,
+      expectedDependencies,
+      "Governance tooling versions must match the reviewed pinned dependencies.",
+    );
+  } else {
+    for (const [name, version] of Object.entries(expectedDependencies))
+      equal(
+        pkg.devDependencies?.[name],
+        version,
+        "Required source-validation tooling must remain pinned.",
+      );
+    for (const version of [
+      ...Object.values(pkg.devDependencies ?? {}),
+      ...Object.values(pkg.dependencies ?? {}),
+    ])
+      assert(
+        typeof version === "string" &&
+          /^\d+\.\d+\.\d+(?:-[a-z\d.-]+)?$/i.test(version),
+        "Published dependencies must use literal registry versions, never local or workspace protocols.",
+      );
+  }
+  const expected = packageScripts(phase);
   equal(
     pkg.scripts,
     expected,
     "Package scripts must execute the real governance checks.",
   );
+};
+
+const validateLockfile = (pkg, lock, phase) => {
   assert(
     lock?.lockfileVersion === 3 && lock.name === pkg.name,
     "A root npm lockfile is required.",
@@ -158,24 +310,67 @@ export const validatePackage = (pkg, lock) => {
     pkg.devDependencies,
     "The lockfile must match the tooling manifest.",
   );
-  const locations = Object.keys(lock.packages ?? {}).sort();
   equal(
-    locations,
-    ["", "node_modules/prettier", "node_modules/yaml"],
-    "The governance lockfile must contain only its two tooling dependencies.",
+    lock.packages?.[""]?.dependencies ?? {},
+    pkg.dependencies ?? {},
+    "The lockfile must match the declared runtime dependencies.",
   );
-  for (const [name, version] of Object.entries(pkg.devDependencies))
+  const locations = Object.keys(lock.packages ?? {}).sort((left, right) =>
+    left.localeCompare(right),
+  );
+  if (phase === "governance")
+    equal(
+      locations,
+      ["", "node_modules/prettier", "node_modules/yaml"],
+      "The governance lockfile must contain only its two tooling dependencies.",
+    );
+  assert(
+    locations.every(
+      (location) => location === "" || location.startsWith("node_modules/"),
+    ),
+    "The lockfile must remain one independently installable project.",
+  );
+  for (const [location, entry] of Object.entries(lock.packages ?? {})) {
+    assert(
+      entry.link !== true,
+      "The lockfile must not contain local package links.",
+    );
+    if (phase !== "governance" && location.endsWith("/minimatch"))
+      assert(
+        entry.version !== "10.2.6",
+        "The reviewed minimatch security override must be reflected in the lockfile.",
+      );
+  }
+  for (const [name, version] of Object.entries({
+    ...pkg.dependencies,
+    ...pkg.devDependencies,
+  }))
     assert(
       lock.packages[`node_modules/${name}`]?.version === version &&
-        lock.packages[`node_modules/${name}`]?.dev === true &&
         typeof lock.packages[`node_modules/${name}`]?.integrity === "string",
       "The locked tooling packages must have reviewed versions and integrity hashes.",
     );
 };
 
+export const validatePackage = (pkg, lock, phase = "governance") => {
+  validatePackageDefinition(pkg, phase);
+  if (phase === "governance")
+    assert(
+      !Object.hasOwn(pkg, "overrides"),
+      "Governance tooling must not introduce dependency overrides.",
+    );
+  else if (phase === "foundation" || Object.hasOwn(pkg, "overrides"))
+    equal(
+      pkg.overrides,
+      reviewedOverrides,
+      "Only the reviewed minimatch security override is permitted in source phases.",
+    );
+  validateLockfile(pkg, lock, phase);
+};
+
 export const inspectSnapshot = async (root, { trackedFiles = [] } = {}) => {
-  const { files } = await readInventory(root);
-  for (const file of files) await regularFile(root, file);
+  const { policy, files } = await readInventory(root);
+  await Promise.all([...files].map((file) => regularFile(root, file)));
   assert(
     trackedFiles.every((file) => files.has(file)),
     "Tracked files outside the declared governance snapshot cannot be published.",
@@ -183,26 +378,28 @@ export const inspectSnapshot = async (root, { trackedFiles = [] } = {}) => {
   validatePackage(
     await readJson(root, "package.json"),
     await readJson(root, "package-lock.json"),
+    policy.phase,
   );
-  return { phase: "governance", files: files.size, applicationReady: false };
+  return { phase: policy.phase, files: files.size, applicationReady: false };
 };
 
 export const validateManifest = (manifest, pkg) => {
   assert(
     manifest?.schemaVersion === 1 &&
-      manifest.phase === "governance" &&
+      (manifest.phase === "governance" || sourcePhases.has(manifest.phase)) &&
       manifest.applicationReady === false &&
       Array.isArray(manifest.checks),
     "The canonical manifest must describe the governance phase.",
   );
+  const checks = checksForPhase(manifest.phase);
   equal(
     manifest.checks.map(({ id }) => id),
-    requiredChecks,
-    "All six real governance checks must be declared once in canonical order.",
+    checks,
+    "Every real phase check must be declared once in canonical order.",
   );
   equal(
     manifest.profiles,
-    { full: requiredChecks },
+    { full: checks },
     "The full profile must execute every required governance check exactly once.",
   );
   for (const check of manifest.checks) {
@@ -214,7 +411,7 @@ export const validateManifest = (manifest, pkg) => {
     );
     equal(
       check.scopes,
-      ["governance"],
+      [manifest.phase],
       "Do not attribute governance evidence to API code.",
     );
     equal(
@@ -224,7 +421,7 @@ export const validateManifest = (manifest, pkg) => {
     );
     equal(
       pkg.scripts?.[scriptNames[check.id]],
-      `node scripts/check-governance.mjs ${check.id}`,
+      scriptCommand(check.id, manifest.phase),
       "A required script cannot be replaced by a no-op or alternate command.",
     );
   }
@@ -236,7 +433,11 @@ export const parseYaml = (text) => {
   return document.toJS({ maxAliasCount: 0 });
 };
 const stepsWithoutNames = (steps) =>
-  steps?.map(({ name: _name, ...step }) => step);
+  steps?.map((step) => {
+    const result = { ...step };
+    delete result.name;
+    return result;
+  });
 const checkout = (full = false) => ({
   uses: actions.checkout,
   with: {
@@ -253,7 +454,9 @@ const sonarConfiguration = `if [[ "$SONAR_TOKEN_CONFIGURED" != 'true' || -z "$SO
 
 export const validateCiWorkflow = (workflow) => {
   equal(
-    Object.keys(workflow ?? {}).sort(),
+    Object.keys(workflow ?? {}).sort((left, right) =>
+      left.localeCompare(right),
+    ),
     ["concurrency", "jobs", "name", "on", "permissions"],
     "CI cannot introduce implicit environment, shell, or workflow transitions.",
   );
@@ -289,7 +492,9 @@ export const validateCiWorkflow = (workflow) => {
     "Cancel obsolete PR runs while preserving main-branch validation.",
   );
   equal(
-    Object.keys(workflow.jobs ?? {}).sort(),
+    Object.keys(workflow.jobs ?? {}).sort((left, right) =>
+      left.localeCompare(right),
+    ),
     ["analysis", "bootstrap-file-limit", "check"],
     "Keep full validation, dependent analysis, and the initial read-only file guard explicit.",
   );
@@ -546,11 +751,27 @@ export const validateNavigation = (
   }
 };
 
+function* markdownTargets(content) {
+  let cursor = 0;
+  while (cursor < content.length) {
+    const opening = content.indexOf("](", cursor);
+    if (opening === -1) return;
+    const closing = content.indexOf(")", opening + 2);
+    if (closing === -1) return;
+    cursor = closing + 1;
+    const body = content.slice(opening + 2, closing).trim();
+    if (body.startsWith("<")) {
+      const end = body.indexOf(">");
+      if (end !== -1) yield body.slice(1, end);
+    } else {
+      const whitespace = body.search(/\s/);
+      yield whitespace === -1 ? body : body.slice(0, whitespace);
+    }
+  }
+}
+
 export const validateMarkdownLinks = (filename, content, files) => {
-  for (const match of content.matchAll(
-    /!?\[[^\]]*\]\((<[^>]+>|[^\s)]+)(?:\s+"[^"]*")?\)/g,
-  )) {
-    const target = match[1].replace(/^<|>$/g, "");
+  for (const target of markdownTargets(content)) {
     if (target.startsWith("#") || /^https?:\/\//i.test(target)) continue;
     let local;
     try {
@@ -572,10 +793,14 @@ export const validateMarkdownLinks = (filename, content, files) => {
 };
 
 export const inspectGuidance = async (root) => {
-  const { files } = await readInventory(root);
-  const manifest = await readJson(root, manifestPath);
-  validateManifest(manifest, await readJson(root, "package.json"));
-  const settings = await readJson(root, ".agents/settings.json");
+  const { policy, files } = await readInventory(root);
+  const [manifest, pkg, settings, navigation] = await Promise.all([
+    readJson(root, manifestPath),
+    readJson(root, "package.json"),
+    readJson(root, ".agents/settings.json"),
+    readJson(root, ".agents/navigation.json"),
+  ]);
+  validateManifest(manifest, pkg);
   for (const field of ["rules", "skills", "optionalHooks"])
     assert(
       Array.isArray(settings[field]) &&
@@ -608,14 +833,13 @@ export const inspectGuidance = async (root) => {
     !Object.hasOwn(settings, "evaluation"),
     "Do not register unpublished evaluation prompts.",
   );
-  validateNavigation(await readJson(root, ".agents/navigation.json"), files);
+  validateNavigation(navigation, files, checksForPhase(policy.phase));
   const markdown = [...files].filter((file) => /\.md$/i.test(file));
-  for (const file of markdown)
-    validateMarkdownLinks(
-      file,
-      await readFile(await regularFile(root, file), "utf8"),
-      files,
-    );
+  await Promise.all(
+    markdown.map(async (file) =>
+      validateMarkdownLinks(file, await readText(root, file), files),
+    ),
+  );
   return {
     markdownFiles: markdown.length,
     rules: settings.rules.length,
@@ -623,75 +847,125 @@ export const inspectGuidance = async (root) => {
   };
 };
 
-export const inspectPolicy = async (root) => {
-  const { files } = await readInventory(root);
-  validateCiWorkflow(
-    parseYaml(
-      await readFile(
-        await regularFile(root, ".github/workflows/ci.yml"),
-        "utf8",
-      ),
-    ),
-  );
-  validateCodeRabbit(
-    parseYaml(
-      await readFile(await regularFile(root, ".coderabbit.yaml"), "utf8"),
-    ),
-  );
-  for (const file of files) {
-    if (!/^\.github\/workflows\/.+\.yml$/.test(file)) continue;
-    const workflow = parseYaml(
-      await readFile(await regularFile(root, file), "utf8"),
-    );
-    const targetEvent =
-      workflow.on === "pull_request_target" ||
-      (Array.isArray(workflow.on) &&
-        workflow.on.includes("pull_request_target")) ||
-      Object.hasOwn(workflow.on ?? {}, "pull_request_target");
-    if (targetEvent)
-      equal(
-        workflow.on.pull_request_target,
-        {
-          branches: ["main"],
-          types: [
-            "opened",
-            "synchronize",
-            "reopened",
-            "edited",
-            "ready_for_review",
-          ],
-        },
-        "Privileged PR guards must target main explicitly so the workflow and executed guard code remain trusted.",
-      );
+const validateActionStep = (step, trusted) => {
+  if (step.uses)
     assert(
-      workflow.permissions &&
-        typeof workflow.permissions === "object" &&
-        [undefined, "read"].includes(workflow.permissions.contents),
-      "Workflow permissions must be explicit and minimal.",
+      /^[A-Za-z0-9_.\-/]+@[a-f0-9]{40}$/.test(step.uses),
+      "Every external action must be pinned to an immutable commit.",
     );
-    for (const job of Object.values(workflow.jobs ?? {})) {
-      assert(
-        job.permissions !== "write-all",
-        "Job permissions must be explicit and minimal.",
+  if (trusted && step.uses?.startsWith("actions/checkout@"))
+    assert(
+      step.with?.ref === expression("github.workflow_sha") &&
+        step.with?.["persist-credentials"] === false,
+      "Privileged PR guards must execute only immutable trusted default-branch code.",
+    );
+};
+
+const validateWorkflowTrust = (workflow) => {
+  const targetEvent =
+    workflow.on === "pull_request_target" ||
+    (Array.isArray(workflow.on) &&
+      workflow.on.includes("pull_request_target")) ||
+    Object.hasOwn(workflow.on ?? {}, "pull_request_target");
+  if (targetEvent)
+    equal(
+      workflow.on.pull_request_target,
+      {
+        branches: ["main"],
+        types: [
+          "opened",
+          "synchronize",
+          "reopened",
+          "edited",
+          "ready_for_review",
+        ],
+      },
+      "Privileged PR guards must target main explicitly so the workflow and executed guard code remain trusted.",
+    );
+  assert(
+    workflow.permissions &&
+      typeof workflow.permissions === "object" &&
+      [undefined, "read"].includes(workflow.permissions.contents),
+    "Workflow permissions must be explicit and minimal.",
+  );
+  for (const job of Object.values(workflow.jobs ?? {})) {
+    assert(
+      job.permissions !== "write-all",
+      "Job permissions must be explicit and minimal.",
+    );
+    for (const step of job.steps ?? []) {
+      validateActionStep(
+        step,
+        targetEvent || workflow.permissions.checks === "write",
       );
-      for (const step of job.steps ?? []) {
-        if (step.uses)
-          assert(
-            /^[A-Za-z0-9_.\-/]+@[a-f0-9]{40}$/.test(step.uses),
-            "Every external action must be pinned to an immutable commit.",
-          );
-        if (
-          (targetEvent || workflow.permissions.checks === "write") &&
-          step.uses?.startsWith("actions/checkout@")
-        )
-          assert(
-            step.with?.ref === expression("github.workflow_sha") &&
-              step.with?.["persist-credentials"] === false,
-            "Privileged PR guards must execute only immutable trusted default-branch code.",
-          );
-      }
     }
   }
+};
+
+const validateSonarProperties = (text, phase, files) => {
+  const properties = Object.fromEntries(
+    text
+      .split(/\r?\n/)
+      .filter((line) => line && !line.startsWith("#"))
+      .map((line) => {
+        const split = line.indexOf("=");
+        return [line.slice(0, split), line.slice(split + 1)];
+      }),
+  );
+  const testPatterns =
+    phase === "governance"
+      ? "scripts/*.test.mjs"
+      : [
+          "src/**/*.test.ts",
+          ...([...files].some((file) => file.startsWith("src/test/"))
+            ? ["src/test/**"]
+            : []),
+          "scripts/*.test.mjs",
+          ...([...files].some((file) => file.endsWith(".test-support.mjs"))
+            ? ["scripts/*.test-support.mjs"]
+            : []),
+          ...optInTestFiles.filter((file) => files.has(file)),
+        ].join(",");
+  const sonarPolicy = {
+    "sonar.sources": phase === "governance" ? "scripts" : "src,scripts",
+    "sonar.tests": phase === "governance" ? "scripts" : "src,scripts",
+    "sonar.test.inclusions": testPatterns,
+    "sonar.exclusions": testPatterns,
+    "sonar.javascript.lcov.reportPaths": "coverage/lcov.info",
+    "sonar.qualitygate.wait": "false",
+  };
+  for (const [key, expected] of Object.entries(sonarPolicy))
+    equal(
+      properties[key],
+      expected,
+      "Sonar must analyze actual published source and measured coverage with a separate native quality gate.",
+    );
+  assert(
+    Object.keys(properties).every(
+      (key) => key === "sonar.organization" || Object.hasOwn(sonarPolicy, key),
+    ),
+    "Do not suppress published rule, duplication, or coverage analysis through extra properties.",
+  );
+};
+
+export const inspectPolicy = async (root) => {
+  const { policy, files } = await readInventory(root);
+  const workflowFiles = [...files].filter((file) =>
+    /^\.github\/workflows\/.+\.yml$/.test(file),
+  );
+  const [ci, rabbit, main, bootstrap, sizeScript, sonar, workflows] =
+    await Promise.all([
+      readText(root, ".github/workflows/ci.yml"),
+      readText(root, ".coderabbit.yaml"),
+      readJson(root, ".github/rulesets/main.json"),
+      readJson(root, ".github/rulesets/bootstrap.json"),
+      readText(root, "scripts/check-pr-size.mjs"),
+      readText(root, "sonar-project.properties"),
+      Promise.all(workflowFiles.map((file) => readText(root, file))),
+    ]);
+  validateCiWorkflow(parseYaml(ci));
+  validateCodeRabbit(parseYaml(rabbit));
+  workflows.forEach((text) => validateWorkflowTrust(parseYaml(text)));
   for (const file of [
     ".github/rulesets/main.json",
     ".github/rulesets/bootstrap.json",
@@ -700,53 +974,13 @@ export const inspectPolicy = async (root) => {
       files.has(file),
       "Both complete and initial-bootstrap protection plans must be published.",
     );
-  validateRuleset(await readJson(root, ".github/rulesets/main.json"));
-  validateRuleset(
-    await readJson(root, ".github/rulesets/bootstrap.json"),
-    true,
-  );
-  const sizeScript = await readFile(
-    await regularFile(root, "scripts/check-pr-size.mjs"),
-    "utf8",
-  );
+  validateRuleset(main);
+  validateRuleset(bootstrap, true);
   assert(
     /export const maximumChangedFiles = 100;/.test(sizeScript),
     "The real changed-file guard must retain the hard 100-entry limit.",
   );
-  const properties = Object.fromEntries(
-    (
-      await readFile(
-        await regularFile(root, "sonar-project.properties"),
-        "utf8",
-      )
-    )
-      .split(/\r?\n/)
-      .filter((line) => line && !line.startsWith("#"))
-      .map((line) => {
-        const split = line.indexOf("=");
-        return [line.slice(0, split), line.slice(split + 1)];
-      }),
-  );
-  const sonarPolicy = {
-    "sonar.sources": "scripts",
-    "sonar.tests": "scripts",
-    "sonar.test.inclusions": "scripts/*.test.mjs",
-    "sonar.exclusions": "scripts/*.test.mjs",
-    "sonar.javascript.lcov.reportPaths": "coverage/lcov.info",
-    "sonar.qualitygate.wait": "false",
-  };
-  for (const [key, expected] of Object.entries(sonarPolicy))
-    equal(
-      properties[key],
-      expected,
-      "Sonar must analyze genuine governance source and measured coverage with a separate native quality gate.",
-    );
-  assert(
-    Object.keys(properties).every(
-      (key) => key === "sonar.organization" || Object.hasOwn(sonarPolicy, key),
-    ),
-    "Do not suppress governance rule, duplication, or coverage analysis through extra properties.",
-  );
+  validateSonarProperties(sonar, policy.phase, files);
   return {
     workflows: [...files].filter((file) =>
       /^\.github\/workflows\/.+\.yml$/.test(file),
@@ -759,14 +993,20 @@ export const inspectFormatting = async (root) => {
   const prettier = await import("prettier");
   const configuration = await readJson(root, ".prettierrc.json");
   const supported = [...files].filter((file) =>
-    /\.(?:json|ya?ml|mjs|md)$/i.test(file),
+    /\.(?:json|ya?ml|mjs|md|ts)$/i.test(file),
   );
-  const failures = [];
-  for (const file of supported) {
-    const contents = await readFile(await regularFile(root, file), "utf8");
-    if (!(await prettier.check(contents, { ...configuration, filepath: file })))
-      failures.push(file);
-  }
+  const checked = await Promise.all(
+    supported.map(async (file) => ({
+      file,
+      valid: await prettier.check(await readText(root, file), {
+        ...configuration,
+        filepath: file,
+      }),
+    })),
+  );
+  const failures = checked
+    .filter(({ valid }) => !valid)
+    .map(({ file }) => file);
   assert(
     !failures.length,
     `Published governance formatting must pass: ${failures.join(", ")}.`,
@@ -813,65 +1053,157 @@ export const runFull = async (
 ) => {
   const manifest = await readJson(root, manifestPath);
   validateManifest(manifest, await readJson(root, "package.json"));
-  for (const id of manifest.profiles.full) {
+  const runNext = async (index) => {
+    if (index === manifest.profiles.full.length) return index;
+    const id = manifest.profiles.full[index];
     const result = await execute(scriptNames[id]);
     assert(
       result?.status === 0 && !result.error,
       `Required governance check failed: ${id}.`,
     );
-  }
-  return requiredChecks.length;
+    return runNext(index + 1);
+  };
+  return runNext(0);
 };
 
-const trackedFiles = (root) => {
-  const result = spawnSync("git", ["ls-files", "-z"], {
+const trackedFiles = async (root) => {
+  try {
+    await lstat(path.join(root, ".git"));
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+  const executable =
+    process.platform === "win32"
+      ? "C:\\Program Files\\Git\\cmd\\git.exe"
+      : "/usr/bin/git";
+  const result = spawnSync(executable, ["ls-files", "-z"], {
     cwd: root,
     encoding: "utf8",
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
-  return result.status === 0 ? result.stdout.split("\0").filter(Boolean) : [];
+  assert(
+    result.status === 0 && !result.error,
+    "The existing Git repository must expose its exact tracked-file inventory.",
+  );
+  return result.stdout.split("\0").filter(Boolean);
+};
+
+export const coveragePlan = (files, phase) => {
+  const tests = [...files].filter((file) => /\.test\.(?:mjs|ts)$/.test(file));
+  const audit = phase === "governance" ? [] : ["scripts/run-audit.test.mjs"];
+  const node = tests.filter((file) => !audit.includes(file));
+  const sources = [...files].filter(
+    (file) =>
+      /^(?:scripts|src)\/.+\.(?:mjs|ts)$/.test(file) &&
+      !/\.test(?:-support)?\.(?:mjs|ts)$/.test(file) &&
+      !file.startsWith("src/test/") &&
+      file !== "scripts/run-audit.mjs" &&
+      !optInTestFiles.includes(file),
+  );
+  assert(
+    node.length > 0 && sources.length > 0,
+    "Published tests and measured owners must be present.",
+  );
+  assert(
+    audit.every((file) => files.has(file)),
+    "Every classified test must be published, never skipped for a missing directory.",
+  );
+  return { node, audit, sources };
+};
+
+const nodeCoverage = async (root, tests, sources, report) => {
+  await mkdir(path.dirname(path.join(root, report)), { recursive: true });
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--experimental-test-coverage",
+      "--test-coverage-lines=80",
+      "--test-coverage-branches=80",
+      "--test-coverage-functions=80",
+      ...sources.map((file) => `--test-coverage-include=${file}`),
+      "--test",
+      "--test-reporter=spec",
+      "--test-reporter=lcov",
+      "--test-reporter-destination=stdout",
+      `--test-reporter-destination=${report}`,
+      ...tests,
+    ],
+    { cwd: root, stdio: "inherit", windowsHide: true },
+  );
+  assert(
+    result.status === 0 && !result.error,
+    "Published tests and measured coverage must pass.",
+  );
+};
+
+const runSourceTool = (mode, root) => {
+  const commands = {
+    boundaries: ["scripts/check-boundaries.mjs"],
+    typecheck: [
+      "node_modules/typescript/bin/tsc",
+      "--noEmit",
+      "-p",
+      "tsconfig.json",
+    ],
+    lint: ["node_modules/eslint/bin/eslint.js", "."],
+  };
+  const [file, ...args] = commands[mode];
+  const result = spawnSync(process.execPath, [path.join(root, file), ...args], {
+    cwd: root,
+    stdio: "inherit",
+    windowsHide: true,
+  });
+  assert(
+    result.status === 0 && !result.error,
+    `Required source check failed: ${mode}.`,
+  );
+  return true;
+};
+
+const runCoverage = async (root, files, phase, auditOnly) => {
+  const plan = coveragePlan(files, phase);
+  if (auditOnly) {
+    await nodeCoverage(
+      root,
+      plan.audit,
+      ["scripts/run-audit.mjs"],
+      "coverage/audit/lcov.info",
+    );
+    const { mergeCoverage } = await import("./merge-coverage.mjs");
+    await mergeCoverage(root);
+    return plan.audit.length;
+  }
+  await nodeCoverage(root, plan.node, plan.sources, "coverage/lcov.info");
+  return plan.node.length;
 };
 
 export const runCheck = async (mode, root = repository) => {
+  const { policy, files } = await readInventory(root);
   assert(
-    [...requiredChecks, "full"].includes(mode),
+    [...checksForPhase(policy.phase), "full"].includes(mode),
     "Usage: npm run validate -- full, or a declared governance check.",
   );
   if (mode === "full") return runFull(root);
-  await readInventory(root);
   if (mode === "snapshot")
-    return inspectSnapshot(root, { trackedFiles: trackedFiles(root) });
+    return inspectSnapshot(root, { trackedFiles: await trackedFiles(root) });
+  if (["boundaries", "typecheck", "lint"].includes(mode))
+    return runSourceTool(mode, root);
+  if (mode === "audit" && policy.phase !== "governance")
+    return (await import("./run-audit.mjs")).runAudit({ root });
   if (mode === "audit")
     return validateAuditResult(
       npm(["audit", "--audit-level=high", "--json"], root, true),
     );
   if (mode === "format") return inspectFormatting(root);
-  if (mode === "coverage-tests") {
-    await mkdir(path.join(root, "coverage"), { recursive: true });
-    const result = spawnSync(
-      process.execPath,
-      [
-        "--experimental-test-coverage",
-        "--test-coverage-lines=80",
-        "--test-coverage-branches=80",
-        "--test-coverage-functions=80",
-        ...sourceFiles.map((file) => `--test-coverage-include=${file}`),
-        "--test",
-        "--test-reporter=spec",
-        "--test-reporter=lcov",
-        "--test-reporter-destination=stdout",
-        "--test-reporter-destination=coverage/lcov.info",
-        ...testFiles,
-      ],
-      { cwd: root, stdio: "inherit", windowsHide: true },
+  if (["coverage-tests", "audit-helper-tests"].includes(mode))
+    return runCoverage(
+      root,
+      files,
+      policy.phase,
+      mode === "audit-helper-tests",
     );
-    assert(
-      result.status === 0 && !result.error,
-      "Governance tests and measured coverage must pass.",
-    );
-    return testFiles.length;
-  }
   if (mode === "ci-policy") return inspectPolicy(root);
   if (mode === "guidance") return inspectGuidance(root);
   throw new Error(
