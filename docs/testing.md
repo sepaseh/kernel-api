@@ -4,10 +4,9 @@ Test observable policy failures using synthetic GitHub responses and owned
 temporary fixtures. Never read real tokens, environments, databases, uploads or
 other checkouts as fixtures.
 
-Cover incomplete and unsafe pagination, duplicate or missing changed-file
-entries, hard-limit violations, stale heads, dismissed approvals, wrong reviewer
-identity, skipped or neutral provider checks, workflow privilege boundaries and
-exact publication scope. Test the actual enforcing tools, not copies of their
+Cover incomplete and unsafe review pagination, stale heads, dismissed approvals,
+wrong reviewer identity, skipped or neutral provider checks, workflow privilege
+boundaries and exact publication scope. Test the actual enforcing tools, not copies of their
 implementation.
 
 The two foundation suites exercise authorization requirements, semantic errors,

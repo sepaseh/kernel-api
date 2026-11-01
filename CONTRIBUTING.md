@@ -6,12 +6,13 @@ tests and repository tooling. The [inventory](.github/bootstrap-policy.json)
 declares the exact proposed paths. Preserve unrelated local source and private
 runtime state.
 
-## Scope and file budget
+## Scope and PR planning
 
-Target **80 or fewer changed-file entries** when opening every PR, leaving 20
-for review fixes under the **hard maximum of 100**. Count additions, removals,
-renames and binaries; a GitHub rename is one entry. The budget limits each PR,
-not the repository's eventual size.
+Before opening a PR, aim for **80 or fewer changed-file entries** and split
+independent changes when useful. Count additions, removals, renames and binaries;
+a GitHub rename is one entry. Explain why a larger cohesive change belongs
+together. File count is advisory: exceeding 100 files alone does not fail CI,
+block merging or require deleting or recreating a PR.
 
 Keep framework dependencies out of contracts, core modules and ports.
 Application services, adapters, catalogs, migrations, HTTP routes, composition,
