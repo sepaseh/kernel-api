@@ -1,0 +1,47 @@
+meta {
+  name: Delete User
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/users/{{user_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  ## Purpose
+
+  Permanently deletes an unused user by UUID.
+
+  ## Authentication
+
+  Requires a valid access token with the `users.delete` permission.
+
+  ## Behavior
+
+  - A successful request returns no response body.
+  - User-role memberships or uploaded-file metadata referencing the user block deletion with `409 Conflict` and a localized message asking the caller to resolve those uses first.
+  - Conflict leaves the user, memberships, file metadata/objects, sessions and authentication accounts unchanged. Deletion never silently removes assignments or dependent business records.
+  - Resolve memberships through the existing authorized user-role replacement operation. The API currently has no file-deletion or creator-reassignment endpoint; uploaded-file references remain a blocker until resolved through an explicitly supported operation.
+  - A user cannot delete themselves or the final active system administrator.
+  - The target's current capability, activation state and incoming references are checked in the deletion transaction. Restrictive foreign keys also protect against concurrent assignments.
+  - After an allowed hard deletion, owned sessions and authentication accounts are removed. No soft-delete state is introduced.
+
+  ## Response
+
+  - `200 OK` — User deleted successfully with no response body.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user cannot delete users.
+  - `404 Not Found` — The user does not exist.
+  - `409 Conflict` — The user is in use, is the current actor, or is the final active system administrator. The response contains only the localized `message`; in-use errors ask the caller to resolve dependent uses before retrying.
+}

@@ -277,7 +277,8 @@
         "scripts/collection.test.mjs",
         "scripts/collection-account-auth.test.mjs",
         "scripts/collection-management.test.mjs",
-        "scripts/collection-files.test.mjs"
+        "scripts/collection-files.test.mjs",
+        "scripts/collection-users.test.mjs"
       ],
       "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
     }
