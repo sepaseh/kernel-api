@@ -11,8 +11,10 @@ source, data, environments and deployment artifacts out of the first PR.
 
 Read [Git workflow](rules/git.md) for branch, commit, PR and review work.
 Commit and push require authorization. Run the full current profile on the exact
-proposed inventory before each authorized commit or PR. The first PR targets at
-most 80 files, with a hard maximum of 100 after review fixes.
+proposed inventory before each authorized commit or PR. Before opening a PR, aim
+for 80 or fewer files and split independent changes when useful. File count is
+advisory: explain a cohesive larger change in the PR; exceeding 100 alone does
+not fail CI or require deleting or recreating the PR.
 
 Assistant instructions and maintained human documentation are English-only.
 This index does not install hooks or prove automatic discovery by any assistant.

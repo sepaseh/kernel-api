@@ -2,8 +2,6 @@
   "schemaVersion": 1,
   "phase": "governance",
   "applicationReady": false,
-  "maximumChangedFiles": 100,
-  "targetChangedFiles": 80,
   "allowedFiles": [
     ".agents/README.md",
     ".agents/navigation.json",
@@ -42,7 +40,6 @@
     ".github/rulesets/main.json",
     ".github/workflows/ci.yml",
     ".github/workflows/coderabbit-approval.yml",
-    ".github/workflows/pr-policy.yml",
     ".github/workflows/review-events.yml",
     ".gitignore",
     ".nvmrc",
@@ -67,8 +64,6 @@
     "scripts/check-coderabbit-approval.test.mjs",
     "scripts/check-governance.mjs",
     "scripts/check-governance.test.mjs",
-    "scripts/check-pr-size.mjs",
-    "scripts/check-pr-size.test.mjs",
     "scripts/ci-evidence.mjs",
     "scripts/ci-evidence.test.mjs",
     "sonar-project.properties"

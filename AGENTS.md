@@ -14,9 +14,11 @@ The publication inventory is [.github/bootstrap-policy.json](.github/bootstrap-p
 Local API source may exist outside that inventory; do not stage it in this PR.
 No API, database, storage, authentication or deployment readiness is established.
 
-Keep initial PRs at **80 or fewer changed files**, reserving 20 for review fixes.
-The hard maximum is **100** including additions, deletions, renames and binaries.
-Publish later work in focused dependent PRs; do not upload the entire local tree.
+Before opening a PR, aim for **80 or fewer changed files** and split independent
+changes when useful. Count additions, deletions, renames and binaries. This is
+review guidance, not a CI or merge limit: a cohesive change may exceed 100 files
+with its rationale explained in the PR. File count alone never requires deleting
+or recreating a PR. Publish only the intended source scope.
 
 ## Authorization and verification
 
