@@ -10,6 +10,11 @@ ordering. Publish real owned temporary database, authentication, filesystem,
 object-storage and HTTP tests with each corresponding adapter. Fake ports and
 governance tests cannot establish those behaviors.
 
+Cover incomplete and unsafe review pagination, stale heads, dismissed approvals,
+wrong reviewer identity, skipped or neutral provider checks, workflow privilege
+boundaries and exact publication scope. Test the actual enforcing tools, not copies of their
+implementation.
+
 Current services/catalog tests cover policy, validation, operation ordering,
 complete vocabulary, interpolation placeholders, literal catalog data and
 canonical object identity. Keep the supported-language contract authoritative.
