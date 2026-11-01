@@ -1,0 +1,69 @@
+meta {
+  name: Register
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "first_name": "علی",
+    "last_name": "رضایی",
+    "mobile": "09123456789",
+    "otp": "123456",
+    "password": "password123"
+  }
+}
+
+script:post-response {
+  const responseBody = res.getBody();
+  const payload = responseBody;
+
+  if (res.getStatus() === 201 && payload?.access_token) {
+    bru.setEnvVar("access_token", payload.access_token);
+  } else {
+    bru.deleteEnvVar("access_token");
+  }
+}
+
+docs {
+  ## Purpose
+
+  Creates a new account after verifying the registration OTP.
+
+  ## Authentication
+
+  Public endpoint.
+
+  ## Behavior
+
+  - A valid OTP requested with the `register` purpose is required.
+  - The returned access token represents the new Better Auth session.
+  - The mobile number must not already belong to an existing account.
+  - The user's basic profile is created using the provided first and last name.
+  - First and last names are required trimmed strings, each limited to 1,000 UTF-16 code units. Name validation runs before consuming the OTP or creating an account.
+  - Password is required and must satisfy the configured password policy.
+  - Password policy is checked before the valid OTP is consumed.
+  - A successful registration authenticates the newly created user.
+  - The access token is returned in the response.
+  - The session is also issued in an HttpOnly cookie.
+
+  - A bounded single-process per-identity authentication attempt limiter also applies.
+
+  ## Response
+
+  - `201 Created` — Account created and authentication completed successfully.
+  - `400 Bad Request` — Request validation failed, the mobile number is already registered, the OTP is invalid, or the password does not satisfy the password policy.
+  - `429 Too Many Requests` — Authentication attempt limit reached.
+  - `500 Internal Server Error` — Unexpected provider or database failure; generic translated message and `X-Request-Id`, with no exception details.
+}

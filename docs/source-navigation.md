@@ -66,3 +66,8 @@ assistant loaded instructions or that remote review ran.
 Collection group owners will be added with their corresponding source phases.
 Do not register unpublished paths as live owners or interpret
 ambient local source as part of a checked partial publication.
+
+The collection-contracts task owns the published Bruno requests and response
+examples. Follow the inventory collectionGroups field and the registered feature
+suites; missing future groups are not part of this phase. Read the
+[collection setup](../collection/README.md) and [handoff guide](collection-guide.md).

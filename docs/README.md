@@ -30,3 +30,5 @@ The publication inventory owns the current source phase.
 
 - [Assistant instructions](../AGENTS.md)
 - [Contributing](../CONTRIBUTING.md)
+
+- [Bruno collection setup](../collection/README.md)
