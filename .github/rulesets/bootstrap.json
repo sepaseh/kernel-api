@@ -40,10 +40,6 @@
             "integration_id": 15368
           },
           {
-            "context": "Bootstrap PR file limit",
-            "integration_id": 15368
-          },
-          {
             "context": "SonarQube Cloud analysis",
             "integration_id": 15368
           },

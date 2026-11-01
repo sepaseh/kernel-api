@@ -34,10 +34,8 @@
         ".github/rulesets/bootstrap.json",
         ".github/rulesets/main.json",
         ".github/workflows/ci.yml",
-        ".github/workflows/pr-policy.yml",
         ".github/workflows/coderabbit-approval.yml",
         ".github/workflows/review-events.yml",
-        "scripts/check-pr-size.mjs",
         "scripts/check-coderabbit-approval.mjs",
         "scripts/ci-evidence.mjs"
       ],
@@ -49,7 +47,6 @@
         "docs/sonarqube.md"
       ],
       "tests": [
-        "scripts/check-pr-size.test.mjs",
         "scripts/check-coderabbit-approval.test.mjs",
         "scripts/ci-evidence.test.mjs",
         "scripts/check-governance.test.mjs"
