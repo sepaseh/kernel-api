@@ -12,6 +12,10 @@ import {
 const head = "a".repeat(40);
 const base = "b".repeat(40);
 const repository = "example/api";
+const repositoryId = "R_synthetic_repository";
+const checkNodeId = "CR_synthetic_901";
+const graphqlUrl = "https://api.github.com/graphql";
+const repositoryEvent = { default_branch: "main", node_id: repositoryId };
 const pull = (overrides = {}) => ({
   base: { sha: base },
   head: { sha: head },
@@ -37,6 +41,29 @@ const check = (overrides = {}) => ({
   status: "completed",
   ...overrides,
 });
+const createdCheck = (overrides = {}) => ({
+  head_sha: head,
+  id: 901,
+  name: "CodeRabbit approval",
+  node_id: checkNodeId,
+  status: "in_progress",
+  ...overrides,
+});
+const completion = (input, { headSha = head, overrides = {} } = {}) => ({
+  data: {
+    updateCheckRun: {
+      checkRun: {
+        checkSuite: { commit: { oid: headSha } },
+        conclusion: input.conclusion,
+        id: input.checkRunId,
+        name: "CodeRabbit approval",
+        repository: { id: input.repositoryId, nameWithOwner: repository },
+        status: "COMPLETED",
+        ...overrides,
+      },
+    },
+  },
+});
 const response = (data, link) =>
   new Response(JSON.stringify(data), {
     headers: link ? { link } : {},
@@ -45,13 +72,23 @@ const response = (data, link) =>
 const fixture = ({
   reviews = [review()],
   checks = [check()],
+  created,
   metadata = pull(),
+  updateResponse,
 } = {}) => {
   const requests = [];
   const fetchImpl = async (url, options) => {
     requests.push({ options, url });
-    if (options.method === "POST") return response({ id: 901 });
-    if (options.method === "PATCH") return response({ id: 901 });
+    if (url === graphqlUrl) {
+      const input = JSON.parse(options.body).variables.input;
+      return response(
+        updateResponse
+          ? updateResponse(input)
+          : completion(input, { headSha: metadata.head.sha }),
+      );
+    }
+    if (options.method === "POST")
+      return response(created ?? createdCheck({ head_sha: metadata.head.sha }));
     if (url.includes("/reviews")) return response(reviews);
     if (url.includes("/commits/"))
       return response({ check_runs: checks, total_count: checks.length });
@@ -70,7 +107,7 @@ const inspect = (fetchImpl, overrides = {}) =>
   });
 const run = (fetchImpl, overrides = {}) =>
   runCodeRabbitApproval({
-    event: { pull_request: pull(), repository: { default_branch: "main" } },
+    event: { pull_request: pull(), repository: repositoryEvent },
     eventName: "pull_request_target",
     fetchImpl,
     publish: true,
@@ -312,12 +349,14 @@ test("trusted publishing creates a blocking check before reading and completes i
     status: "in_progress",
   });
   const published = JSON.parse(requests.at(-1).options.body);
-  assert.equal(
-    requests.at(-1).url,
-    `https://api.github.com/repos/${repository}/check-runs/901`,
-  );
-  assert.equal(published.conclusion, "success");
-  assert.equal(published.status, "completed");
+  assert.equal(requests.at(-1).url, graphqlUrl);
+  assert.equal(requests.at(-1).options.method, "POST");
+  assert.equal(requests.at(-1).options.redirect, "error");
+  assert.match(published.query, /updateCheckRun\(input: \$input\)/);
+  assert.equal(published.variables.input.checkRunId, checkNodeId);
+  assert.equal(published.variables.input.repositoryId, repositoryId);
+  assert.equal(published.variables.input.conclusion, "SUCCESS");
+  assert.equal(published.variables.input.status, "COMPLETED");
 });
 
 test("invalid response-derived check IDs cannot become update request paths", async () => {
@@ -334,7 +373,7 @@ test("invalid response-derived check IDs cannot become update request paths", as
     const requests = [];
     const fetchImpl = async (url, options) => {
       requests.push({ options, url });
-      return response({ id });
+      return response(createdCheck({ id }));
     };
 
     await assert.rejects(
@@ -349,19 +388,136 @@ test("invalid response-derived check IDs cannot become update request paths", as
   }
 });
 
+test("a created check must supply its node ID and exact requested head and context", async () => {
+  for (const update of [
+    { node_id: undefined },
+    { node_id: "" },
+    { node_id: 901 },
+    { head_sha: base },
+    { name: "check" },
+    { status: "completed" },
+  ]) {
+    const basic = fixture({ created: createdCheck(update) });
+
+    await assert.rejects(
+      run(basic.fetchImpl),
+      (error) =>
+        error instanceof AggregateError &&
+        error.errors[0].message === "GitHub did not create the approval check.",
+    );
+    assert.equal(basic.requests.length, 1);
+    assert.ok(!basic.requests.some(({ url }) => url === graphqlUrl));
+  }
+});
+
+test("GraphQL errors and null update payloads never establish completion", async () => {
+  for (const updateResponse of [
+    () => ({ errors: [{ message: "Private synthetic-token error" }] }),
+    (input) => ({
+      ...completion(input),
+      errors: [{ message: "Private synthetic-token error" }],
+    }),
+    () => ({ errors: null }),
+    () => null,
+    () => ({ data: { updateCheckRun: null } }),
+    () => ({ data: { updateCheckRun: { checkRun: null } } }),
+  ]) {
+    const basic = fixture({ updateResponse });
+
+    await assert.rejects(
+      run(basic.fetchImpl),
+      (error) =>
+        error instanceof AggregateError &&
+        /did not complete|incomplete or mismatched/.test(
+          error.errors[0].message,
+        ) &&
+        !error.errors[0].message.includes("synthetic-token"),
+    );
+  }
+});
+
+test("GraphQL completion must match the created node, repository, head and verdict", async () => {
+  for (const overrides of [
+    { id: "CR_other" },
+    { name: "check" },
+    { repository: { id: "R_other", nameWithOwner: repository } },
+    { repository: { id: repositoryId, nameWithOwner: "other/api" } },
+    { checkSuite: { commit: { oid: base } } },
+    { status: "IN_PROGRESS" },
+    { conclusion: "FAILURE" },
+  ]) {
+    const basic = fixture({
+      updateResponse: (input) => completion(input, { overrides }),
+    });
+
+    await assert.rejects(
+      run(basic.fetchImpl),
+      (error) =>
+        error instanceof AggregateError &&
+        error.errors[0].message ===
+          "GitHub returned incomplete or mismatched approval check evidence.",
+    );
+  }
+});
+
+test("response-derived opaque IDs stay in GraphQL variables at a fixed endpoint", async () => {
+  const opaqueId =
+    'https://attacker.example/check?q="} mutation { unexpected }';
+  const basic = fixture({
+    created: createdCheck({ node_id: opaqueId }),
+    updateResponse: () => ({ errors: [{ message: "Invalid synthetic node" }] }),
+  });
+
+  await assert.rejects(run(basic.fetchImpl), AggregateError);
+  const update = basic.requests.at(-1);
+  const payload = JSON.parse(update.options.body);
+  assert.equal(update.url, graphqlUrl);
+  assert.equal(payload.variables.input.checkRunId, opaqueId);
+  assert.ok(!payload.query.includes(opaqueId));
+  assert.ok(
+    basic.requests.every(
+      ({ url }) => new URL(url).origin === "https://api.github.com",
+    ),
+  );
+});
+
+test("GraphQL transport failures do not expose response bodies", async () => {
+  const basic = fixture();
+
+  await assert.rejects(
+    run((url, options) =>
+      url === graphqlUrl
+        ? new Response("Private synthetic-token server failure", {
+            status: 503,
+          })
+        : basic.fetchImpl(url, options),
+    ),
+    (error) =>
+      error instanceof AggregateError &&
+      error.errors[0].message === "GitHub approval update failed (HTTP 503).",
+  );
+});
+
 test("independent PR verifications settle before publishing failures are aggregated", async () => {
   const secondHead = "c".repeat(40);
   const secondPull = pull({ head: { sha: secondHead }, id: 102, number: 2 });
   const firstFailure = new Error("Synthetic first PR publishing failure");
   const completed = [];
   const fetchImpl = async (url, options) => {
+    if (url === graphqlUrl) {
+      const input = JSON.parse(options.body).variables.input;
+      completed.push(input);
+      return response(completion(input, { headSha: secondHead }));
+    }
     if (options.method === "POST") {
       if (JSON.parse(options.body).head_sha === head) throw firstFailure;
-      return response({ id: 902 });
-    }
-    if (options.method === "PATCH") {
-      completed.push(JSON.parse(options.body));
-      return response({ id: 902 });
+      return response(
+        createdCheck({
+          head_sha: secondHead,
+          id: 902,
+          node_id: "CR_synthetic_902",
+        }),
+      );
     }
     if (url.includes("pulls?")) return response([pull(), secondPull]);
     if (url.includes("/reviews"))
@@ -376,7 +532,7 @@ test("independent PR verifications settle before publishing failures are aggrega
 
   await assert.rejects(
     run(fetchImpl, {
-      event: { repository: { default_branch: "main" } },
+      event: { repository: repositoryEvent },
       eventName: "workflow_dispatch",
     }),
     (error) =>
@@ -387,7 +543,7 @@ test("independent PR verifications settle before publishing failures are aggrega
         "CodeRabbit approval could not be verified for every pull request.",
   );
   assert.equal(completed.length, 1);
-  assert.equal(completed[0].conclusion, "success");
+  assert.equal(completed[0].conclusion, "SUCCESS");
   assert.match(completed[0].output.summary, /^PR #2 /);
 });
 
@@ -395,8 +551,8 @@ test("a dismissed review publishes failure and raw network errors stay out of di
   const basic = fixture({ reviews: [review({ state: "DISMISSED" })] });
   assert.equal((await run(basic.fetchImpl))[0].approved, false);
   assert.equal(
-    JSON.parse(basic.requests.at(-1).options.body).conclusion,
-    "failure",
+    JSON.parse(basic.requests.at(-1).options.body).variables.input.conclusion,
+    "FAILURE",
   );
   const safe = fixture();
   const results = await run(async (url, options) => {
@@ -416,6 +572,12 @@ test("publishing rejects PR-head and nondefault workflows before making any requ
       workflowRef: `${repository}/.github/workflows/coderabbit-approval.yml@refs/heads/untrusted`,
     },
     { token: undefined },
+    {
+      event: {
+        pull_request: pull(),
+        repository: { default_branch: "main" },
+      },
+    },
   ]) {
     const basic = fixture();
     await assert.rejects(
@@ -460,7 +622,7 @@ test("review relay and native completion events reread open PRs without trusting
   ]) {
     const basic = fixture();
     const results = await run(basic.fetchImpl, {
-      event: { ...event, repository: { default_branch: "main" } },
+      event: { ...event, repository: repositoryEvent },
       eventName: event.workflow_run ? "workflow_run" : "check_run",
     });
     assert.equal(results[0].approved, true);
@@ -471,14 +633,14 @@ test("review relay and native completion events reread open PRs without trusting
       eventName: "check_run",
       event: {
         check_run: { app: { id: 42 } },
-        repository: { default_branch: "main" },
+        repository: repositoryEvent,
       },
     },
     {
       eventName: "workflow_run",
       event: {
         workflow_run: { event: "push" },
-        repository: { default_branch: "main" },
+        repository: repositoryEvent,
       },
     },
   ]) {
