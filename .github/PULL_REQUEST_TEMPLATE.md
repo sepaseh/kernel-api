@@ -6,7 +6,7 @@ Explain the concrete policy change and any prerequisite PR.
 
 - Phase:
 - Exact publication inventory:
-- GitHub changed-file count (target at most 80; hard maximum 100; reserve 20 for fixes):
+- Pre-PR scope review (advisory target at most 80 files; explain larger cohesive changes and any useful split):
 - Application readiness and limitations:
 
 ## Verification

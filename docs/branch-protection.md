@@ -11,8 +11,8 @@ the most recent push, resolved conversations, an up-to-date branch and linear
 history. Disallow force pushes, deletion and administrative bypass. Use squash
 merges; do not enable automatic merging as part of this setup.
 
-Require full CI, the file-budget checks, successful Sonar scanner execution and
-the actual Sonar provider quality gate. Require the native CodeRabbit result
+Require full CI, successful Sonar scanner execution and the actual Sonar provider
+quality gate. Require the native CodeRabbit result
 and the separate current-head CodeRabbit approval guard once its trusted
 default-branch implementation is available.
 
@@ -29,7 +29,7 @@ controls on itself. Its read-only bootstrap checks are useful evidence but do
 not establish trusted default-branch enforcement.
 
 The [bootstrap ruleset](../.github/rulesets/bootstrap.json) requires native CI,
-bootstrap file budgeting, scanner, Sonar gate, CodeRabbit and an approving review.
+scanner, Sonar gate, CodeRabbit and an approving review.
 Before any separately authorized first merge, verify the actual current-head
 CodeRabbit approval and every provider result manually. Use draft for incomplete
 work unless the owner explicitly requests ready-for-review status; that status
@@ -38,7 +38,7 @@ to unblock bootstrap.
 
 After the reviewed guard is on the default branch, apply the
 [complete main ruleset](../.github/rulesets/main.json), retaining the bootstrap
-requirements and adding the trusted file-limit and CodeRabbit approval contexts.
+requirements and adding the trusted CodeRabbit approval context.
 Verify real failure cases before treating those new controls as established.
 
 ## Trust boundary
@@ -49,14 +49,18 @@ requests a review. The bot identity and literal completed-success provider resul
 block ordinary skips; they do not prove every file received content review.
 
 Trusted target workflows apply to PRs targeting `main`. Publish successive PRs
-into `main` after their prerequisites are reviewed and merged. Ordinary CI and
-the read-only bootstrap file budget still run for PRs with other targets; do not
-claim those establish the same trusted target enforcement.
+into `main` after their prerequisites are reviewed and merged. Ordinary CI still
+runs for PRs with other targets; do not claim those establish the same trusted
+target enforcement.
 
 An Actions-authored required context is bound to the GitHub Actions app, not one
 specific workflow. Repository writers and administrators must remain trusted.
 Stricter workflow-specific enforcement requires organization-level required
 workflows or a separately authorized trusted publisher. Do not claim that an
 ordinary personal-repository context provides that stronger guarantee.
+
+PR file count is advisory [pre-PR planning](../CONTRIBUTING.md#scope-and-pr-planning),
+not a required check or merge condition. Exceeding 100 files alone never fails
+CI or requires deleting or recreating a PR.
 
 Follow the [CodeRabbit preflight](sonarqube.md#before-requesting-coderabbit).
