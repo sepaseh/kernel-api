@@ -26,6 +26,7 @@ import {
   inspectGuidance,
   inspectPolicy,
   inspectSnapshot,
+  overridesForPackage,
   packageScripts,
   parseYaml,
   requiredChecks,
@@ -64,12 +65,19 @@ const lockForPackage = (pkg) => ({
       name: pkg.name,
       version: pkg.version,
       devDependencies: pkg.devDependencies,
+      ...(pkg.dependencies ? { dependencies: pkg.dependencies } : {}),
     },
     ...Object.fromEntries(
-      Object.entries(pkg.devDependencies).map(([name, version]) => [
-        `node_modules/${name}`,
-        { version, dev: true, integrity: syntheticIntegrity },
-      ]),
+      Object.entries({ ...pkg.dependencies, ...pkg.devDependencies }).map(
+        ([name, version]) => [
+          `node_modules/${name}`,
+          {
+            version,
+            ...(Object.hasOwn(pkg.devDependencies, name) ? { dev: true } : {}),
+            integrity: syntheticIntegrity,
+          },
+        ],
+      ),
     ),
   },
 });
@@ -931,6 +939,91 @@ test("plain validation exports are supported but a broken existing Git repositor
   assert.equal((await runCheck("snapshot", root)).files, files.length);
   await mkdir(path.join(root, ".git"));
   await assert.rejects(runCheck("snapshot", root), /existing Git repository/);
+});
+
+test("authentication publication owns its bootstrap command and pins its SDK core without changing the full gate", () => {
+  const dependencies = {
+    "@libsql/client": "0.18.0",
+    "drizzle-orm": "0.45.4",
+    "better-auth": "1.7.14",
+    "@better-auth/drizzle-adapter": "1.7.14",
+  };
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts("auth-bootstrap"),
+    devDependencies: foundationDependencies,
+    dependencies,
+  };
+  pkg.overrides = overridesForPackage(pkg);
+  const lock = lockForPackage(pkg);
+  validatePackage(pkg, lock, "auth-bootstrap");
+  assert.equal(pkg.scripts["server:bootstrap"], "node src/bootstrap-admin.ts");
+  assert.deepEqual(checksForPhase("auth-bootstrap"), sourceChecks);
+  assert.throws(
+    () =>
+      validatePackage(
+        { ...pkg, overrides: reviewedOverrides },
+        lock,
+        "auth-bootstrap",
+      ),
+    /owned authentication core/,
+  );
+  assert.throws(
+    () =>
+      validatePackage(
+        {
+          ...pkg,
+          overrides: { ...pkg.overrides, "@better-auth/core": "1.8.0" },
+        },
+        lock,
+        "auth-bootstrap",
+      ),
+    /owned authentication core/,
+  );
+  assert.throws(
+    () =>
+      validatePackage(
+        {
+          ...pkg,
+          scripts: {
+            ...pkg.scripts,
+            "server:bootstrap": "node src/unpublished.ts",
+          },
+        },
+        lock,
+        "auth-bootstrap",
+      ),
+    /real governance checks/,
+  );
+  assert.throws(
+    () =>
+      validatePackage(
+        {
+          ...pkg,
+          devDependencies: { ...pkg.devDependencies, "drizzle-orm": "0.45.4" },
+        },
+        lock,
+        "auth-bootstrap",
+      ),
+    /one declared runtime/,
+  );
+  const unsafe = structuredClone(lock);
+  unsafe.packages["node_modules/@better-auth/core"] = {
+    version: "1.8.0",
+    integrity: syntheticIntegrity,
+  };
+  assert.throws(
+    () => validatePackage(pkg, unsafe, "auth-bootstrap"),
+    /authentication core/,
+  );
+  const publication = policy("auth-bootstrap");
+  assert.throws(() => validateInventory(publication), /cannot omit/);
+  publication.allowedFiles.push("src/bootstrap-admin.ts");
+  validateInventory(publication);
+  assert.equal(
+    packageScripts("database-persistence")["server:bootstrap"],
+    "node src/bootstrap-admin.ts",
+  );
 });
 
 test("Markdown link scanning handles malformed long input and checks angle destinations and titles", () => {

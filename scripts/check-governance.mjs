@@ -84,6 +84,32 @@ const sourceToolingFiles = [
 ];
 const governanceDependencies = { prettier: "3.9.10", yaml: "2.9.1" };
 export const reviewedOverrides = { "minimatch@10.2.6": "11.0.3" };
+export const overridesForPackage = (pkg) => ({
+  ...reviewedOverrides,
+  ...(pkg.dependencies?.["better-auth"]
+    ? { "@better-auth/core": "1.7.14" }
+    : {}),
+});
+const adminCommandPhases = new Set([
+  "database-persistence",
+  "auth-bootstrap",
+  "http-transport",
+  "http-composition",
+  "runtime-operations",
+  "collection-core",
+  "collection-account-auth",
+  "collection-management",
+  "local-runtime",
+]);
+const ownedCommands = (phase) =>
+  adminCommandPhases.has(phase)
+    ? {
+        "server:bootstrap": {
+          command: "node src/bootstrap-admin.ts",
+          owner: "src/bootstrap-admin.ts",
+        },
+      }
+    : {};
 export const foundationDependencies = {
   "@eslint/js": "10.0.1",
   "@types/node": "24.19.2",
@@ -109,6 +135,12 @@ export const packageScripts = (phase) => ({
     checksForPhase(phase).map((id) => [
       scriptNames[id],
       scriptCommand(id, phase),
+    ]),
+  ),
+  ...Object.fromEntries(
+    Object.entries(ownedCommands(phase)).map(([name, { command }]) => [
+      name,
+      command,
     ]),
   ),
 });
@@ -211,6 +243,7 @@ export const validateInventory = (policy) => {
     ...(policy.phase === "governance"
       ? []
       : [...foundationFiles, ...sourceToolingFiles]),
+    ...Object.values(ownedCommands(policy.phase)).map(({ owner }) => owner),
   ];
   assert(
     mandatory.every((file) => files.has(file)),
@@ -265,6 +298,12 @@ const validatePackageDefinition = (pkg, phase) => {
     );
   const expectedDependencies =
     phase === "governance" ? governanceDependencies : foundationDependencies;
+  assert(
+    !Object.keys(pkg.dependencies ?? {}).some((name) =>
+      Object.hasOwn(pkg.devDependencies ?? {}, name),
+    ),
+    "A package must have one declared runtime or development owner.",
+  );
   if (["governance", "foundation"].includes(phase)) {
     assert(
       !Object.hasOwn(pkg, "dependencies"),
@@ -340,6 +379,14 @@ const validateLockfile = (pkg, lock, phase) => {
         entry.version !== "10.2.6",
         "The reviewed minimatch security override must be reflected in the lockfile.",
       );
+    if (
+      pkg.dependencies?.["better-auth"] &&
+      location.endsWith("/@better-auth/core")
+    )
+      assert(
+        entry.version === "1.7.14",
+        "The locked authentication core must match the reviewed provider version.",
+      );
   }
   for (const [name, version] of Object.entries({
     ...pkg.dependencies,
@@ -359,11 +406,15 @@ export const validatePackage = (pkg, lock, phase = "governance") => {
       !Object.hasOwn(pkg, "overrides"),
       "Governance tooling must not introduce dependency overrides.",
     );
-  else if (phase === "foundation" || Object.hasOwn(pkg, "overrides"))
+  else if (
+    phase === "foundation" ||
+    pkg.dependencies?.["better-auth"] ||
+    Object.hasOwn(pkg, "overrides")
+  )
     equal(
       pkg.overrides,
-      reviewedOverrides,
-      "Only the reviewed minimatch security override is permitted in source phases.",
+      overridesForPackage(pkg),
+      "Only the reviewed minimatch and owned authentication core overrides are permitted in source phases.",
     );
   validateLockfile(pkg, lock, phase);
 };
