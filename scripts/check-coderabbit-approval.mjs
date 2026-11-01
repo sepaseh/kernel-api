@@ -7,6 +7,21 @@ const bot = { id: 136622811, login: "coderabbitai[bot]", type: "Bot" };
 const app = { id: 347564, slug: "coderabbitai" };
 const validSha = (value) =>
   typeof value === "string" && /^[a-f\d]{40}$/.test(value);
+const validNodeId = (value) => typeof value === "string" && value.length > 0;
+const updateCheckRun = `
+  mutation CompleteCodeRabbitApproval($input: UpdateCheckRunInput!) {
+    updateCheckRun(input: $input) {
+      checkRun {
+        id
+        name
+        status
+        conclusion
+        repository { id nameWithOwner }
+        checkSuite { commit { oid } }
+      }
+    }
+  }
+`;
 class EvidenceError extends Error {}
 const requireEvidence = (condition, message) => {
   if (!condition) throw new EvidenceError(message);
@@ -37,6 +52,12 @@ const githubClient = ({ fetchImpl = fetch, repository, token }) => {
     "An exact GitHub repository is required.",
   );
   const root = `https://api.github.com/repos/${repository}/`;
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "Content-Type": "application/json",
+    "X-GitHub-Api-Version": "2026-03-10",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
   const request = async (endpoint, { body, method = "GET" } = {}) => {
     const url = new URL(endpoint, root);
     requireEvidence(
@@ -45,12 +66,7 @@ const githubClient = ({ fetchImpl = fetch, repository, token }) => {
     );
     const response = await fetchImpl(url.href, {
       body: body === undefined ? undefined : JSON.stringify(body),
-      headers: {
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2026-03-10",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers,
       method,
       redirect: "error",
     });
@@ -59,6 +75,35 @@ const githubClient = ({ fetchImpl = fetch, repository, token }) => {
       `GitHub evidence query failed (HTTP ${response.status}).`,
     );
     return { data: await response.json(), link: response.headers.get("link") };
+  };
+  const completeCheck = async (input, headSha) => {
+    const response = await fetchImpl("https://api.github.com/graphql", {
+      body: JSON.stringify({ query: updateCheckRun, variables: { input } }),
+      headers,
+      method: "POST",
+      redirect: "error",
+    });
+    requireEvidence(
+      response.ok,
+      `GitHub approval update failed (HTTP ${response.status}).`,
+    );
+    const payload = await response.json();
+    requireEvidence(
+      payload?.errors === undefined ||
+        (Array.isArray(payload.errors) && payload.errors.length === 0),
+      "GitHub did not complete the approval check.",
+    );
+    const updated = payload?.data?.updateCheckRun?.checkRun;
+    requireEvidence(
+      updated?.id === input.checkRunId &&
+        updated.name === checkName &&
+        updated.repository?.id === input.repositoryId &&
+        updated.repository.nameWithOwner === repository &&
+        updated.checkSuite?.commit?.oid === headSha &&
+        updated.status === "COMPLETED" &&
+        updated.conclusion === input.conclusion,
+      "GitHub returned incomplete or mismatched approval check evidence.",
+    );
   };
   const list = async (endpoint, field) => {
     const initial = new URL(endpoint, root);
@@ -116,7 +161,7 @@ const githubClient = ({ fetchImpl = fetch, repository, token }) => {
     );
     return entries;
   };
-  return { list, request };
+  return { completeCheck, list, request };
 };
 
 const pullMetadata = (value) => {
@@ -207,7 +252,7 @@ export const inspectCodeRabbitApproval = async (options) => {
   };
 };
 
-const verifyPull = async (options, pull, request) => {
+const verifyPull = async (options, pull, client) => {
   const { headSha } = pullMetadata(pull);
   const { publish = false } = options;
   requireEvidence(
@@ -222,7 +267,7 @@ const verifyPull = async (options, pull, request) => {
   let check;
   if (publish) {
     check = (
-      await request("check-runs", {
+      await client.request("check-runs", {
         body: {
           head_sha: headSha,
           name: checkName,
@@ -232,7 +277,12 @@ const verifyPull = async (options, pull, request) => {
       })
     ).data;
     requireEvidence(
-      Number.isSafeInteger(check?.id) && check.id > 0,
+      Number.isSafeInteger(check?.id) &&
+        check.id > 0 &&
+        validNodeId(check.node_id) &&
+        check.head_sha === headSha &&
+        check.name === checkName &&
+        check.status === "in_progress",
       "GitHub did not create the approval check.",
     );
   }
@@ -251,9 +301,11 @@ const verifyPull = async (options, pull, request) => {
     };
   }
   if (publish)
-    await request(`check-runs/${encodeURIComponent(String(check.id))}`, {
-      body: {
-        conclusion: result.approved ? "success" : "failure",
+    await client.completeCheck(
+      {
+        checkRunId: check.node_id,
+        completedAt: new Date().toISOString(),
+        conclusion: result.approved ? "SUCCESS" : "FAILURE",
         output: {
           summary: result.approved
             ? `PR #${result.pullNumber} at ${headSha}: bot review ${result.reviewId}, native check ${result.checkRunId}.`
@@ -262,10 +314,11 @@ const verifyPull = async (options, pull, request) => {
             ? "Current-head CodeRabbit approval verified"
             : "CodeRabbit approval is required",
         },
-        status: "completed",
+        repositoryId: options.event.repository.node_id,
+        status: "COMPLETED",
       },
-      method: "PATCH",
-    });
+      headSha,
+    );
   return result;
 };
 
@@ -291,12 +344,13 @@ export const runCodeRabbitApproval = async (options) => {
         allowedEvents.has(eventName) &&
         validSha(workflowSha) &&
         typeof event?.repository?.default_branch === "string" &&
+        validNodeId(event.repository.node_id) &&
         workflowRef ===
           `${repository}/.github/workflows/coderabbit-approval.yml@refs/heads/${event.repository.default_branch}`,
       "Publishing requires the trusted default-branch approval workflow.",
     );
   }
-  const { list, request } = githubClient(options);
+  const client = githubClient(options);
   if (
     eventName === "check_run" &&
     (event.check_run?.app?.id !== app.id ||
@@ -317,9 +371,9 @@ export const runCodeRabbitApproval = async (options) => {
   );
   const pulls = event.pull_request
     ? [event.pull_request]
-    : await list("pulls?state=open&per_page=100");
+    : await client.list("pulls?state=open&per_page=100");
   const settled = await Promise.allSettled(
-    pulls.map((pull) => verifyPull(options, pull, request)),
+    pulls.map((pull) => verifyPull(options, pull, client)),
   );
   const failures = settled
     .filter((result) => result.status === "rejected")
