@@ -174,7 +174,8 @@
         "src/test/integration/management-services.test.ts",
         "src/test/integration/persistence.test.ts",
         "src/test/integration/users-lifecycle.test.ts",
-        "src/test/support/fixture-cleanup.test.ts"
+        "src/test/support/fixture-cleanup.test.ts",
+        "scripts/runtime-seed.test.mjs"
       ],
       "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
     }

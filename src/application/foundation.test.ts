@@ -151,3 +151,29 @@ test("the ten supported locales retain complete direction and calendar metadata"
     assert.equal(language.native_name.trim(), language.native_name);
   }
 });
+
+test("public language metadata preserves every ordered wire value", () => {
+  assert.deepEqual(
+    supportedLanguages.map(
+      ({ calendar, code, direction, name, native_name }) => [
+        code,
+        name,
+        native_name,
+        direction,
+        calendar,
+      ],
+    ),
+    [
+      ["fa", "Persian", "فارسی", "rtl", "jalali"],
+      ["ar", "Arabic", "العربية", "rtl", "gregorian"],
+      ["tr", "Turkish", "Türkçe", "ltr", "gregorian"],
+      ["en", "English", "English", "ltr", "gregorian"],
+      ["fr", "French", "Français", "ltr", "gregorian"],
+      ["de", "German", "Deutsch", "ltr", "gregorian"],
+      ["es", "Spanish", "Español", "ltr", "gregorian"],
+      ["it", "Italian", "Italiano", "ltr", "gregorian"],
+      ["ru", "Russian", "Русский", "ltr", "gregorian"],
+      ["pt", "Portuguese", "Português", "ltr", "gregorian"],
+    ],
+  );
+});

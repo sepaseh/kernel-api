@@ -102,6 +102,7 @@
     "scripts/merge-coverage.test.mjs",
     "scripts/run-audit.mjs",
     "scripts/run-audit.test.mjs",
+    "scripts/runtime-seed.test.mjs",
     "sonar-project.properties",
     "src/application/account.test.ts",
     "src/application/account.ts",
