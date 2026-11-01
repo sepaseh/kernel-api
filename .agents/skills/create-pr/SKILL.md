@@ -12,8 +12,10 @@ Read `.agents/rules/git.md`, `.agents/rules/pull-requests.md`,
 1. Confirm the repository, verified head/base branches under the branch policy,
    related issue and whether the task is preparation-only or authorizes creation.
 2. Review the complete diff and commits against the base branch; exclude unrelated or generated changes.
-   Target 80 or fewer initial GitHub changed-file entries; the hard CI maximum
-   remains 100, leaving 20 entries for review fixes.
+   Before opening the PR, aim for 80 or fewer GitHub changed-file entries and
+   split independent changes when useful. Explain why a larger cohesive change
+   belongs together. File count is advisory: exceeding 100 alone never fails CI
+   or requires deleting or recreating a PR.
 3. Run the complete gate required by `CONTRIBUTING.md`.
 4. Draft a Conventional Commit title and explain the problem, approach, verification, and limitations.
 5. If publication requires pushing, confirm that authorization is present; do not

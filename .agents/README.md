@@ -13,8 +13,10 @@ Read [Git workflow](rules/git.md) for branch, commit, PR and review work.
 Commit and push require authorization. Run the full current profile on the exact
 proposed inventory before each authorized commit or PR. Every source-phase full
 profile runs all ten real required checks, including source boundaries, types,
-lint and source/tooling coverage. Each PR targets at most 80 files, with a hard
-maximum of 100 after review fixes.
+lint and source/tooling coverage. Before opening a PR, aim for 80 or fewer files
+and split independent changes when useful. File count is advisory: explain a
+cohesive larger change in the PR; exceeding 100 alone does not fail CI or require
+deleting or recreating the PR.
 
 Dependent PRs may be published ready for review when explicitly requested while
 provider results remain pending. Full CI applies to all PR targets; privileged

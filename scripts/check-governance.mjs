@@ -146,7 +146,6 @@ export const packageScripts = (phase) => ({
 });
 export const testFiles = [
   "scripts/check-governance.test.mjs",
-  "scripts/check-pr-size.test.mjs",
   "scripts/ci-evidence.test.mjs",
   "scripts/check-coderabbit-approval.test.mjs",
 ];
@@ -184,11 +183,9 @@ export const validateInventory = (policy) => {
     policy?.schemaVersion === 1 &&
       (policy.phase === "governance" || sourcePhases.has(policy.phase)) &&
       policy.applicationReady === false &&
-      policy.maximumChangedFiles === 100 &&
-      policy.targetChangedFiles === 80 &&
       Array.isArray(policy.allowedFiles) &&
       policy.allowedFiles.length > 0,
-    "Declare an explicit scope, target 80, hard limit 100, and no application readiness.",
+    "Declare an explicit publication scope without application readiness.",
   );
   const files = new Set(policy.allowedFiles);
   assert(
@@ -233,7 +230,6 @@ export const validateInventory = (policy) => {
     ".agents/settings.json",
     ".agents/navigation.json",
     ".github/workflows/ci.yml",
-    ".github/workflows/pr-policy.yml",
     ".coderabbit.yaml",
     "package.json",
     "package-lock.json",
@@ -546,8 +542,8 @@ export const validateCiWorkflow = (workflow) => {
     Object.keys(workflow.jobs ?? {}).sort((left, right) =>
       left.localeCompare(right),
     ),
-    ["analysis", "bootstrap-file-limit", "check"],
-    "Keep full validation, dependent analysis, and the initial read-only file guard explicit.",
+    ["analysis", "check"],
+    "Keep full validation and dependent analysis explicit.",
   );
   const { steps: checkSteps, ...check } = workflow.jobs.check;
   equal(
@@ -644,31 +640,6 @@ export const validateCiWorkflow = (workflow) => {
     ],
     "Sonar must verify the same run's measured coverage and execute a real scanner without rerunning tests.",
   );
-  const { steps: fileSteps, ...fileJob } =
-    workflow.jobs["bootstrap-file-limit"];
-  equal(
-    fileJob,
-    {
-      name: "Bootstrap PR file limit",
-      if: "github.event_name == 'pull_request'",
-      "runs-on": "ubuntu-latest",
-      "timeout-minutes": 5,
-      permissions: { contents: "read", "pull-requests": "read" },
-    },
-    "The initial file guard must remain a read-only PR job.",
-  );
-  equal(
-    stepsWithoutNames(fileSteps),
-    [
-      checkout(),
-      setupNode(false),
-      {
-        env: { GITHUB_TOKEN: expression("github.token") },
-        run: "node scripts/check-pr-size.mjs",
-      },
-    ],
-    "The initial file guard must count real GitHub entries without secrets or installations.",
-  );
 };
 
 export const validateCodeRabbit = (configuration) => {
@@ -728,16 +699,10 @@ export const validateRuleset = (ruleset, bootstrap = false) => {
   );
   const expected = [
     ["check", 15368],
-    ["Bootstrap PR file limit", 15368],
     ["SonarQube Cloud analysis", 15368],
     ["SonarCloud Code Analysis", 12526],
     ["CodeRabbit", 347564],
-    ...(!bootstrap
-      ? [
-          ["PR file limit", 15368],
-          ["CodeRabbit approval", 15368],
-        ]
-      : []),
+    ...(!bootstrap ? [["CodeRabbit approval", 15368]] : []),
   ];
   const checks = status.required_status_checks;
   assert(
@@ -1015,16 +980,14 @@ export const inspectPolicy = async (root) => {
   const workflowFiles = [...files].filter((file) =>
     /^\.github\/workflows\/.+\.yml$/.test(file),
   );
-  const [ci, rabbit, main, bootstrap, sizeScript, sonar, workflows] =
-    await Promise.all([
-      readText(root, ".github/workflows/ci.yml"),
-      readText(root, ".coderabbit.yaml"),
-      readJson(root, ".github/rulesets/main.json"),
-      readJson(root, ".github/rulesets/bootstrap.json"),
-      readText(root, "scripts/check-pr-size.mjs"),
-      readText(root, "sonar-project.properties"),
-      Promise.all(workflowFiles.map((file) => readText(root, file))),
-    ]);
+  const [ci, rabbit, main, bootstrap, sonar, workflows] = await Promise.all([
+    readText(root, ".github/workflows/ci.yml"),
+    readText(root, ".coderabbit.yaml"),
+    readJson(root, ".github/rulesets/main.json"),
+    readJson(root, ".github/rulesets/bootstrap.json"),
+    readText(root, "sonar-project.properties"),
+    Promise.all(workflowFiles.map((file) => readText(root, file))),
+  ]);
   validateCiWorkflow(parseYaml(ci));
   validateCodeRabbit(parseYaml(rabbit));
   workflows.forEach((text) => validateWorkflowTrust(parseYaml(text)));
@@ -1038,10 +1001,6 @@ export const inspectPolicy = async (root) => {
     );
   validateRuleset(main);
   validateRuleset(bootstrap, true);
-  assert(
-    /export const maximumChangedFiles = 100;/.test(sizeScript),
-    "The real changed-file guard must retain the hard 100-entry limit.",
-  );
   validateSonarProperties(sonar, policy.phase, files);
   return {
     workflows: [...files].filter((file) =>

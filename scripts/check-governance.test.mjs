@@ -117,7 +117,7 @@ const files = [
   ".agents/rules/safety.md",
   ".agents/skills/commit/SKILL.md",
   ".github/workflows/ci.yml",
-  ".github/workflows/pr-policy.yml",
+  ".github/workflows/coderabbit-approval.yml",
   ".github/rulesets/main.json",
   ".github/rulesets/bootstrap.json",
   ".coderabbit.yaml",
@@ -144,8 +144,6 @@ const policy = (phase = "governance") => ({
   schemaVersion: 1,
   phase,
   applicationReady: false,
-  maximumChangedFiles: 100,
-  targetChangedFiles: 80,
   allowedFiles: [...files, ...(phase === "governance" ? [] : extraSourceFiles)],
 });
 const rabbit = () => ({
@@ -185,16 +183,10 @@ const ruleset = (bootstrap = false) => ({
         do_not_enforce_on_create: false,
         required_status_checks: [
           ["check", 15368],
-          ["Bootstrap PR file limit", 15368],
           ["SonarQube Cloud analysis", 15368],
           ["SonarCloud Code Analysis", 12526],
           ["CodeRabbit", 347564],
-          ...(!bootstrap
-            ? [
-                ["PR file limit", 15368],
-                ["CodeRabbit approval", 15368],
-              ]
-            : []),
+          ...(!bootstrap ? [["CodeRabbit approval", 15368]] : []),
         ].map(([context, integration_id]) => ({ context, integration_id })),
       },
     },
@@ -268,7 +260,7 @@ const fixture = async (context, phase = "governance") => {
   await json(".prettierrc.json", {});
   await put(".github/workflows/ci.yml", ciText);
   await put(
-    ".github/workflows/pr-policy.yml",
+    ".github/workflows/coderabbit-approval.yml",
     stringify({
       on: {
         pull_request_target: {
@@ -312,10 +304,6 @@ const fixture = async (context, phase = "governance") => {
               : "=src/**/*.test.ts,src/test/**,scripts/*.test.mjs,scripts/*.test-support.mjs,scripts/test-native-release.mjs,scripts/test-docker-release.mjs",
           ),
   );
-  await put(
-    "scripts/check-pr-size.mjs",
-    "export const maximumChangedFiles = 100;\n",
-  );
   for (const file of files.filter((file) => /\.md$/i.test(file)))
     await put(file, "# Synthetic governance\n");
   await put(
@@ -325,7 +313,7 @@ const fixture = async (context, phase = "governance") => {
   return { root, put, json };
 };
 
-test("inventory permits only explicit governance paths and preserves the 80/100 budget", () => {
+test("inventory permits explicit governance paths without a file-count limit", () => {
   assert.equal(validateInventory(policy()).size, files.length);
   assert.ok(
     validateInventory({
@@ -342,8 +330,6 @@ test("inventory permits only explicit governance paths and preserves the 80/100 
   for (const change of [
     { phase: "local-runtime" },
     { applicationReady: true },
-    { maximumChangedFiles: 101 },
-    { targetChangedFiles: 100 },
     { allowedFiles: [] },
     { allowedFiles: [...files, files[0]] },
     {
@@ -583,13 +569,6 @@ test("Sonar policy protects secret isolation, scanner execution, and same-run me
     (ci) => {
       ci.jobs.check.steps[5].with["if-no-files-found"] = "warn";
     },
-    (ci) => {
-      ci.jobs["bootstrap-file-limit"].permissions.contents = "write";
-    },
-    (ci) => {
-      ci.jobs["bootstrap-file-limit"].steps[2].env.SECRET =
-        "${{ secrets.PRIVATE_TOKEN }}";
-    },
   ]) {
     const changed = structuredClone(healthy);
     mutate(changed);
@@ -673,26 +652,29 @@ test("policy integration rejects untrusted guard checkout, floating actions, and
   const { root, put, json } = await fixture(context);
   assert.deepEqual(await inspectPolicy(root), { workflows: 2 });
   const guard = parseYaml(
-    await readFile(path.join(root, ".github/workflows/pr-policy.yml"), "utf8"),
+    await readFile(
+      path.join(root, ".github/workflows/coderabbit-approval.yml"),
+      "utf8",
+    ),
   );
   const targetEvent = structuredClone(guard.on);
   delete guard.on.pull_request_target.branches;
-  await put(".github/workflows/pr-policy.yml", stringify(guard));
+  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
   await assert.rejects(inspectPolicy(root), /target main explicitly/);
   guard.on = ["pull_request_target"];
-  await put(".github/workflows/pr-policy.yml", stringify(guard));
+  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
   await assert.rejects(inspectPolicy(root), /target main explicitly/);
   guard.on = targetEvent;
   guard.jobs.guard.steps[0].with.ref =
     "${{ github.event.pull_request.head.sha }}";
-  await put(".github/workflows/pr-policy.yml", stringify(guard));
+  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
   await assert.rejects(inspectPolicy(root), /trusted default-branch code/);
   guard.jobs.guard.steps[0].with.ref = "${{ github.workflow_sha }}";
   guard.jobs.guard.steps[0].uses = "actions/checkout@main";
-  await put(".github/workflows/pr-policy.yml", stringify(guard));
+  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
   await assert.rejects(inspectPolicy(root), /immutable commit/);
   guard.jobs.guard.steps[0].uses = actions.checkout;
-  await put(".github/workflows/pr-policy.yml", stringify(guard));
+  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
   await put(
     "sonar-project.properties",
     sonar + "sonar.coverage.exclusions=**/*\n",
@@ -842,7 +824,7 @@ test("foundation restores all ten checks and requires the entire pure source clo
 test("coverage selects every published Node suite once and keeps audit records separate", () => {
   const published = validateInventory(policy("foundation"));
   const plan = coveragePlan(published, "foundation");
-  assert.equal(plan.node.length, 8);
+  assert.equal(plan.node.length, 7);
   assert.deepEqual(plan.audit, ["scripts/run-audit.test.mjs"]);
   assert.ok(plan.node.includes("src/application/foundation.test.ts"));
   assert.ok(!plan.node.includes("scripts/run-audit.test.mjs"));
