@@ -312,8 +312,41 @@ test("trusted publishing creates a blocking check before reading and completes i
     status: "in_progress",
   });
   const published = JSON.parse(requests.at(-1).options.body);
+  assert.equal(
+    requests.at(-1).url,
+    `https://api.github.com/repos/${repository}/check-runs/901`,
+  );
   assert.equal(published.conclusion, "success");
   assert.equal(published.status, "completed");
+});
+
+test("invalid response-derived check IDs cannot become update request paths", async () => {
+  for (const id of [
+    undefined,
+    null,
+    0,
+    -1,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+    "901",
+    "../commits",
+  ]) {
+    const requests = [];
+    const fetchImpl = async (url, options) => {
+      requests.push({ options, url });
+      return response({ id });
+    };
+
+    await assert.rejects(
+      run(fetchImpl),
+      (error) =>
+        error instanceof AggregateError &&
+        error.errors.length === 1 &&
+        error.errors[0].message === "GitHub did not create the approval check.",
+    );
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].options.method, "POST");
+  }
 });
 
 test("independent PR verifications settle before publishing failures are aggregated", async () => {

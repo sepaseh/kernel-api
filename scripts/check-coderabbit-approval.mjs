@@ -251,7 +251,7 @@ const verifyPull = async (options, pull, request) => {
     };
   }
   if (publish)
-    await request(`check-runs/${check.id}`, {
+    await request(`check-runs/${encodeURIComponent(String(check.id))}`, {
       body: {
         conclusion: result.approved ? "success" : "failure",
         output: {

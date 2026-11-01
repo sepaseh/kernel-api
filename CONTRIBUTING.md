@@ -1,10 +1,9 @@
 # Contributing to Kernel API
 
-Publish the repository in focused PRs. The current foundation phase contains
-pure contracts, core modules, their required authentication port definitions,
-tests and repository tooling. The [inventory](.github/bootstrap-policy.json)
-declares the exact proposed paths. Preserve unrelated local source and private
-runtime state.
+Publish the repository in focused PRs. The inventory and manifest declare the
+current reviewed source phase and exact paths. Preserve unrelated local source
+and private runtime state. A phase name, configuration file or successful unit
+test does not establish unpublished adapter or deployed-service behavior.
 
 ## Scope and file budget
 
@@ -14,8 +13,8 @@ renames and binaries; a GitHub rename is one entry. The budget limits each PR,
 not the repository's eventual size.
 
 Keep framework dependencies out of contracts, core modules and ports.
-Application services, adapters, catalogs, migrations, HTTP routes, composition,
-collections and deployment assets belong to their own later publications.
+Publish application services, catalogs, adapters, migrations, HTTP, collections
+and deployment assets in focused owner groups.
 Introduce each owner with its necessary dependencies and tests; do not publish
 unused interfaces or broken placeholders merely to fill a file budget.
 
@@ -34,7 +33,7 @@ verification fixtures, never additional implementation checkouts. Remove only
 owned fixtures after closing their processes.
 
 Do not validate a partial PR against ambient unpublished API files, skip failures,
-weaken checks or report unavailable evidence as a pass. The foundation full
+weaken checks or report unavailable evidence as a pass. The source-phase full
 profile runs all ten required checks, including real source boundaries,
 typechecking, lint, measured foundation/tooling coverage and audit-helper tests.
 It applies to every PR, including drafts and documentation-only changes.

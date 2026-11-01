@@ -1,31 +1,28 @@
-# Foundation and tooling tests
+# API testing
 
-Test observable policy failures using synthetic GitHub responses and owned
-temporary fixtures. Never read real tokens, environments, databases, uploads or
-other checkouts as fixtures.
+The [publication inventory](../.github/bootstrap-policy.json) declares what is
+actually published. The [canonical manifest](../.agents/validation.json) owns all
+ten real source-phase checks. Run its entire full profile on the exact proposed
+tree before an authorized commit or PR.
 
-Cover incomplete and unsafe pagination, duplicate or missing changed-file
-entries, hard-limit violations, stale heads, dismissed approvals, wrong reviewer
-identity, skipped or neutral provider checks, workflow privilege boundaries and
-exact publication scope. Test the actual enforcing tools, not copies of their
-implementation.
+Use pure tests with synthetic feature ports for application policy and operation
+ordering. Publish real owned temporary database, authentication, filesystem,
+object-storage and HTTP tests with each corresponding adapter. Fake ports and
+governance tests cannot establish those behaviors.
 
-The two foundation suites exercise authorization requirements, semantic errors,
-unique internal identities, canonical permission and locale metadata, and shared
-string/profile bounds. These are pure source tests. Source-boundary checks,
-typechecking and lint exercise the published import closure; audit-helper tests
-cover dependency-audit behavior. Run every required check through the
-[full profile](../.agents/validation.json) for the exact proposed inventory.
+Current services/catalog tests cover policy, validation, operation ordering,
+complete vocabulary, interpolation placeholders, literal catalog data and
+canonical object identity. Keep the supported-language contract authoritative.
+Runtime engine resolution and interpolation need real engine tests when published.
 
-Synchronize asynchronous work with observable completion or cancellation.
-Do not introduce fixed sleeps, custom test deadlines or delayed cleanup retries.
-Close clients, listeners and child processes before removing owned fixtures.
-Preserve operation and cleanup errors rather than suppressing either.
+Test semantic errors, authorization, reference conflicts, rollback, concurrent
+updates and failure/cleanup behavior at the owning boundary. Synchronize work by
+observable completion or cancellation, never fixed sleeps or delayed retries.
+Close streams, clients, listeners and subprocesses before removing owned fixtures;
+preserve both operation and cleanup failures.
 
-Real LCOV measures the published foundation modules and tooling actually
-executed by those suites. It does not establish application-service, HTTP,
-database, authentication adapter or storage behavior. Publish those owners with
-their relevant integration tests and synthetic disposable fixtures. No
-production service, deployed integration or automatic assistant discovery is
-established here. See [validation](validation.md) and
-[test reliability](test-reliability.md).
+Measured LCOV covers only published production owners. Test fixtures and optional
+Docker/native smoke commands are not production sources and are not executed
+implicitly by the full profile. Never read real environments, credentials,
+databases, uploads or other checkouts as fixtures. Report actual results in chat;
+see [validation](validation.md) and [test reliability](test-reliability.md).

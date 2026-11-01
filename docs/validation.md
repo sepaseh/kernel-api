@@ -1,18 +1,18 @@
-# Foundation validation
+# API validation
 
 The [canonical manifest](../.agents/validation.json) owns commands and profiles.
 Run `npm run validate -- full` against an isolated export of the exact
 [publication inventory](../.github/bootstrap-policy.json) before each authorized
 commit or PR. Preserve unrelated files in the working checkout.
 
-The foundation full profile runs all ten required checks: snapshot, CI policy,
+Every source-phase full profile runs all ten required checks: snapshot, CI policy,
 dependency audit, source boundaries, typechecking, lint, formatting, guidance,
-measured foundation/tooling tests and audit-helper tests. The manifest owns their
+measured source/tooling tests and audit-helper tests. The manifest owns their
 commands and order. The previous governance phase ran six checks for its own
 scope; that earlier profile cannot replace the source-phase gate.
 
 Run the complete profile for every PR, including drafts and documentation-only
-changes, without changed-path or target-branch filters. Foundation tests do not
+changes, without changed-path or target-branch filters. Pure or fake-port tests do not
 stand in for unpublished service, HTTP, database, authentication or storage tests.
 Add relevant real behavior evidence as each owner is published.
 

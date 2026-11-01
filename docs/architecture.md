@@ -1,37 +1,34 @@
 # Architecture and publication scope
 
-The current foundation phase contains fifteen pure source files and repository
-tooling. The [inventory](../.github/bootstrap-policy.json) is authoritative;
-`applicationReady` remains false. The earlier governance publication's rules,
-assistant workflows, GitHub controls and provider configuration remain in scope.
+The [inventory](../.github/bootstrap-policy.json) and
+[validation manifest](../.agents/validation.json) declare the exact published
+phase. `applicationReady` remains false.
 
-The source includes four feature-owned contracts for locale metadata, OTP
-concepts, permissions and profile bounds; seven core modules for authorization,
-errors, identity, localization vocabulary, models, permissions and validation;
-the authentication port definitions required by those modules; and two pure
-foundation test suites. Imports remain within this closure and appropriate
-native utilities. Do not add unused contracts or ports merely because other
-local source refers to them.
+The localization-data phase includes pure feature contracts, core policies,
+eight feature ports, seven framework-free application services, their synthetic
+port tests, and all ten literal API catalogs plus registry and integrity tests.
+The earlier governance controls and pure foundation remain published.
 
-Contracts stay pure and have no catch-all barrel. Locale metadata has one local
-definition. Application localization vocabulary is type-only; runtime catalogs
-and translation engines are not part of this phase. Foundation coverage measures
-authorization, identity, permission/locale metadata, semantic errors and string
-validation, alongside the repository tools it actually executes.
+Contracts have no catch-all barrel. Locale metadata, permissions, OTP concepts
+and profile bounds retain one local definition. Application vocabulary imports
+are erased types; application services never load catalogs or a translation
+engine. Catalogs contain literal nonempty strings, not executable fallbacks.
+The narrowly named Sonar duplication exception covers only their ten data files;
+the registry and locale metadata retain duplication analysis, and all source,
+rules and measured coverage remain analyzed.
 
-Application services, runtime catalogs, concrete adapters, migrations, HTTP
-routes, a listener and deployment assets remain unpublished. No running API,
-production OTP delivery, deployed integration or production readiness follows
-from foundation tests.
-
-For later source PRs, preserve one standalone project. The API owns database access,
-migrations, authentication and storage. Framework-free application services depend
-on feature ports, concrete infrastructure implements them, and thin Hono routes
-adapt HTTP. Compose dependencies manually and keep transaction boundaries atomic.
+The API owns database access, migrations, authentication and storage. Services
+depend on feature ports; concrete infrastructure will implement them. Thin Hono
+routes will adapt HTTP, with manual composition and atomic transaction boundaries.
 Independent frontends communicate through HTTP.
 
-The [backend](../.agents/rules/backend.md),
-[data lifecycle](../.agents/rules/data-lifecycle.md) and
-[localization](../.agents/rules/localization.md) rules define constraints for that
-owners as they are published. Their presence does not prove implementation or
-deployment beyond the declared inventory.
+Current fake-port tests establish application policy and operation ordering,
+not real database transactions, authentication persistence, object storage or an
+HTTP listener. Those owners and real disposable-fixture tests must be published
+together in later PRs. Production OTP delivery, deployed integrations and
+production readiness remain outside this scope.
+
+Read [backend](../.agents/rules/backend.md),
+[data lifecycle](../.agents/rules/data-lifecycle.md),
+[localization](../.agents/rules/localization.md) and
+[validation](validation.md) for the owning constraints.

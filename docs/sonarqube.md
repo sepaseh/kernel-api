@@ -13,12 +13,12 @@ separately as a Dependabot secret when Dependabot analysis is needed.
 Set `SONAR_PROJECT_KEY` to the actual imported key; `SONAR_HOST_URL` defaults
 to `https://sonarcloud.io`. Inspect names only, never secret values.
 
-The foundation publication analyzes its published `src` and `scripts` and imports
+Source-phase publication analyzes its published `src` and `scripts` and imports
 real `coverage/lcov.info` measured by that CI run. Full validation includes the
-two pure foundation suites and tooling/audit-helper tests. The provenance
+published owner suites and tooling/audit-helper tests. The provenance
 manifest binds coverage to the tested commit/tree, PR head/base, workflow and
 producing attempt. Do not reuse another head's report or attribute this coverage
-to unpublished application services, adapters or HTTP behavior.
+to owners outside the inventory or to deployed-service behavior.
 
 Require both **SonarQube Cloud analysis** from GitHub Actions and the actual
 **SonarCloud Code Analysis** provider gate from the verified Sonar application.

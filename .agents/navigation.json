@@ -89,6 +89,39 @@
         "scripts/check-boundaries.test.mjs"
       ],
       "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+    },
+    {
+      "id": "services-and-catalogs",
+      "when": "Change published application policies, ports, feature contracts or API catalog data.",
+      "owners": [
+        "src/application/account.ts",
+        "src/application/auth.ts",
+        "src/application/calendar.ts",
+        "src/application/files.ts",
+        "src/application/roles.ts",
+        "src/application/settings.ts",
+        "src/application/users.ts",
+        "src/application/ports",
+        "src/infrastructure/localization/catalogs"
+      ],
+      "contracts": [
+        "src/contracts",
+        ".agents/rules/backend.md",
+        ".agents/rules/data-lifecycle.md",
+        ".agents/rules/localization.md",
+        "docs/input-validation.md",
+        "docs/localization.md",
+        "docs/sequences.md"
+      ],
+      "tests": [
+        "src/application/account.test.ts",
+        "src/application/auth.test.ts",
+        "src/application/files.test.ts",
+        "src/application/management.test.ts",
+        "src/application/users.test.ts",
+        "src/infrastructure/localization/catalogs.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
     }
   ]
 }
