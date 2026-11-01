@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "localization-data",
+  "phase": "configured-storage",
   "applicationReady": false,
   "checks": [
     {
@@ -8,70 +8,70 @@
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     },
     {
       "id": "guidance",
       "command": "npm run check:guidance",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     },
     {
       "id": "coverage-tests",
       "command": "npm run test:coverage",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     },
     {
       "id": "audit-helper-tests",
       "command": "npm run test:audit",
       "kind": "required",
       "ciJobs": ["check"],
-      "scopes": ["localization-data"]
+      "scopes": ["configured-storage"]
     }
   ],
   "profiles": {

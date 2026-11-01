@@ -119,10 +119,10 @@ export const testFiles = [
   "scripts/check-coderabbit-approval.test.mjs",
 ];
 const sourceFiles = testFiles.map((file) => file.replace(".test.mjs", ".mjs"));
-const optInTestFiles = [
+const optInTestFiles = new Set([
   "scripts/test-native-release.mjs",
   "scripts/test-docker-release.mjs",
-];
+]);
 export const actions = {
   checkout: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
   node: "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
@@ -931,12 +931,10 @@ const validateSonarProperties = (text, phase, files) => {
         return [line.slice(0, split), line.slice(split + 1)];
       }),
   );
-  const testPatterns =
-    phase === "governance"
-      ? "scripts/*.test.mjs"
-      : phase === "foundation"
-        ? "src/**/*.test.ts,scripts/*.test.mjs"
-        : sourceTestPatterns;
+  let testPatterns = sourceTestPatterns;
+  if (phase === "governance") testPatterns = "scripts/*.test.mjs";
+  else if (phase === "foundation")
+    testPatterns = "src/**/*.test.ts,scripts/*.test.mjs";
   const sonarPolicy = {
     "sonar.sources": phase === "governance" ? "scripts" : "src,scripts",
     "sonar.tests": phase === "governance" ? "scripts" : "src,scripts",
@@ -1113,7 +1111,7 @@ export const coveragePlan = (files, phase) => {
       !/\.test(?:-support)?\.(?:mjs|ts)$/.test(file) &&
       !file.startsWith("src/test/") &&
       file !== "scripts/run-audit.mjs" &&
-      !optInTestFiles.includes(file),
+      !optInTestFiles.has(file),
   );
   assert(
     node.length > 0 && sources.length > 0,

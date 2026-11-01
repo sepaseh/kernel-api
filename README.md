@@ -1,19 +1,30 @@
 # Kernel API
 
-Standalone TypeScript backend API for Kernel with authentication, role-based
-access, multilingual responses, and local or MinIO object storage.
+Standalone TypeScript project for Kernel's backend API.
 
 ## Published scope
 
-The current **localization-data** phase publishes pure feature contracts,
-framework-free application services and feature ports, core authorization and
-validation policies, and ten flat API message catalogs with their registry.
+The current **configured-storage** phase publishes pure feature contracts,
+framework-free application services and feature ports, core policies, ten flat
+API catalogs, and infrastructure for configuration, translation, logging, fatal
+process failures and local or S3-compatible MinIO object storage.
 
 Application services cover account, authentication, calendar, files, roles,
-settings and users. Their tests use synthetic ports. Catalog tests verify all ten
-languages, vocabulary, placeholders, literal data and canonical object identity.
-Runtime translation, configuration, logging, persistence, authentication adapters,
-storage, HTTP and server composition belong to subsequent focused PRs.
+settings and users. Their tests use synthetic ports. Catalog tests preserve
+vocabulary, placeholders, literal data and canonical identity. Real i18next tests
+exercise resolution and interpolation for all ten languages. Pino and isolated
+subprocess tests cover structured redaction and fatal logging/flush/exit behavior.
+
+Configuration parses an explicit environment object or `process.env` without
+loading private files. The published `.env.example` contains synthetic values.
+Local-storage tests use fresh owned temporary directories. MinIO tests use the
+real signed S3 SDK against an owned loopback HTTP fixture with synthetic
+credentials and isolated host-profile state. They establish protocol behavior,
+not a deployed MinIO integration. See [logging](docs/backend-logging.md) and
+[object storage](docs/object-storage.md).
+
+Database schema and persistence, authentication adapters, HTTP routes and server
+composition belong to subsequent focused PRs.
 `applicationReady` remains false; this scope establishes no running API,
 production OTP delivery or deployed integration.
 
@@ -31,5 +42,5 @@ npm run validate -- full
 ```
 
 The [canonical manifest](.agents/validation.json) owns all ten real source-phase
-checks. Governance or fake-port tests do not establish unpublished adapter,
-database, HTTP, runtime or deployment behavior.
+checks. Foundation, fake-port and local infrastructure tests do not establish
+unpublished database, authentication adapter, HTTP, server or deployment behavior.
