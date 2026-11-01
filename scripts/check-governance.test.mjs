@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {
-  mkdtemp,
   mkdir,
+  mkdtemp,
   readFile,
   rename,
   rm,
@@ -18,14 +18,21 @@ import { stringify } from "yaml";
 
 import {
   actions,
+  checksForPhase,
+  coveragePlan,
+  foundationDependencies,
+  foundationFiles,
   inspectFormatting,
   inspectGuidance,
   inspectPolicy,
   inspectSnapshot,
+  packageScripts,
   parseYaml,
   requiredChecks,
+  reviewedOverrides,
   runCheck,
   runFull,
+  sourceChecks,
   testFiles,
   validateAuditResult,
   validateCiWorkflow,
@@ -40,9 +47,59 @@ import {
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const readSource = (file) => readFile(path.join(repository, file), "utf8");
-const packageFixture = JSON.parse(await readSource("package.json"));
-const lockFixture = JSON.parse(await readSource("package-lock.json"));
-const manifestFixture = JSON.parse(await readSource(".agents/validation.json"));
+const packageFixture = {
+  name: "kernel-api",
+  private: true,
+  version: "1.0.0",
+  type: "module",
+  scripts: packageScripts("governance"),
+  devDependencies: { prettier: "3.9.10", yaml: "2.9.1" },
+};
+const syntheticIntegrity = "sha512-" + Buffer.alloc(64, 7).toString("base64");
+const lockForPackage = (pkg) => ({
+  name: pkg.name,
+  lockfileVersion: 3,
+  packages: {
+    "": {
+      name: pkg.name,
+      version: pkg.version,
+      devDependencies: pkg.devDependencies,
+    },
+    ...Object.fromEntries(
+      Object.entries(pkg.devDependencies).map(([name, version]) => [
+        `node_modules/${name}`,
+        { version, dev: true, integrity: syntheticIntegrity },
+      ]),
+    ),
+  },
+});
+const lockFixture = lockForPackage(packageFixture);
+const checkScripts = {
+  snapshot: "check:snapshot",
+  "ci-policy": "check:ci",
+  audit: "audit",
+  boundaries: "check:boundaries",
+  typecheck: "typecheck",
+  lint: "lint",
+  format: "format:check",
+  guidance: "check:guidance",
+  "coverage-tests": "test:coverage",
+  "audit-helper-tests": "test:audit",
+};
+const manifestForPhase = (phase) => ({
+  schemaVersion: 1,
+  phase,
+  applicationReady: false,
+  checks: checksForPhase(phase).map((id) => ({
+    id,
+    command: `npm run ${checkScripts[id]}`,
+    kind: "required",
+    ciJobs: ["check"],
+    scopes: [phase],
+  })),
+  profiles: { full: [...checksForPhase(phase)] },
+});
+const manifestFixture = manifestForPhase("governance");
 const ciText = await readSource(".github/workflows/ci.yml");
 const files = [
   ".github/bootstrap-policy.json",
@@ -64,13 +121,24 @@ const files = [
   ...testFiles,
   ...testFiles.map((file) => file.replace(".test.mjs", ".mjs")),
 ];
-const policy = () => ({
+const extraSourceFiles = [
+  ...foundationFiles,
+  "eslint.config.mjs",
+  "tsconfig.json",
+  "scripts/check-boundaries.mjs",
+  "scripts/check-boundaries.test.mjs",
+  "scripts/run-audit.mjs",
+  "scripts/run-audit.test.mjs",
+  "scripts/merge-coverage.mjs",
+  "scripts/merge-coverage.test.mjs",
+];
+const policy = (phase = "governance") => ({
   schemaVersion: 1,
-  phase: "governance",
+  phase,
   applicationReady: false,
   maximumChangedFiles: 100,
   targetChangedFiles: 80,
-  allowedFiles: [...files],
+  allowedFiles: [...files, ...(phase === "governance" ? [] : extraSourceFiles)],
 });
 const rabbit = () => ({
   reviews: {
@@ -138,11 +206,13 @@ const navigation = () => ({
     },
   ],
 });
-const settings = () => ({
+const settings = (phase = "governance") => ({
   rules: [".agents/rules/safety.md"],
   skills: [".agents/skills/commit/SKILL.md"],
   optionalHooks: [],
-  recommendedChecks: manifestFixture.checks.map(({ command }) => command),
+  recommendedChecks: manifestForPhase(phase).checks.map(
+    ({ command }) => command,
+  ),
   recommendedChecksSource: { path: ".agents/validation.json", profile: "full" },
   navigation: ".agents/navigation.json",
   validation: ".agents/validation.json",
@@ -157,7 +227,7 @@ const sonar =
     "sonar.qualitygate.wait=false",
   ].join("\n") + "\n";
 
-const fixture = async (context) => {
+const fixture = async (context, phase = "governance") => {
   const root = await mkdtemp(path.join(os.tmpdir(), "kernel-governance-"));
   context.after(() => rm(root, { recursive: true, force: true }));
   const put = async (file, contents) => {
@@ -166,13 +236,25 @@ const fixture = async (context) => {
   };
   const json = (file, value) =>
     put(file, JSON.stringify(value, null, 2) + "\n");
-  for (const file of files) await put(file, "// Synthetic fixture.\n");
-  await json(".github/bootstrap-policy.json", policy());
-  await json("package.json", packageFixture);
-  await json("package-lock.json", lockFixture);
-  await json(".agents/validation.json", manifestFixture);
+  const published = policy(phase).allowedFiles;
+  await Promise.all(
+    published.map((file) => put(file, "// Synthetic fixture.\n")),
+  );
+  const pkg =
+    phase === "governance"
+      ? packageFixture
+      : {
+          ...packageFixture,
+          scripts: packageScripts(phase),
+          devDependencies: foundationDependencies,
+          overrides: reviewedOverrides,
+        };
+  await json(".github/bootstrap-policy.json", policy(phase));
+  await json("package.json", pkg);
+  await json("package-lock.json", lockForPackage(pkg));
+  await json(".agents/validation.json", manifestForPhase(phase));
   await json(".agents/navigation.json", navigation());
-  await json(".agents/settings.json", settings());
+  await json(".agents/settings.json", settings(phase));
   await json(".github/rulesets/main.json", ruleset());
   await json(".github/rulesets/bootstrap.json", ruleset(true));
   await json(".prettierrc.json", {});
@@ -209,7 +291,17 @@ const fixture = async (context) => {
     }),
   );
   await put(".coderabbit.yaml", stringify(rabbit()));
-  await put("sonar-project.properties", sonar);
+  await put(
+    "sonar-project.properties",
+    phase === "governance"
+      ? sonar
+      : sonar
+          .replaceAll("=scripts\n", "=src,scripts\n")
+          .replaceAll(
+            "=scripts/*.test.mjs",
+            "=src/**/*.test.ts,scripts/*.test.mjs",
+          ),
+  );
   await put(
     "scripts/check-pr-size.mjs",
     "export const maximumChangedFiles = 100;\n",
@@ -692,4 +784,172 @@ test("online audit fails closed on incomplete reports, service errors, or severe
     },
   ])
     assert.throws(() => validateAuditResult(result));
+});
+
+test("foundation restores all ten checks and requires the entire pure source closure", async (context) => {
+  const { root } = await fixture(context, "foundation");
+  const result = await inspectSnapshot(root);
+  assert.equal(result.phase, "foundation");
+  assert.equal(result.files, files.length + extraSourceFiles.length);
+  const executed = [];
+  assert.equal(
+    await runFull(root, async (name) => {
+      executed.push(name);
+      return { status: 0 };
+    }),
+    10,
+  );
+  assert.deepEqual(
+    executed,
+    sourceChecks.map((id) => checkScripts[id]),
+  );
+  const sourcePolicy = policy("foundation");
+  sourcePolicy.allowedFiles = sourcePolicy.allowedFiles.filter(
+    (file) => file !== "src/application/validation.test.ts",
+  );
+  assert.throws(() => validateInventory(sourcePolicy), /cannot omit/);
+  assert.throws(
+    () =>
+      validateInventory({
+        ...policy("foundation"),
+        allowedFiles: [...policy("foundation").allowedFiles, "src/index.ts"],
+      }),
+    /pure source closure/,
+  );
+  const sourceManifest = manifestForPhase("foundation");
+  sourceManifest.profiles.full = [...requiredChecks];
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts("foundation"),
+    devDependencies: foundationDependencies,
+    overrides: reviewedOverrides,
+  };
+  assert.throws(() => validateManifest(sourceManifest, pkg), /full profile/);
+  await inspectPolicy(root);
+  await inspectGuidance(root);
+});
+
+test("coverage selects every published Node suite once and keeps audit records separate", () => {
+  const published = validateInventory(policy("foundation"));
+  const plan = coveragePlan(published, "foundation");
+  assert.equal(plan.node.length, 8);
+  assert.deepEqual(plan.audit, ["scripts/run-audit.test.mjs"]);
+  assert.ok(plan.node.includes("src/application/foundation.test.ts"));
+  assert.ok(!plan.node.includes("scripts/run-audit.test.mjs"));
+  assert.ok(!plan.sources.includes("scripts/run-audit.mjs"));
+  assert.ok(!plan.sources.some((file) => file.includes(".test.")));
+  published.add("scripts/test-native-release.mjs");
+  published.add("scripts/test-docker-release.mjs");
+  const optional = coveragePlan(published, "runtime-operations");
+  assert.ok(
+    !optional.node.some(
+      (file) =>
+        file === "scripts/test-native-release.mjs" ||
+        file === "scripts/test-docker-release.mjs",
+    ),
+  );
+  assert.ok(
+    !optional.sources.some(
+      (file) =>
+        file === "scripts/test-native-release.mjs" ||
+        file === "scripts/test-docker-release.mjs",
+    ),
+  );
+  published.add("scripts/validate-workflow-targets.test.mjs");
+  published.add("scripts/validate-workflow-targets.mjs");
+  assert.ok(
+    coveragePlan(published, "configured-storage").node.includes(
+      "scripts/validate-workflow-targets.test.mjs",
+    ),
+  );
+  assert.ok(
+    coveragePlan(published, "configured-storage").sources.includes(
+      "scripts/validate-workflow-targets.mjs",
+    ),
+  );
+  published.delete("scripts/run-audit.test.mjs");
+  assert.throws(() => coveragePlan(published, "foundation"), /never skipped/);
+});
+
+test("source packages allow only the reviewed minimatch override and require the locked fix", () => {
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts("foundation"),
+    devDependencies: foundationDependencies,
+    overrides: reviewedOverrides,
+  };
+  const lock = lockForPackage(pkg);
+  validatePackage(pkg, lock, "foundation");
+  for (const phase of ["configured-storage", "database-persistence"])
+    validatePackage({ ...pkg, scripts: packageScripts(phase) }, lock, phase);
+  for (const overrides of [
+    undefined,
+    {},
+    { "minimatch@10.2.6": "10.2.6" },
+    { ...reviewedOverrides, unknown: "1.0.0" },
+  ])
+    assert.throws(
+      () => validatePackage({ ...pkg, overrides }, lock, "foundation"),
+      /reviewed minimatch/,
+    );
+  assert.throws(
+    () =>
+      validatePackage(
+        {
+          ...pkg,
+          scripts: packageScripts("configured-storage"),
+          overrides: { unsafe: "1.0.0" },
+        },
+        lock,
+        "configured-storage",
+      ),
+    /reviewed minimatch/,
+  );
+  const unsafeLock = structuredClone(lock);
+  unsafeLock.packages["node_modules/minimatch"] = {
+    version: "10.2.6",
+    integrity: syntheticIntegrity,
+  };
+  assert.throws(
+    () => validatePackage(pkg, unsafeLock, "foundation"),
+    /reflected in the lockfile/,
+  );
+  assert.throws(
+    () =>
+      validatePackage(
+        { ...packageFixture, overrides: reviewedOverrides },
+        lockFixture,
+      ),
+    /must not introduce dependency overrides/,
+  );
+});
+
+test("plain validation exports are supported but a broken existing Git repository fails closed", async (context) => {
+  const { root } = await fixture(context);
+  assert.equal((await runCheck("snapshot", root)).files, files.length);
+  await mkdir(path.join(root, ".git"));
+  await assert.rejects(runCheck("snapshot", root), /existing Git repository/);
+});
+
+test("Markdown link scanning handles malformed long input and checks angle destinations and titles", () => {
+  const published = new Set(files);
+  validateMarkdownLinks(
+    "README.md",
+    '[Rule](<.agents/rules/safety.md> "title")',
+    published,
+  );
+  validateMarkdownLinks(
+    "README.md",
+    "[".repeat(100_000) + "](".repeat(1_000),
+    published,
+  );
+  assert.throws(
+    () =>
+      validateMarkdownLinks(
+        "README.md",
+        '[Bad](<src/index.ts> "title")',
+        published,
+      ),
+    /published inventory/,
+  );
 });

@@ -12,6 +12,23 @@ const requireEvidence = (condition, message) => {
   if (!condition) throw new EvidenceError(message);
 };
 
+const nextPageUrl = (link, initial) => {
+  let next;
+  const relations = new Set();
+  for (const segment of link?.split(",") ?? []) {
+    const match = /^<([^<>]+)>;\s*rel="(next|prev|first|last)"$/.exec(
+      segment.trim(),
+    );
+    requireEvidence(
+      match && !relations.has(match[2]),
+      "GitHub returned invalid pagination links.",
+    );
+    relations.add(match[2]);
+    if (match[2] === "next") next = new URL(match[1], initial);
+  }
+  return next;
+};
+
 const githubClient = ({ fetchImpl = fetch, repository, token }) => {
   requireEvidence(
     typeof repository === "string" &&
@@ -20,7 +37,7 @@ const githubClient = ({ fetchImpl = fetch, repository, token }) => {
     "An exact GitHub repository is required.",
   );
   const root = `https://api.github.com/repos/${repository}/`;
-  const request = async (endpoint, method = "GET", body) => {
+  const request = async (endpoint, { body, method = "GET" } = {}) => {
     const url = new URL(endpoint, root);
     requireEvidence(
       url.href.startsWith(root) && !url.username && !url.password && !url.hash,
@@ -48,9 +65,8 @@ const githubClient = ({ fetchImpl = fetch, repository, token }) => {
     const entries = [];
     const ids = new Set();
     const visited = new Set();
-    let next = initial;
     let expectedCount;
-    while (next) {
+    const readPage = async (next) => {
       requireEvidence(
         next.origin === initial.origin &&
           next.pathname === initial.pathname &&
@@ -89,20 +105,11 @@ const githubClient = ({ fetchImpl = fetch, repository, token }) => {
         ids.add(value.id);
         entries.push(value);
       }
-      next = undefined;
-      const relations = new Set();
-      for (const segment of page.link?.split(",") ?? []) {
-        const match = /^<([^<>]+)>;\s*rel="(next|prev|first|last)"$/.exec(
-          segment.trim(),
-        );
-        requireEvidence(
-          match && !relations.has(match[2]),
-          "GitHub returned invalid pagination links.",
-        );
-        relations.add(match[2]);
-        if (match[2] === "next") next = new URL(match[1], initial);
-      }
-    }
+      const nextUrl = nextPageUrl(page.link, initial);
+      // The preceding page supplies each next URL, so pagination stays sequential.
+      if (nextUrl) return readPage(nextUrl);
+    };
+    await readPage(initial);
     requireEvidence(
       expectedCount === undefined || expectedCount === entries.length,
       "GitHub returned incomplete evidence pages.",
@@ -215,10 +222,13 @@ const verifyPull = async (options, pull, request) => {
   let check;
   if (publish) {
     check = (
-      await request("check-runs", "POST", {
-        head_sha: headSha,
-        name: checkName,
-        status: "in_progress",
+      await request("check-runs", {
+        body: {
+          head_sha: headSha,
+          name: checkName,
+          status: "in_progress",
+        },
+        method: "POST",
       })
     ).data;
     requireEvidence(
@@ -241,17 +251,20 @@ const verifyPull = async (options, pull, request) => {
     };
   }
   if (publish)
-    await request(`check-runs/${check.id}`, "PATCH", {
-      conclusion: result.approved ? "success" : "failure",
-      output: {
-        summary: result.approved
-          ? `PR #${result.pullNumber} at ${headSha}: bot review ${result.reviewId}, native check ${result.checkRunId}.`
-          : result.message,
-        title: result.approved
-          ? "Current-head CodeRabbit approval verified"
-          : "CodeRabbit approval is required",
+    await request(`check-runs/${check.id}`, {
+      body: {
+        conclusion: result.approved ? "success" : "failure",
+        output: {
+          summary: result.approved
+            ? `PR #${result.pullNumber} at ${headSha}: bot review ${result.reviewId}, native check ${result.checkRunId}.`
+            : result.message,
+          title: result.approved
+            ? "Current-head CodeRabbit approval verified"
+            : "CodeRabbit approval is required",
+        },
+        status: "completed",
       },
-      status: "completed",
+      method: "PATCH",
     });
   return result;
 };
@@ -266,16 +279,16 @@ export const runCodeRabbitApproval = async (options) => {
     workflowRef,
     workflowSha,
   } = options;
-  const allowedEvents = [
+  const allowedEvents = new Set([
     "pull_request_target",
     "workflow_run",
     "check_run",
     "workflow_dispatch",
-  ];
+  ]);
   if (publish) {
     requireEvidence(
       token &&
-        allowedEvents.includes(eventName) &&
+        allowedEvents.has(eventName) &&
         validSha(workflowSha) &&
         typeof event?.repository?.default_branch === "string" &&
         workflowRef ===
@@ -298,17 +311,25 @@ export const runCodeRabbitApproval = async (options) => {
   )
     return [];
   requireEvidence(
-    allowedEvents.includes(eventName) ||
+    allowedEvents.has(eventName) ||
       ["pull_request", "pull_request_review"].includes(eventName),
     "A supported pull request or trusted workflow event is required.",
   );
   const pulls = event.pull_request
     ? [event.pull_request]
     : await list("pulls?state=open&per_page=100");
-  const results = [];
-  for (const pull of pulls)
-    results.push(await verifyPull(options, pull, request));
-  return results;
+  const settled = await Promise.allSettled(
+    pulls.map((pull) => verifyPull(options, pull, request)),
+  );
+  const failures = settled
+    .filter((result) => result.status === "rejected")
+    .map((result) => result.reason);
+  if (failures.length)
+    throw new AggregateError(
+      failures,
+      "CodeRabbit approval could not be verified for every pull request.",
+    );
+  return settled.map((result) => result.value);
 };
 
 if (

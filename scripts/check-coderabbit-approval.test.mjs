@@ -149,6 +149,26 @@ test("all review pages determine the latest verdict, including later dismissals"
   await assert.rejects(inspect(fetchImpl), /latest CodeRabbit review/);
 });
 
+test("a later approval page is read sequentially for both evidence snapshots", async () => {
+  const basic = fixture();
+  const firstPage = `https://api.github.com/repos/${repository}/pulls/1/reviews?per_page=100`;
+  const secondPage = `${firstPage}&page=2`;
+  const reviewPages = [];
+  const fetchImpl = async (url, options) => {
+    if (!url.includes("/reviews")) return basic.fetchImpl(url, options);
+
+    reviewPages.push(url);
+    if (url === secondPage) return response([review({ id: 202 })]);
+    return response(
+      [review({ state: "COMMENTED" })],
+      `<${secondPage}>; rel="next"`,
+    );
+  };
+
+  assert.equal((await inspect(fetchImpl)).reviewId, 202);
+  assert.deepEqual(reviewPages, [firstPage, secondPage, firstPage, secondPage]);
+});
+
 test("native progress success cannot replace strict completed-review success", async () => {
   for (const update of [
     { conclusion: "skipped" },
@@ -294,6 +314,48 @@ test("trusted publishing creates a blocking check before reading and completes i
   const published = JSON.parse(requests.at(-1).options.body);
   assert.equal(published.conclusion, "success");
   assert.equal(published.status, "completed");
+});
+
+test("independent PR verifications settle before publishing failures are aggregated", async () => {
+  const secondHead = "c".repeat(40);
+  const secondPull = pull({ head: { sha: secondHead }, id: 102, number: 2 });
+  const firstFailure = new Error("Synthetic first PR publishing failure");
+  const completed = [];
+  const fetchImpl = async (url, options) => {
+    if (options.method === "POST") {
+      if (JSON.parse(options.body).head_sha === head) throw firstFailure;
+      return response({ id: 902 });
+    }
+    if (options.method === "PATCH") {
+      completed.push(JSON.parse(options.body));
+      return response({ id: 902 });
+    }
+    if (url.includes("pulls?")) return response([pull(), secondPull]);
+    if (url.includes("/reviews"))
+      return response([review({ commit_id: secondHead })]);
+    if (url.includes("/commits/"))
+      return response({
+        check_runs: [check({ head_sha: secondHead })],
+        total_count: 1,
+      });
+    return response(secondPull);
+  };
+
+  await assert.rejects(
+    run(fetchImpl, {
+      event: { repository: { default_branch: "main" } },
+      eventName: "workflow_dispatch",
+    }),
+    (error) =>
+      error instanceof AggregateError &&
+      error.errors.length === 1 &&
+      error.errors[0] === firstFailure &&
+      error.message ===
+        "CodeRabbit approval could not be verified for every pull request.",
+  );
+  assert.equal(completed.length, 1);
+  assert.equal(completed[0].conclusion, "success");
+  assert.match(completed[0].output.summary, /^PR #2 /);
 });
 
 test("a dismissed review publishes failure and raw network errors stay out of diagnostics", async () => {
