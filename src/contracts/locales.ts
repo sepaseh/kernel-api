@@ -1,76 +1,31 @@
 import type { PublicSettingsLanguage } from "./settings.ts";
 
+const language = <Code extends string>(
+  code: Code,
+  name: string,
+  nativeName: string,
+  direction: PublicSettingsLanguage["direction"] = "ltr",
+  calendar: PublicSettingsLanguage["calendar"] = "gregorian",
+) =>
+  ({
+    calendar,
+    code,
+    direction,
+    name,
+    native_name: nativeName,
+  }) as const;
+
 export const supportedLanguages = [
-  {
-    calendar: "jalali",
-    code: "fa",
-    direction: "rtl",
-    name: "Persian",
-    native_name: "فارسی",
-  },
-  {
-    calendar: "gregorian",
-    code: "ar",
-    direction: "rtl",
-    name: "Arabic",
-    native_name: "العربية",
-  },
-  {
-    calendar: "gregorian",
-    code: "tr",
-    direction: "ltr",
-    name: "Turkish",
-    native_name: "Türkçe",
-  },
-  {
-    calendar: "gregorian",
-    code: "en",
-    direction: "ltr",
-    name: "English",
-    native_name: "English",
-  },
-  {
-    calendar: "gregorian",
-    code: "fr",
-    direction: "ltr",
-    name: "French",
-    native_name: "Français",
-  },
-  {
-    calendar: "gregorian",
-    code: "de",
-    direction: "ltr",
-    name: "German",
-    native_name: "Deutsch",
-  },
-  {
-    calendar: "gregorian",
-    code: "es",
-    direction: "ltr",
-    name: "Spanish",
-    native_name: "Español",
-  },
-  {
-    calendar: "gregorian",
-    code: "it",
-    direction: "ltr",
-    name: "Italian",
-    native_name: "Italiano",
-  },
-  {
-    calendar: "gregorian",
-    code: "ru",
-    direction: "ltr",
-    name: "Russian",
-    native_name: "Русский",
-  },
-  {
-    calendar: "gregorian",
-    code: "pt",
-    direction: "ltr",
-    name: "Portuguese",
-    native_name: "Português",
-  },
+  language("fa", "Persian", "فارسی", "rtl", "jalali"),
+  language("ar", "Arabic", "العربية", "rtl"),
+  language("tr", "Turkish", "Türkçe"),
+  language("en", "English", "English"),
+  language("fr", "French", "Français"),
+  language("de", "German", "Deutsch"),
+  language("es", "Spanish", "Español"),
+  language("it", "Italian", "Italiano"),
+  language("ru", "Russian", "Русский"),
+  language("pt", "Portuguese", "Português"),
 ] as const satisfies readonly PublicSettingsLanguage[];
 
 export type LocaleCode = (typeof supportedLanguages)[number]["code"];
