@@ -11,10 +11,11 @@ Use [source navigation](source-navigation.md) to locate the relevant layers,
 [validation](validation.md) before publication. The separate API consumers may
 need coordinated rollout when an HTTP contract changes.
 
-The current http-composition phase includes Hono adapters, manual composition
+The current runtime-operations phase includes Hono adapters, manual composition
 and a local Node server. Local execution establishes neither production OTP
-delivery nor deployment readiness. Deployment templates and the planned
-`docs/deployment.md` guide belong to a later publication.
+delivery nor deployment readiness. Owned packaging, deployment references and
+manual checks are described in [deployment](deployment.md); their presence is
+not evidence of an activated service.
 
 ## Local execution
 
@@ -53,9 +54,12 @@ explicitly on an incomplete earlier seed. The emptiness check and sample
 business records share a transaction; migrations and initial settings happen
 separately before it.
 
-Repository Drizzle generation tooling and separate generation/migration commands
-are deferred to a later tooling publication. This phase's startup initializer
-applies the already reviewed SQL; it does not generate migrations.
+`npm run server:generate` generates migration changes from the schema without
+requiring database credentials. `npm run server:migrate` applies reviewed
+migrations using an explicit `DATABASE_URL`; select only an owned fixture or a
+database you are authorized to change. The startup initializer applies reviewed
+SQL and does not generate migrations. Toolchain tests copy the configuration
+into owned fixtures and exercise the real CLI independently of private state.
 
 ## Dependency compatibility
 
@@ -65,7 +69,14 @@ the installed TypeScript/ESLint peer ranges and upgrade `better-auth`,
 Refresh the lockfile and run the full validation profile after dependency
 changes. Do not use `--force` or `--legacy-peer-deps` to hide an incompatible tree.
 
-When migration and unused-code tooling is published, validate its actual
-configuration and scoped compatibility overrides against the reviewed lockfile.
-Drizzle generation and Knip are not current commands or evidence of validation
-in this phase.
+Drizzle Kit's legacy loader uses the reviewed scoped esbuild override `0.28.2`.
+Keep that compatibility choice aligned with the lockfile and real toolchain
+tests; do not broaden it to unrelated esbuild consumers. Additional unused-code
+tooling remains outside this phase.
+
+Release packaging and rendering use `deploy:package` and `deploy:render`.
+Configuration and semantic health checks use `deploy:check` and `deploy:health`;
+see the deployment guide for authorized targets and protected inputs. The full
+profile includes synthetic operational/recovery tests. Native and Docker smoke
+commands are explicit opt-in checks; record their actual platform/results
+separately rather than inferring them from local unit tests or templates.

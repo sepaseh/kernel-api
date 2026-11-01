@@ -1,0 +1,65 @@
+name: kernel-api-production
+services:
+  api:
+    image: ${IMAGE_PREFIX:-kernel-api}/api:${RELEASE_ID:?Set a unique RELEASE_ID}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      target: api
+    env_file:
+      - path: ${API_ENV_FILE:-./api.env}
+        required: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+      BETTER_AUTH_URL: ${API_PUBLIC_ORIGIN:?Set exact public HTTPS API origin}
+      SERVER_ALLOWED_ORIGINS: ${SERVER_ALLOWED_ORIGINS:?Set exact admin and website HTTPS origins}
+      SERVER_RELEASE_ID: ${RELEASE_ID:?Set immutable RELEASE_ID}
+      SERVER_SEED_DEVELOPMENT_DATA: "false"
+      DATABASE_URL: file:/var/lib/kernel-api/kernel.sqlite
+      LOCAL_STORAGE_PATH: /var/lib/kernel-api/uploads
+    volumes:
+      - api-data:/var/lib/kernel-api
+    expose: ["3000"]
+    healthcheck:
+      test: [CMD, node, scripts/healthcheck.mjs, api]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+  gateway:
+    image: ${IMAGE_PREFIX:-kernel-api}/gateway:${RELEASE_ID:?Set immutable RELEASE_ID}
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      target: gateway
+    environment:
+      API_HOST: ${API_HOST:?Set API_HOST}
+      RELEASE_ID: ${RELEASE_ID:?Set immutable RELEASE_ID}
+      HTTPS_PORT: ${HTTPS_PORT:-443}
+    ports:
+      - "${BIND_ADDRESS:-0.0.0.0}:${HTTP_PORT:-80}:80"
+      - "${BIND_ADDRESS:-0.0.0.0}:${HTTPS_PORT:-443}:443"
+    volumes:
+      - type: bind
+        source: ${TLS_CERT_DIRECTORY:?Set existing absolute TLS certificate directory}
+        target: /etc/kernel/tls
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, nginx, -t]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    stop_grace_period: 15s
+volumes:
+  api-data:

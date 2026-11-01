@@ -21,7 +21,18 @@
     "server:bootstrap": "node src/bootstrap-admin.ts",
     "dev": "node src/index.ts",
     "start": "node src/index.ts",
-    "server": "npm run dev"
+    "server": "npm run dev",
+    "server:generate": "node node_modules/drizzle-kit/bin.cjs generate --config=drizzle.config.ts",
+    "server:migrate": "node node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.config.ts",
+    "deploy:package": "node scripts/package-release.mjs",
+    "deploy:render": "node scripts/render-deployment.mjs",
+    "deploy:check": "node scripts/validate-deployment-env.mjs",
+    "deploy:health": "node scripts/healthcheck.mjs",
+    "test:fixture:website": "node scripts/website-api-runner.mjs",
+    "test:recovery": "node --test src/test/integration/recovery-drill.test.ts",
+    "test:deploy": "node --test scripts/deployment.integration.test.mjs scripts/native-smoke-cleanup.test.mjs scripts/package-release.test.mjs scripts/check-deployed-api.test.mjs scripts/docker-smoke-cleanup.test.mjs scripts/healthcheck.test.mjs scripts/render-deployment.test.mjs scripts/validate-deployment-env.test.mjs scripts/package-release.integration.test.mjs scripts/check-deployed-api.integration.test.mjs",
+    "test:deploy:docker": "node scripts/test-docker-release.mjs",
+    "test:deploy:native": "node scripts/test-native-release.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -33,11 +44,15 @@
     "yaml": "2.9.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.72.1",
-    "pino-pretty": "13.2.0"
+    "pino-pretty": "13.2.0",
+    "drizzle-kit": "0.31.11"
   },
   "overrides": {
     "minimatch@10.2.6": "11.0.3",
-    "@better-auth/core": "1.7.14"
+    "@better-auth/core": "1.7.14",
+    "@esbuild-kit/core-utils@3.3.2": {
+      "esbuild": "0.28.2"
+    }
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1161.0",
