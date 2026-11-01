@@ -5,12 +5,13 @@ current reviewed source phase and exact paths. Preserve unrelated local source
 and private runtime state. A phase name, configuration file or successful unit
 test does not establish unpublished adapter or deployed-service behavior.
 
-## Scope and file budget
+## Scope and PR planning
 
-Target **80 or fewer changed-file entries** when opening every PR, leaving 20
-for review fixes under the **hard maximum of 100**. Count additions, removals,
-renames and binaries; a GitHub rename is one entry. The budget limits each PR,
-not the repository's eventual size.
+Before opening a PR, aim for **80 or fewer changed-file entries** and split
+independent changes when useful. Count additions, removals, renames and binaries;
+a GitHub rename is one entry. Explain why a larger cohesive change belongs
+together. File count is advisory: exceeding 100 files alone does not fail CI,
+block merging or require deleting or recreating a PR.
 
 Keep framework dependencies out of contracts, core modules and ports.
 Publish application services, catalogs, adapters, migrations, HTTP, collections
