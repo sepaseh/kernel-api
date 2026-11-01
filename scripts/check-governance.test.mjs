@@ -299,7 +299,9 @@ const fixture = async (context, phase = "governance") => {
           .replaceAll("=scripts\n", "=src,scripts\n")
           .replaceAll(
             "=scripts/*.test.mjs",
-            "=src/**/*.test.ts,scripts/*.test.mjs",
+            phase === "foundation"
+              ? "=src/**/*.test.ts,scripts/*.test.mjs"
+              : "=src/**/*.test.ts,src/test/**,scripts/*.test.mjs,scripts/*.test-support.mjs,scripts/test-native-release.mjs,scripts/test-docker-release.mjs",
           ),
   );
   await put(
@@ -952,4 +954,44 @@ test("Markdown link scanning handles malformed long input and checks angle desti
       ),
     /published inventory/,
   );
+});
+
+test("catalog duplication exceptions cover only the ten published literal data files", async (context) => {
+  const { root, put, json } = await fixture(context, "localization-data");
+  const catalogFiles = Array.from(
+    { length: 10 },
+    (_, index) =>
+      `src/infrastructure/localization/catalogs/a${String.fromCharCode(97 + index)}.ts`,
+  );
+  const registry = "src/infrastructure/localization/catalogs/index.ts";
+  const integrityTest = "src/infrastructure/localization/catalogs.test.ts";
+  const inventory = policy("localization-data");
+  inventory.allowedFiles.push(...catalogFiles, registry, integrityTest);
+  await json(".github/bootstrap-policy.json", inventory);
+  await Promise.all(
+    [...catalogFiles, registry, integrityTest].map((file) =>
+      put(file, "export {};\n"),
+    ),
+  );
+  const configFile = path.join(root, "sonar-project.properties");
+  const config = await readFile(configFile, "utf8");
+  const complete = config + `sonar.cpd.exclusions=${catalogFiles.join(",")}\n`;
+  await put("sonar-project.properties", complete);
+  await inspectPolicy(root);
+  await put(
+    "sonar-project.properties",
+    complete.replace(catalogFiles[0], registry),
+  );
+  await assert.rejects(inspectPolicy(root), /actual published source/);
+  await put(
+    "sonar-project.properties",
+    complete.replace(catalogFiles[0], "src/contracts/locales.ts"),
+  );
+  await assert.rejects(inspectPolicy(root), /actual published source/);
+  await put("sonar-project.properties", complete);
+  inventory.allowedFiles = inventory.allowedFiles.filter(
+    (file) => file !== catalogFiles[0],
+  );
+  await json(".github/bootstrap-policy.json", inventory);
+  await assert.rejects(inspectPolicy(root), /all ten literal catalogs/);
 });

@@ -5,8 +5,8 @@ tooling. The [inventory](../.github/bootstrap-policy.json) is authoritative;
 `applicationReady` remains false. The earlier governance publication's rules,
 assistant workflows, GitHub controls and provider configuration remain in scope.
 
-The source includes four feature-owned contracts for locale metadata, OTP
-concepts, permissions and profile bounds; seven core modules for authorization,
+The source includes five feature-owned contracts for locale metadata, OTP
+concepts, permissions, profile bounds and public-settings language shapes; seven core modules for authorization,
 errors, identity, localization vocabulary, models, permissions and validation;
 the authentication port definitions required by those modules; and two pure
 foundation test suites. Imports remain within this closure and appropriate

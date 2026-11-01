@@ -902,6 +902,25 @@ const validateWorkflowTrust = (workflow) => {
   }
 };
 
+const sourceTestPatterns =
+  "src/**/*.test.ts,src/test/**,scripts/*.test.mjs,scripts/*.test-support.mjs,scripts/test-native-release.mjs,scripts/test-docker-release.mjs";
+
+const catalogDuplicationPaths = (files) => {
+  const catalogs = [...files]
+    .filter((file) =>
+      /^src\/infrastructure\/localization\/catalogs\/[a-z]{2}\.ts$/.test(file),
+    )
+    .sort((left, right) => left.localeCompare(right));
+  if (!catalogs.length) return [];
+  assert(
+    catalogs.length === 10 &&
+      files.has("src/infrastructure/localization/catalogs/index.ts") &&
+      files.has("src/infrastructure/localization/catalogs.test.ts"),
+    "Publish all ten literal catalogs, their registry and integrity tests together.",
+  );
+  return catalogs;
+};
+
 const validateSonarProperties = (text, phase, files) => {
   const properties = Object.fromEntries(
     text
@@ -915,17 +934,9 @@ const validateSonarProperties = (text, phase, files) => {
   const testPatterns =
     phase === "governance"
       ? "scripts/*.test.mjs"
-      : [
-          "src/**/*.test.ts",
-          ...([...files].some((file) => file.startsWith("src/test/"))
-            ? ["src/test/**"]
-            : []),
-          "scripts/*.test.mjs",
-          ...([...files].some((file) => file.endsWith(".test-support.mjs"))
-            ? ["scripts/*.test-support.mjs"]
-            : []),
-          ...optInTestFiles.filter((file) => files.has(file)),
-        ].join(",");
+      : phase === "foundation"
+        ? "src/**/*.test.ts,scripts/*.test.mjs"
+        : sourceTestPatterns;
   const sonarPolicy = {
     "sonar.sources": phase === "governance" ? "scripts" : "src,scripts",
     "sonar.tests": phase === "governance" ? "scripts" : "src,scripts",
@@ -934,6 +945,8 @@ const validateSonarProperties = (text, phase, files) => {
     "sonar.javascript.lcov.reportPaths": "coverage/lcov.info",
     "sonar.qualitygate.wait": "false",
   };
+  const catalogs = catalogDuplicationPaths(files);
+  if (catalogs.length) sonarPolicy["sonar.cpd.exclusions"] = catalogs.join(",");
   for (const [key, expected] of Object.entries(sonarPolicy))
     equal(
       properties[key],
@@ -1075,7 +1088,7 @@ const trackedFiles = async (root) => {
   }
   const executable =
     process.platform === "win32"
-      ? "C:\\Program Files\\Git\\cmd\\git.exe"
+      ? String.raw`C:\Program Files\Git\cmd\git.exe`
       : "/usr/bin/git";
   const result = spawnSync(executable, ["ls-files", "-z"], {
     cwd: root,
@@ -1220,10 +1233,8 @@ if (
       process.argv.length === 3,
       "Exactly one governance command is required.",
     );
-    const result = await runCheck(process.argv[2]);
-    console.log(
-      `Governance ${process.argv[2]} passed: ${JSON.stringify(result)}`,
-    );
+    await runCheck(process.argv[2]);
+    console.log("The requested validation check passed.");
   } catch (error) {
     console.error(
       error instanceof Error ? error.message : "Governance validation failed.",
