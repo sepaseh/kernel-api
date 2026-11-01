@@ -1,0 +1,14 @@
+name: Review events
+
+on:
+  pull_request_review:
+    types: [submitted, dismissed, edited]
+
+permissions: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the trusted approval verifier
+        run: echo 'A review changed; the default-branch workflow will reread GitHub evidence.'

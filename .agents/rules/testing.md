@@ -1,0 +1,54 @@
+# API testing
+
+This rule constrains later API source publication. The current governance
+phase publishes no application source and establishes no API test results.
+
+Use the canonical [validation manifest](../validation.json) and
+[validation policy](../../docs/validation.md). Start with focused checks during
+development; every required full-profile check runs before a requested commit/PR.
+
+Choose pure application tests with fake feature ports for business policy; use real
+TEMP SQLite/auth/storage for adapter, transaction, HTTP and lifecycle behavior.
+Keep application and presentation import-architecture tests intact. Local contract/catalog
+purity and key/placeholder integrity are separate source boundaries. API HTTP tests
+and Bruno/DTOs define wire behavior; independently released clients own their own
+component/browser/Pact consumer checks.
+
+## Test placement
+
+Keep focused application and infrastructure tests beside their owners as
+`<module>.test.ts`. Put broad suites in `src/test/integration/`, dependency and
+toolchain checks in `src/test/architecture/`, and shared source fixtures in
+`src/test/support/`. Production code must not import test support.
+
+Keep `scripts/` flat: focused tests use `<script>.test.mjs`; cross-script scenarios
+use descriptive integration suites. Share setup in `deployment.test-support.mjs`
+and `package-release.test-support.mjs`; these are helpers, not runnable suites or
+production dependencies. Move existing cases without duplicating assertions.
+
+Test observable success/failure and atomic invariants, not implementation copies.
+Use small synthetic factories, deterministic clocks/data where needed, and actual
+concurrent transaction/rollback cases when stale reads matter. Preserve provider
+outage versus client-validation failures. Tests must never load operator env,
+existing DB/bucket/uploads or an already running developer API.
+
+Synchronize asynchronous tests and smoke tools with observable events, completed
+operations or explicit cancellation. Do not add fixed sleeps, polling budgets,
+custom test/process/request deadlines or delayed cleanup retries. Exercise time
+policy with a controlled clock; domain durations and timestamps remain test inputs.
+Close streams, listeners and child processes before removing their fixtures. When
+a native database driver has no asynchronous handle-release notification, own the
+file-backed scenario in a child process and remove its directory after child close.
+Preserve operation and cleanup failures together rather than suppressing either.
+
+Deployment tests validate immutable packaging, placeholder/origin/persistence
+preflight, Nginx rendering, readiness and protected workflow targets with disposable
+fixtures. Optional native/Docker smoke tools verify owned synthetic resources only;
+report actual environment limits. See [testing](../../docs/testing.md),
+deployment (planned path: `docs/deployment.md`) and backup/recovery (planned path: `docs/backup-restore.md`).
+
+Prefer the scoped scripted Docker smoke. After every local Docker test, including
+manual tests, remove its exact owned containers, volumes/networks, images, builder
+cache and temporary files on success and failure. Use a disposable per-run builder;
+never use a routine global prune that can delete another project's cache or data.
+Do not hide cleanup failures or report an unclean run as successful.

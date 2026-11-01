@@ -1,0 +1,7 @@
+node_modules
+coverage
+dist
+*.local
+server/data/
+/test-results/
+/_local-preserved/

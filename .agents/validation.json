@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "phase": "governance",
+  "applicationReady": false,
+  "checks": [
+    {
+      "id": "snapshot",
+      "command": "npm run check:snapshot",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "ci-policy",
+      "command": "npm run check:ci",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "audit",
+      "command": "npm run audit",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "format",
+      "command": "npm run format:check",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "guidance",
+      "command": "npm run check:guidance",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "coverage-tests",
+      "command": "npm run test:coverage",
+      "kind": "required",
+      "ciJobs": ["check"],
+      "scopes": ["governance"]
+    }
+  ],
+  "profiles": {
+    "full": [
+      "snapshot",
+      "ci-policy",
+      "audit",
+      "format",
+      "guidance",
+      "coverage-tests"
+    ]
+  }
+}

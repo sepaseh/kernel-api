@@ -1,0 +1,57 @@
+# Contributing to Kernel API
+
+Publish the repository in focused PRs. The first publication contains only rules,
+assistant guidance, repository configuration and the tools that verify them.
+The [inventory](.github/bootstrap-policy.json) declares the exact proposed paths.
+Preserve all unrelated local source and private runtime state.
+
+## Scope and file budget
+
+Target **80 or fewer changed-file entries** when opening every PR, leaving 20
+for review fixes under the **hard maximum of 100**. Count additions, removals,
+renames and binaries; a GitHub rename is one entry. The budget limits each PR,
+not the repository's eventual size.
+
+Keep API source, migrations, catalogs, collections, deployment and release
+workflows out of the governance PR. Introduce executable workflows together with
+their owners and tests in later focused PRs; do not publish broken placeholders.
+
+## Validation and authorization
+
+Read [AGENTS.md](AGENTS.md) and the [Git rule](.agents/rules/git.md).
+Do not stage, commit, push, comment remotely, request reviews or merge without
+authorization for the particular action. Use the existing checkout and preserve
+unrelated tracked and untracked files.
+
+[.agents/validation.json](.agents/validation.json) owns every current check and
+the complete `full` profile. Before an authorized commit or PR, export the exact
+proposed inventory into an owned temporary validation directory, install its
+locked tooling dependencies and run the full profile there. Such exports are
+verification fixtures, never additional implementation checkouts. Remove only
+owned fixtures after closing their processes.
+
+Do not validate a partial PR against ambient unpublished API files, skip failures,
+weaken checks or report unavailable evidence as a pass. Governance checks cover
+snapshot boundaries, configuration, workflow security, audit, formatting,
+documentation and measured governance tests. They do not validate the local API.
+
+Before publishing application source, establish all ten full application checks
+for the precise source phase, including real relevant HTTP, database,
+authentication and storage tests. Keep the complete gate required for drafts
+and documentation changes once that application phase is published.
+
+## Review and protection
+
+Follow [branch protection](docs/branch-protection.md) and the
+[Sonar/CodeRabbit preflight](docs/sonarqube.md#before-requesting-coderabbit).
+Review must cover the exact current head. Scanner success and the actual provider
+quality gate are separate requirements. A CodeRabbit progress status or ordinary
+approval count does not prove that CodeRabbit approved that head.
+
+The new trusted default-branch guard cannot enforce itself before its first
+publication. Keep the first PR in draft until the bootstrap procedure and real
+provider evidence are explicitly reviewed; do not weaken already active
+requirements or merge merely to create a baseline.
+
+Use a Conventional Commit title and the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
+Do not merge without separate authorization.
