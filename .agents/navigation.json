@@ -178,6 +178,35 @@
         "scripts/runtime-seed.test.mjs"
       ],
       "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+    },
+    {
+      "id": "http-contract",
+      "when": "Change HTTP routes, local server composition or API-backed client-screen contracts.",
+      "owners": [
+        "src/presentation/http",
+        "src/composition.ts",
+        "src/dependencies.ts",
+        "src/index.ts"
+      ],
+      "contracts": [
+        "docs/http-transport.md",
+        "docs/development.md",
+        "src/contracts",
+        ".agents/rules/backend.md"
+      ],
+      "tests": [
+        "scripts/http-upload-loopback.test.mjs",
+        "scripts/runtime-integration.test.mjs",
+        "src/test/architecture/boundaries.test.ts",
+        "src/test/integration/app.test.ts",
+        "src/test/integration/deletion-lifecycle-http.test.ts",
+        "src/test/integration/http-transport.test.ts",
+        "src/test/integration/input-validation-http.test.ts",
+        "src/test/integration/request-logging.test.ts",
+        "src/test/integration/upload-body-limit.test.ts",
+        "src/infrastructure/lifecycle.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
     }
   ]
 }

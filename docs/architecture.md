@@ -4,10 +4,12 @@ The [inventory](../.github/bootstrap-policy.json) and
 [validation manifest](../.agents/validation.json) declare the exact published
 phase. `applicationReady` remains false.
 
-The database-persistence phase includes pure feature contracts, core policies,
+The http-composition phase includes pure feature contracts, core policies,
 eight feature ports, seven framework-free application services and their
 synthetic-port tests. All ten literal API catalogs, their registry and integrity
 tests remain published, alongside the earlier governance controls and foundation.
+Hono routes, manual composition and a Node listener now connect the services to
+the concrete database, authentication and storage adapters for local execution.
 
 Concrete infrastructure provides configuration parsing, real i18next
 translation, Pino logging and sanitization, fatal process handlers, local
@@ -33,14 +35,17 @@ The API owns database access, migrations, authentication and storage. Services
 depend on feature ports; concrete infrastructure implements storage, feature
 persistence, Better Auth and OTP persistence. Database SDKs and their types stay
 in the reviewed infrastructure owners, never in application ports. Thin Hono
-HTTP routes and manual server composition belong to later publications.
-Independent frontends communicate through HTTP.
+routes adapt input, authorization, errors and HTTP responses; they do not own
+database queries or application policy. `src/composition.ts` and
+`src/dependencies.ts` wire the reviewed owners manually, and `src/index.ts`
+starts the local server. Independent frontends communicate through HTTP.
 
 The schema and reviewed migrations enforce business-reference restrictions.
 Persistence owns transactions and derives full names from provided changes and
 current database columns in one bound update. Deleting an entity in use raises
-a semantic conflict without partial effects or automatic unlinking; only owned
-technical identity rows may cascade. Soft deletion remains prohibited.
+a semantic conflict without partial effects or automatic unlinking; HTTP maps it
+to a localized 409 response. Only owned technical identity rows may cascade.
+Soft deletion remains prohibited.
 Initialization, optional development seeding and initial administrator
 provisioning are included. Production OTP delivery is not implemented.
 
@@ -59,12 +64,19 @@ Authentication tests exercise real adapters with synthetic identities and
 credentials, OTP records and administrator provisioning. See
 [database schema](database-schema.md) and [authentication adapters](auth-adapters.md).
 
-The storage protocol evidence is not a deployed MinIO integration. Local database
-and authentication tests do not establish deployed services, HTTP adapters,
-listener startup or server shutdown. Those HTTP/server owners and their fixture
-tests remain unpublished. Production OTP delivery, deployed integrations and
-production readiness stay outside this scope. See [logging](backend-logging.md)
-and [object storage](object-storage.md) for the other infrastructure limits.
+HTTP suites exercise the Hono adapters with synthetic services and real disposable
+databases. The listener binds before database or storage initialization and
+returns bodyless, non-cacheable 503 responses until the composed app is ready.
+An occupied port fails before those resources initialize. Local runtime suites
+cover readiness, startup failure, cleanup and shutdown, using real Unix signals
+or the Windows signal-message simulation in their respective environments.
+
+The storage protocol evidence is not a deployed MinIO integration. Local HTTP
+and server tests do not establish deployed services, production OTP delivery or
+production readiness. Deployment tooling and operational integrations remain
+outside this phase. See [HTTP transport](http-transport.md),
+[development](development.md), [logging](backend-logging.md) and
+[object storage](object-storage.md) for execution and evidence limits.
 
 Read [backend](../.agents/rules/backend.md),
 [data lifecycle](../.agents/rules/data-lifecycle.md),

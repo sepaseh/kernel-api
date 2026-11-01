@@ -1049,6 +1049,51 @@ test("Markdown link scanning handles malformed long input and checks angle desti
   );
 });
 
+test("HTTP composition publishes only owned listener commands while preserving bootstrap and all ten checks", () => {
+  const dependencies = {
+    hono: "4.13.14",
+    "@hono/node-server": "2.1.5",
+    "better-auth": "1.7.14",
+    "@better-auth/drizzle-adapter": "1.7.14",
+    "@libsql/client": "0.18.0",
+    "drizzle-orm": "0.45.4",
+  };
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts("http-composition"),
+    devDependencies: foundationDependencies,
+    dependencies,
+  };
+  pkg.overrides = overridesForPackage(pkg);
+  const lock = lockForPackage(pkg);
+  validatePackage(pkg, lock, "http-composition");
+  assert.equal(pkg.scripts.dev, "node src/index.ts");
+  assert.equal(pkg.scripts.start, "node src/index.ts");
+  assert.equal(pkg.scripts.server, "npm run dev");
+  assert.equal(pkg.scripts["server:bootstrap"], "node src/bootstrap-admin.ts");
+  assert.equal(pkg.scripts.build, undefined);
+  assert.deepEqual(checksForPhase("http-composition"), sourceChecks);
+  for (const phase of ["foundation", "database-persistence", "http-transport"])
+    assert.equal(packageScripts(phase).start, undefined);
+  const publication = policy("http-composition");
+  publication.allowedFiles.push("src/bootstrap-admin.ts");
+  assert.throws(() => validateInventory(publication), /cannot omit/);
+  publication.allowedFiles.push("src/index.ts");
+  validateInventory(publication);
+  assert.throws(
+    () =>
+      validatePackage(
+        {
+          ...pkg,
+          scripts: { ...pkg.scripts, start: "node src/unpublished.ts" },
+        },
+        lock,
+        "http-composition",
+      ),
+    /real governance checks/,
+  );
+});
+
 test("catalog duplication exceptions cover only the ten published literal data files", async (context) => {
   const { root, put, json } = await fixture(context, "localization-data");
   const catalogFiles = Array.from(

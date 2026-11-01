@@ -1,16 +1,19 @@
 # Object storage
 
-The configured-storage phase publishes the local and MinIO adapters and their
-disposable-fixture tests. They implement the application `ObjectStorage` port
+The http-composition phase connects the local and MinIO adapters to the local
+API through manual composition. Their disposable-fixture tests remain published.
+The adapters implement the application `ObjectStorage` port
 with local files and S3-compatible storage. `storage/create.ts` selects the
 adapter from `ServerConfig.storageDriver`; an unsupported driver fails explicitly.
 Configuration also rejects invalid numeric settings and requires explicit MinIO
 credentials when that driver is selected. The public `.env.example` contains
 synthetic inputs; configuration does not load environment files.
 
-Creating an adapter does not start an API or call `ensureReady`. A future
-composition must await storage readiness before permitting uploads; the HTTP
-listener and its startup lifecycle are not published yet. See
+Creating an adapter does not call `ensureReady`. The published Node entry point
+binds the listener before initializing the database and awaiting storage
+readiness. Until initialization completes it serves non-cacheable 503 responses;
+uploads are available only through the ready composed app. An occupied port
+fails before database or storage initialization. See
 [architecture](architecture.md) and the [validation policy](validation.md).
 
 ## Local files
@@ -23,8 +26,10 @@ partial bytes for operator attention. Reads and deletes of missing files fail.
 
 Keep this directory under the API process's control. Lexical path containment
 does not prevent a privileged host user from inserting symlinks. Public URLs
-point to the future API content route; they do not expose the directory or prove
-that the route and its authorization exist.
+point to `GET /files/:fileId/content`. That handler reads the metadata and public
+visibility before retrieving bytes; it does not expose the storage directory.
+A URL alone does not prove that its object exists or that a deployed route is
+reachable. Private objects are not served by this public route.
 
 ## MinIO through the S3 SDK
 
@@ -98,8 +103,8 @@ Tests cover bucket creation/failures, policies, versioning refusal, conditional
 and concurrent creation, exact empty/binary/Unicode bytes, reads/deletes, URL
 validation and response failures. They establish SDK/protocol behavior against
 the synthetic fixture. They do not establish compatibility with a deployed
-MinIO release, operational credentials/TLS, external policy enforcement, HTTP
-authorization or a runnable application. Database, authentication, HTTP and server
-composition require their own published owners and integration tests. Deployed
-service verification remains separate from these local checks;
-`applicationReady` stays false in this phase.
+MinIO release, operational credentials/TLS or external policy enforcement.
+Separate database, authentication, HTTP and local server suites exercise the
+published composed API with disposable fixtures. Neither those tests nor the
+signed loopback fixture establish a deployed storage integration. Deployed
+service verification remains separate; `applicationReady` stays false.
