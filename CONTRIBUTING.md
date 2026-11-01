@@ -5,18 +5,19 @@ current reviewed source phase and exact paths. Preserve unrelated local source
 and private runtime state. A phase name, configuration file or successful unit
 test does not establish unpublished adapter or deployed-service behavior.
 
-## Scope and file budget
+## Scope and PR planning
 
-Target **80 or fewer changed-file entries** when opening every PR, leaving 20
-for review fixes under the **hard maximum of 100**. Count additions, removals,
-renames and binaries; a GitHub rename is one entry. The budget limits each PR,
-not the repository's eventual size.
+Before opening a PR, aim for **80 or fewer changed-file entries** and split
+independent changes when useful. Count additions, removals, renames and binaries;
+a GitHub rename is one entry. Explain why a larger cohesive change belongs
+together. File count is advisory: exceeding 100 files alone does not fail CI,
+block merging or require deleting or recreating a PR.
 
 Keep framework dependencies out of contracts, core modules and ports.
 Publish application services, catalogs, adapters, migrations, HTTP, collections
 and deployment assets in focused owner groups.
 Introduce each owner with its necessary dependencies and tests; do not publish
-unused interfaces or broken placeholders merely to fill a file budget.
+unused interfaces or broken placeholders merely to meet a file-count target.
 
 ## Validation and authorization
 
@@ -59,9 +60,9 @@ create a baseline. A request to publish ready for review does not authorize a
 CodeRabbit request before its preflight passes.
 
 For a stack, each PR targets its immediate prerequisite so its diff contains
-only that slice. Full CI and the read-only bootstrap file budget run on these
-PRs. Trusted target workflows protect PRs into `main` only; PRs targeting other
-branches must not claim that enforcement. After prerequisites are reviewed and
+only that slice. Full CI runs on these PRs. Trusted target workflows protect PRs
+into `main` only; PRs targeting other branches must not claim that enforcement.
+After prerequisites are reviewed and
 merged, retarget to `main` and obtain fresh current-head/base evidence before
 any separately authorized merge.
 

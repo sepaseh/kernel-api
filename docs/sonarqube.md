@@ -31,7 +31,7 @@ on an authorized branch for credentialed analysis. Never expose a token through
 a privileged checkout of fork code.
 
 Full CI and scanner analysis can run on stacked PRs targeting prerequisite
-branches. The trusted file-limit and CodeRabbit approval evaluators target
+branches. The trusted CodeRabbit approval evaluator targets
 `main` only, so their enforcement remains pending for those stacks and during
 initial default-branch bootstrap. After retargeting to `main`, require fresh
 head/base evidence and actual provider results. A user-authorized ready-for-review

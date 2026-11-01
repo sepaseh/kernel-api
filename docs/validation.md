@@ -21,8 +21,9 @@ bound to that same source and workflow run. Scanner execution and the provider's
 quality-gate result are separate evidence. Missing configuration, failed audit
 requests, absent reports, stale source or provider skips must remain visible.
 
-The read-only bootstrap file-budget check runs for PRs on any target. Privileged
-trusted guards apply only to PRs targeting `main` and become available only after
+PR file count is advisory [pre-PR planning](../CONTRIBUTING.md#scope-and-pr-planning),
+not an automated validation or merge limit. Privileged trusted guards apply only
+to PRs targeting `main` and become available only after
 their reviewed default-branch publication. Stacked PRs targeting prerequisite
 branches therefore have pending trusted enforcement. Retarget after the
 prerequisites merge and obtain fresh checks for the current head and base.

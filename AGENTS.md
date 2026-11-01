@@ -15,9 +15,11 @@ Each newly published owner requires its complete dependencies and actual tests.
 `applicationReady` remains false; local source tests establish no production OTP
 delivery, deployed integration or production readiness.
 
-Keep initial PRs at **80 or fewer changed files**, reserving 20 for review fixes.
-The hard maximum is **100** including additions, deletions, renames and binaries.
-Publish later work in focused dependent PRs; do not upload the entire local tree.
+Before opening a PR, aim for **80 or fewer changed files** and split independent
+changes when useful. Count additions, deletions, renames and binaries. This is
+review guidance, not a CI or merge limit: a cohesive change may exceed 100 files
+with its rationale explained in the PR. File count alone never requires deleting
+or recreating a PR. Publish only the intended source scope.
 
 ## Authorization and verification
 
@@ -58,9 +60,9 @@ results to avoid a cycle. Respect provider quotas, one in-flight request per hea
 and at least one hour since both the latest manual request and substantive review.
 Never enable automatic reviews to bypass the order.
 
-Successive PRs may target their prerequisite branches. Full CI and the read-only
-bootstrap file budget run for those PRs; privileged trusted guards target `main`
-only. Their enforcement remains pending until the reviewed prerequisites are on
+Successive PRs may target their prerequisite branches. Full CI runs for those
+PRs; privileged trusted guards target `main` only. Their enforcement remains
+pending until the reviewed prerequisites are on
 `main` and the PR is retargeted with fresh checks. Honor an explicit instruction
 to publish ready for review while disclosing pending provider results; that
 status does not authorize merging or waive any review prerequisite.
