@@ -106,7 +106,7 @@ export const requireCollectionGroups = async (...required) => {
 export const readCollectionJson = async (name) =>
   JSON.parse(await readFile(path.join(collectionRoot, name), "utf8"));
 
-export const assertAttemptLimitResponses = async (context, cases) => {
+export async function* attemptLimitResponses(context, cases) {
   context.mock.method(Date, "now", () => 1_000);
   for (const [operation, method, route, scope, identity, maximum] of cases) {
     const dependencies = {
@@ -137,11 +137,9 @@ export const assertAttemptLimitResponses = async (context, cases) => {
         otp: "123456",
       }),
     });
-    assert.equal(response.status, 429, operation);
-    assert.equal(response.headers.get("Retry-After"), "900", operation);
     const saved = JSON.parse(
       await readFile(path.join(collectionRoot, operation, "429.json"), "utf8"),
     );
-    assert.deepEqual(await response.json(), saved, operation);
+    yield { operation, response, saved };
   }
-};
+}

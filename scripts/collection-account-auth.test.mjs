@@ -4,7 +4,7 @@ import path from "node:path";
 import { before, test } from "node:test";
 
 import {
-  assertAttemptLimitResponses,
+  attemptLimitResponses,
   collectionRoot as root,
   requireCollectionGroups,
 } from "./collection.test-support.mjs";
@@ -12,7 +12,7 @@ import {
 before(() => requireCollectionGroups("account", "auth"));
 
 test("saved attempt-limit responses match the HTTP routes for account and authentication", async (context) => {
-  await assertAttemptLimitResponses(context, [
+  const cases = [
     ["auth/login", "POST", "/auth/login", "login", "synthetic-login", 20],
     ["auth/register", "POST", "/auth/register", "register", "09120000001", 10],
     [
@@ -47,7 +47,15 @@ test("saved attempt-limit responses match the HTTP routes for account and authen
       "actor:actor",
       10,
     ],
-  ]);
+  ];
+  for await (const { operation, response, saved } of attemptLimitResponses(
+    context,
+    cases,
+  )) {
+    assert.equal(response.status, 429, operation);
+    assert.equal(response.headers.get("Retry-After"), "900", operation);
+    assert.deepEqual(await response.json(), saved, operation);
+  }
 });
 
 test("bodyless successes and mobile verification are represented accurately", async () => {
