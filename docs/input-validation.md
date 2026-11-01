@@ -35,7 +35,7 @@ profile updates use the same constant.
 A patch needs no second name when only one is supplied. Blank names retain their
 existing values when another supported update is supplied; a request with no effective
 supported fields fails with 400. Mobile changes also require verification of the new number as
-described in HTTP transport (planned for a later PR). Unknown fields are not persisted; this does not
+described in [HTTP transport](http-transport.md). Unknown fields are not persisted; this does not
 mean all endpoints reject unknown keys. Existing stored values are not rewritten.
 Errors keep the message envelope, request ID, statuses and configured language.
 

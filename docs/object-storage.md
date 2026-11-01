@@ -1,7 +1,7 @@
 # Object storage
 
-The http-composition phase connects the local and MinIO adapters to the local
-API through manual composition. Their disposable-fixture tests remain published.
+Manual composition connects the local and MinIO adapters to the local API.
+Their tests use disposable owned fixtures.
 The adapters implement the application `ObjectStorage` port
 with local files and S3-compatible storage. `storage/create.ts` selects the
 adapter from `ServerConfig.storageDriver`; an unsupported driver fails explicitly.

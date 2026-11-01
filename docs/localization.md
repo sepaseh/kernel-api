@@ -6,7 +6,7 @@ application vocabulary, and the infrastructure adapter resolves translations.
 Keep catalog keys and interpolation placeholders consistent across languages.
 
 The persisted system language determines response language. Visitor preferences
-do not override it. See HTTP transport (planned for a later PR), [architecture](architecture.md)
+do not override it. See [HTTP transport](http-transport.md), [architecture](architecture.md)
 and the catalog and HTTP tests before changing this behavior. Frontend catalogs
 belong to their independent applications.
 

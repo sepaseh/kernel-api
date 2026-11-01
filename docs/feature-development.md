@@ -7,8 +7,8 @@ the adapter. Coordinate incompatible wire changes with independent consumers.
 
 For deletion or relationship changes, preserve business references and return
 the existing semantic conflict instead of soft-deleting or silently removing
-dependent records. See database constraints (planned for a later PR) and
-HTTP transport (planned for a later PR).
+dependent records. See [database constraints](database-schema.md) and
+[HTTP transport](http-transport.md).
 
 Add focused tests for behavior and relevant failure paths, using disposable
 fixtures. Update English human documentation only; do not create or update
@@ -29,7 +29,7 @@ ownership block user deletion until resolved. Verify new paths against the same
 policy and transaction guarantees.
 
 For a client screen plan, first complete the
-client screen contract handoff (planned for a later PR).
+[client screen contract handoff](collection-guide.md#client-screen-contract-handoff).
 It identifies existing API behavior and any proposed contract gap before frontend
 implementation; component libraries and visual decisions stay with that frontend.
 
@@ -47,4 +47,4 @@ results, failures, skips and limits in the current task; use the canonical
 [validation policy](validation.md) before an authorized commit or PR.
 Commit, push, remote messages and production access retain their separate
 authorization requirements. For API-backed screen work, use the existing
-client screen handoff (planned for a later PR).
+[client screen handoff](collection-guide.md#client-screen-contract-handoff).

@@ -6,7 +6,7 @@ source and rule text do not establish validated behavior.
 
 Read this rule for delete, deactivation, assignment, foreign-key or retention work.
 Trace the owning application service, transaction, schema, Bruno operation and tests.
-Use the database relationships (planned path: `docs/database-schema.md`) and
+Use the [database relationships](../../docs/database-schema.md) and
 [backend boundaries](backend.md); a UI action or foreign key alone does not define
 the complete contract.
 

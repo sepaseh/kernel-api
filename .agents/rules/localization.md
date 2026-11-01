@@ -30,6 +30,7 @@ the public settings DTO still rejects invalid language. System-administrator rep
 separate. The website's explicit-error policy belongs to its own HTTP consumer.
 
 Run relevant localization and application/HTTP tests and typecheck for a locale change.
-`npm run test:i18n` is a focused check and does not replace the full profile.
+`node --test src/infrastructure/localization/catalogs.test.ts src/infrastructure/localization/i18n.test.ts`
+is a focused check and does not replace the full profile.
 Each repository owns its messages independently; assess public wire compatibility when
-releasing changes. See Localization (planned path: `docs/localization.md`).
+releasing changes. See [Localization](../../docs/localization.md).

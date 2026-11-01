@@ -7,17 +7,16 @@ Run the smallest check that covers the files you changed, then broaden before ha
 - Typecheck: `npm run typecheck`
 - Lint: `npm run lint`
 - Static API build check: `npm run typecheck` (TypeScript validation without emitted artifacts)
-- Use `npm run knip` as an optional aid when reviewing unused exports and
-  dependencies; it does not replace the full validation profile.
 
-For docs-only tasks, run `npm run format:check` and validate links and referenced
-commands. Code-only checks such as lint, typecheck, and Knip are unnecessary
-unless configuration or source files also changed.
+For docs-only development, start with `npm run format:check` and validate links
+and referenced commands. Before an authorized commit or PR, run the complete
+`full` profile from the [validation manifest](../validation.json), including for
+documentation-only changes. Focused checks do not replace that gate.
 
 ## Autofix workflow
 
 - Let ESLint handle import sorting and existing configured code rules.
-- Use `npm run lint:fix` when safe to auto-fix formatting/lint issues.
+- Use `npm run lint -- --fix` when safe to apply the configured ESLint fixes.
 - Never sort imports manually if ESLint can do it.
 - Do not introduce a formatter or new tooling unless the user asks.
 
@@ -78,5 +77,5 @@ files or reorder independent-looking work without checking dependencies.
 ## No unused code
 
 - Remove unused files, exports, dependencies, translations, and routes.
-- Verify cleanup using the available checks in the validation manifest. The optional
-  `npm run knip` does not replace the full profile.
+- Verify cleanup using the available checks in the validation manifest and inspect
+  affected imports and consumers. Run the full profile before an authorized commit or PR.

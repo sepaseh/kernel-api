@@ -11,7 +11,7 @@ read [safety](safety.md) before mutations or remote writes.
 | Issue handoff         | [Issues](issues.md), [create issue](../skills/create-issue/SKILL.md), [start issue](../skills/start-issue/SKILL.md) |
 | Pull requests/reviews | [Pull requests](pull-requests.md), [code review](code-review.md)                                                    |
 | Required validation   | [Manifest](../validation.json), [validate change](../skills/validate-change/SKILL.md)                               |
-| Release/protection    | Releasing (planned path: `docs/releasing.md`), [branch protection](../../docs/branch-protection.md)                 |
+| Release/protection    | [Releasing](../../docs/releasing.md), [branch protection](../../docs/branch-protection.md)                          |
 
 ## Before committing
 

@@ -6,6 +6,11 @@ import { isDeepStrictEqual } from "node:util";
 
 import { parseDocument } from "yaml";
 
+import {
+  validateGuidanceAssets,
+  validateGuidanceInventory,
+} from "./check-guidance-assets.mjs";
+
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const inventoryPath = ".github/bootstrap-policy.json";
 const manifestPath = ".agents/validation.json";
@@ -271,6 +276,7 @@ export const validateInventory = (policy) => {
       policy.allowedFiles.length > 0,
     "Declare an explicit publication scope without application readiness.",
   );
+  validateGuidanceInventory(policy);
   const files = new Set(policy.allowedFiles);
   assert(
     files.size === policy.allowedFiles.length && [...files].every(safePath),
@@ -921,11 +927,6 @@ export const inspectGuidance = async (root) => {
       "Settings must register only unique published guidance paths.",
     );
   equal(
-    settings.optionalHooks,
-    [],
-    "No uninstalled hooks are part of governance evidence.",
-  );
-  equal(
     settings.recommendedChecks,
     manifest.checks.map(({ command }) => command),
     "Recommended commands must project the canonical full profile.",
@@ -941,11 +942,22 @@ export const inspectGuidance = async (root) => {
     "Identify the published task map.",
   );
   equal(settings.validation, manifestPath, "Identify the canonical manifest.");
-  assert(
-    !Object.hasOwn(settings, "evaluation"),
-    "Do not register unpublished evaluation prompts.",
-  );
   validateNavigation(navigation, files, checksForPhase(policy.phase));
+  const enabled = validateGuidanceInventory(policy);
+  const [cases, template] = enabled
+    ? await Promise.all([
+        readJson(root, ".agents/evaluation/cases.json"),
+        readJson(root, ".agents/evaluation/run-template.json"),
+      ])
+    : [];
+  validateGuidanceAssets({
+    policy,
+    settings,
+    navigation,
+    manifest,
+    cases,
+    template,
+  });
   const markdown = [...files].filter((file) => /\.md$/i.test(file));
   await Promise.all(
     markdown.map(async (file) =>

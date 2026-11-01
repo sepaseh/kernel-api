@@ -119,11 +119,11 @@ Run `npm run validate -- full` for the complete current-phase gate. Actual LCOV
 comes from this checkout's tests; do not treat these local SQLite results as
 remote database, production rollout, HTTP, OTP delivery or complete authentication
 runtime evidence. Database initialization, optional development seeding and
-initial administrator provisioning are published in this phase. The HTTP/server
-entry point and repository Drizzle generation configuration/commands belong to
-later publications; they are not available as part of this snapshot. Do not run
-migrations on existing data without explicit authorization and a verified
-matching backup.
+initial administrator provisioning are published. The local Node server composes
+these owners with Hono routes. Repository Drizzle generation/migration commands
+and their real toolchain fixtures are described in [development](development.md).
+Database tests do not replace the separate HTTP/runtime suites. Do not run migrations
+on existing data without explicit authorization and a verified matching backup.
 
 See [architecture](architecture.md), [validation](validation.md) and
 [Contributing](../CONTRIBUTING.md).

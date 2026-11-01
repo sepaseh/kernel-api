@@ -75,3 +75,8 @@ All eight Bruno groups are published: account, authentication, calendar, files,
 languages, roles, settings and users. Their complete saved requests, responses
 and feature suites follow the inventory. Local contract evidence does not
 establish production OTP delivery or deployed integrations.
+
+Published [assistant evaluation guidance](.agents/evaluation/README.md) and optional local hooks
+keep instructions and contracts discoverable. Their integrity and portability
+tests do not establish automatic host loading; evaluation templates remain
+not-run with unknown observations until a separately reported exercise.

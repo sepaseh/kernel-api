@@ -1,6 +1,6 @@
 # Backend logging
 
-The http-composition phase includes Pino logging, sanitization, fatal process
+The API includes Pino logging, sanitization, fatal process
 handlers, safe storage diagnostics and Hono request logging. Pino writes structured JSON with UTC
 timestamps, level, environment and release. `LOG_LEVEL`, `SERVER_ENVIRONMENT`
 and `SERVER_RELEASE_ID` configure it. Configuration parses a supplied environment
@@ -14,9 +14,10 @@ uses the development-only `pino-pretty` dependency and preserves redaction.
 
 Isolated subprocess tests exercise fatal logging, flushing and unsuccessful exit.
 Separate HTTP/runtime suites start the local Node server with disposable data
-and exercise startup, readiness, cleanup and signal-driven shutdown. Deployment
-collectors, native service integration and recovery drills remain planned work;
-none is provisioned by local execution.
+and exercise startup, readiness, cleanup and signal-driven shutdown. Synthetic
+[recovery drills](backup-restore.md) also verify request/release/log correlation.
+Published native service references and local tests do not provision a deployed
+service or an external collector.
 
 Initialized HTTP responses expose a bounded `X-Request-Id`. Valid supplied IDs
 propagate; invalid or sensitive-looking values become UUIDs. Exactly one final

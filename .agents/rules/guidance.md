@@ -15,8 +15,10 @@ assistant or optional tool a runtime dependency.
   links or checked projections, never independent definitions of a complete gate.
 - Task navigation: `.agents/navigation.json`; the readable guide is
   `docs/source-navigation.md`. Open owners and contracts, not just the map.
-- Evaluation prompts are planned for a later publication; do not register absent
-  evaluation files or claim they were executed in the governance phase.
+- Read-only evaluation: the [guide](../evaluation/README.md),
+  [cases](../evaluation/cases.json) and [run template](../evaluation/run-template.json).
+  Published prompts and static validation do not establish an executed evaluation;
+  the unused template remains not-run with instruction discovery unknown.
 
 When a document conflicts with current behavior, verify source and contracts,
 correct the active explanation and report actual outcomes in the current task.
@@ -31,9 +33,9 @@ words joined by hyphens or underscores and a single `.md` extension. The publica
 owns admitted paths. Do not add locale-specific discovery, compatibility paths,
 validators, test fixtures or restoration instructions for documentation variants.
 Application localization remains a separate concern.
-The governance guide check reads only published inventory paths. Future
-application validation must also cover its deployment and collection guides,
-while excluding generated output and private runtime state before traversal.
+The governance guide check reads only published inventory paths, including
+deployment and collection guides. Generated output and private runtime state
+remain outside that inventory and must not be traversed for guidance validation.
 `.agents/settings.json` inventories guidance; it does not register itself with every
 assistant. Optional hooks are host-dependent fast checks, not a full validation gate.
 The optional [CLAUDE.md](../../CLAUDE.md) adapter references AGENTS.md;
@@ -67,4 +69,4 @@ in its configured location.
 
 ## Change acceptance and test failures
 
-Use the change checklist (planned path: `docs/feature-development.md`) to distinguish required behavior, proposals and provider-dependent work, and link observable acceptance scenarios to the canonical checks. Use [test reliability](../../docs/test-reliability.md) to record ownership, first failures, reproduction and time-bounded exceptions. These are portable workflows, not automatic assistant discovery, flaky-test detection or permission to weaken a required gate.
+Use the [change checklist](../../docs/feature-development.md) to distinguish required behavior, proposals and provider-dependent work, and link observable acceptance scenarios to the canonical checks. Use [test reliability](../../docs/test-reliability.md) to record ownership, first failures, reproduction and time-bounded exceptions. These are portable workflows, not automatic assistant discovery, flaky-test detection or permission to weaken a required gate.
