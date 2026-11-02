@@ -149,7 +149,10 @@ test("cache reads retain the checked file when its path is replaced", async (con
   await runActionlint(value);
   value.executions.length = 0;
   const filename = path.join(value.cache, value.asset.name);
-  const handle = await open(filename, "r");
+  const handle = await open(
+    path.join(value.root, ".github/workflows/ci.yml"),
+    "r",
+  );
   const prototype = Object.getPrototypeOf(handle);
   await handle.close();
   const read = prototype.readFile;
@@ -184,7 +187,10 @@ test("rejects cache replacement during inspection and oversized cached files", a
   await runActionlint(value);
   value.executions.length = 0;
   const filename = path.join(value.cache, value.asset.name);
-  const handle = await open(filename, "r");
+  const handle = await open(
+    path.join(value.root, ".github/workflows/ci.yml"),
+    "r",
+  );
   const prototype = Object.getPrototypeOf(handle);
   await handle.close();
   const stat = prototype.stat;
