@@ -263,10 +263,11 @@ export const boundaryViolation = ({
       ? path.resolve(path.dirname(file), specifier)
       : undefined);
   const contracts = path.join(root, "src", "contracts");
-  if (inside(contracts, file)) {
-    if (!specifier.startsWith(".") || !target || !inside(contracts, target))
-      return "Wire contracts must depend only on local pure contract modules";
-  }
+  if (
+    inside(contracts, file) &&
+    (!specifier.startsWith(".") || !target || !inside(contracts, target))
+  )
+    return "Wire contracts must depend only on local pure contract modules";
   if (target && !inside(root, target))
     return "Source imports must not escape this repository";
   if (
