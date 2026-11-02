@@ -36,4 +36,18 @@ export default [
       "simple-import-sort/exports": "error",
     },
   },
+  {
+    files: ["src/contracts/**/*.ts", "src/application/**/*.ts"],
+    rules: {
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "process",
+          property: "env",
+          message:
+            "Contracts and application code must not read environment configuration. Read it in infrastructure.",
+        },
+      ],
+    },
+  },
 ];

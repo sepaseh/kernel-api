@@ -75,6 +75,8 @@ const applicationImportViolation = ({ root, specifier, target, typeOnly }) => {
     const nativeName = specifier.startsWith("node:")
       ? specifier.slice(5)
       : specifier;
+    if (nativeName === "module")
+      return "Application modules must not construct module loaders";
     return isBuiltin(specifier) &&
       !["http", "http2", "https", "sqlite"].includes(nativeName)
       ? undefined
@@ -267,6 +269,16 @@ export const boundaryViolation = ({
   }
   if (target && !inside(root, target))
     return "Source imports must not escape this repository";
+  if (
+    target &&
+    inside(path.join(root, "src"), target) &&
+    (path
+      .relative(root, target)
+      .split(path.sep)
+      .some((part) => ["test", "__tests__"].includes(part)) ||
+      /\.(?:test|spec)\./.test(path.basename(target)))
+  )
+    return "Production modules must not import test-only source";
   if (inside(path.join(root, "src", "application"), file))
     return applicationImportViolation({ root, specifier, target, typeOnly });
   if (inside(catalogDirectory(root), file))
@@ -304,6 +316,10 @@ const sourceFiles = async (directory) => {
   const files = await Promise.all(
     entries.map((entry) => {
       const filename = path.join(directory, entry.name);
+      if (entry.isSymbolicLink())
+        throw new Error(
+          `Symbolic links are not allowed in source: ${filename}`,
+        );
       if (entry.isDirectory())
         return ["test", "__tests__", "node_modules"].includes(entry.name)
           ? []
@@ -315,6 +331,32 @@ const sourceFiles = async (directory) => {
     }),
   );
   return files.flat();
+};
+
+const environmentAccessLines = (content, filename) => {
+  const source = ts.createSourceFile(
+    filename,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const lines = [];
+  const visit = (node) => {
+    if (
+      ((ts.isPropertyAccessExpression(node) && node.name.text === "env") ||
+        (ts.isElementAccessExpression(node) &&
+          ts.isStringLiteralLike(node.argumentExpression) &&
+          node.argumentExpression.text === "env")) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "process"
+    )
+      lines.push(
+        source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+      );
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return lines;
 };
 
 export const checkBoundaries = async (root = repository) => {
@@ -355,6 +397,14 @@ export const checkBoundaries = async (root = repository) => {
     files.map(async (file) => {
       const content = await readFile(file, "utf8");
       const edges = inspectImports(content, file);
+      const environmentViolations = ["application", "contracts"].some((owner) =>
+        inside(path.join(root, "src", owner), file),
+      )
+        ? environmentAccessLines(content, file).map(
+            (line) =>
+              `${path.relative(root, file)}:${line}: Contracts and application code must not read environment configuration; read it in infrastructure`,
+          )
+        : [];
       const dataViolation =
         inside(catalogDirectory(root), file) &&
         path.basename(file) !== "index.ts"
@@ -381,6 +431,7 @@ export const checkBoundaries = async (root = repository) => {
         }),
       );
       return [
+        ...environmentViolations,
         ...(dataViolation
           ? [`${path.relative(root, file)}:1: ${dataViolation}`]
           : []),

@@ -139,6 +139,54 @@ test("built-in SQLite dependencies cannot enter application code through runtime
   }
 });
 
+test("application code cannot obtain createRequire loaders through native module imports", () => {
+  const file = path.join(root, "src/application/service.ts");
+  for (const source of [
+    'import { createRequire } from "node:module"; createRequire(import.meta.url)("hono");',
+    'import { createRequire as loader } from "module"; const load = loader(import.meta.url); load("hono");',
+    'import * as module from "node:module"; module.createRequire(import.meta.url)("hono");',
+    'const { createRequire } = require("node:module"); const load = createRequire(import.meta.url); load("hono");',
+    'const { createRequire } = await import("node:module"); createRequire(import.meta.url)("hono");',
+  ]) {
+    const edges = inspectImports(source, file);
+    assert.equal(edges.length, 1, source);
+    assert.match(
+      check(edges[0].specifier, { file }),
+      /must not construct module loaders/,
+      source,
+    );
+  }
+});
+
+test("production imports cannot reach files excluded as test-only source", () => {
+  const file = path.join(root, "src/application/service.ts");
+  for (const relative of [
+    "./test/helper.ts",
+    "./__tests__/helper.ts",
+    "./helper.test.ts",
+    "./helper.spec.ts",
+    "./helper.test.support.ts",
+    "../contracts/test/helper.ts",
+  ]) {
+    assert.match(check(relative, { file }), /must not import test-only/);
+    assert.match(
+      check("local-alias", {
+        file,
+        resolved: path.resolve(path.dirname(file), relative),
+      }),
+      /must not import test-only/,
+    );
+  }
+  assert.equal(check("./testing/helper.ts", { file }), undefined);
+  assert.equal(
+    check("utility-package", {
+      file: path.join(root, "src/infrastructure/task.ts"),
+      resolved: path.join(root, "node_modules/utility-package/test/index.d.ts"),
+    }),
+    undefined,
+  );
+});
+
 test("the S3 SDK belongs only to the owned MinIO adapter with its real contained package identity", () => {
   const file = path.join(root, "src/infrastructure/storage/minio.ts");
   const resolved = path.join(
@@ -500,8 +548,14 @@ test("nested production files retain import order while test trees and non-TypeS
   const directory = await mkdtemp(path.join(parent, "kernel-boundaries-"));
   try {
     await Promise.all(
-      ["application", "contracts", "test", "__tests__", "node_modules"].map(
-        (name) => mkdir(path.join(directory, "src", name), { recursive: true }),
+      [
+        "application/test",
+        "contracts",
+        "test",
+        "__tests__",
+        "node_modules",
+      ].map((name) =>
+        mkdir(path.join(directory, "src", name), { recursive: true }),
       ),
     );
     const files = {
@@ -512,6 +566,8 @@ test("nested production files retain import order while test trees and non-TypeS
       }),
       "src/application/a.ts": 'import "@kernel/a";\nimport(variable);\n',
       "src/application/b.ts": 'import "@kernel/b";\n',
+      "src/application/c.ts": 'import "./test/helper.ts";\n',
+      "src/application/test/helper.ts": 'import "hono";\n',
       "src/contracts/types.ts": 'import "hono";\n',
       "src/ignored.spec.ts": 'import "@kernel/ignored";\n',
       "src/ignored.test.helper.ts": 'import "@kernel/ignored";\n',
@@ -532,14 +588,15 @@ test("nested production files retain import order while test trees and non-TypeS
     );
     const firstFile = path.join("src", "application", "a.ts");
 
-    assert.equal(result.files, 3);
-    assert.equal(result.violations.length, 4);
+    assert.equal(result.files, 4);
+    assert.equal(result.violations.length, 5);
     assert.deepEqual(
       new Set(locations),
       new Set([
         `${firstFile}:1`,
         `${firstFile}:2`,
         `${path.join("src", "application", "b.ts")}:1`,
+        `${path.join("src", "application", "c.ts")}:1`,
         `${path.join("src", "contracts", "types.ts")}:1`,
       ]),
     );
@@ -550,6 +607,106 @@ test("nested production files retain import order while test trees and non-TypeS
   } finally {
     assert.equal(path.dirname(path.resolve(directory)), parent);
     assert.ok(path.basename(directory).startsWith("kernel-boundaries-"));
+    await rm(directory, { force: true, recursive: true });
+  }
+});
+
+test("symlinked source directories cannot hide forbidden imports", async () => {
+  const parent = await realpath(tmpdir());
+  const directory = await mkdtemp(path.join(parent, "kernel-boundaries-link-"));
+  try {
+    await mkdir(path.join(directory, "src/application"), { recursive: true });
+    await mkdir(path.join(directory, "linked-source"));
+    const files = {
+      "package.json": JSON.stringify({ name: "synthetic-link-boundary" }),
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: { module: "ESNext", moduleResolution: "bundler" },
+        include: ["src/**/*.ts"],
+      }),
+      "src/application/local.ts": "export type Local = string;",
+      "linked-source/hidden.ts": 'import "hono";',
+    };
+    await Promise.all(
+      Object.entries(files).map(([name, content]) =>
+        writeFile(path.join(directory, name), content),
+      ),
+    );
+    const linkedDirectory = path.join(directory, "src/application/linked");
+    await symlink(
+      path.join(directory, "linked-source"),
+      linkedDirectory,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+
+    await assert.rejects(checkBoundaries(directory), (error) => {
+      assert.equal(
+        error.message,
+        `Symbolic links are not allowed in source: ${linkedDirectory}`,
+      );
+      return true;
+    });
+  } finally {
+    assert.equal(path.dirname(path.resolve(directory)), parent);
+    assert.ok(path.basename(directory).startsWith("kernel-boundaries-link-"));
+    await rm(directory, { force: true, recursive: true });
+  }
+});
+
+test("direct environment reads stay outside contracts and application code", async () => {
+  const parent = await realpath(tmpdir());
+  const directory = await mkdtemp(path.join(parent, "kernel-boundaries-env-"));
+  try {
+    await Promise.all(
+      ["application", "contracts", "infrastructure"].map((name) =>
+        mkdir(path.join(directory, "src", name), { recursive: true }),
+      ),
+    );
+    const files = {
+      "package.json": JSON.stringify({
+        name: "synthetic-environment-boundary",
+      }),
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: { module: "ESNext", moduleResolution: "bundler" },
+        include: ["src/**/*.ts"],
+      }),
+      "src/application/service.ts": [
+        "const direct = process.env;",
+        'const computed = process["env"];',
+        "const optional = process?.env;",
+        'const text = "process.env";',
+        "// process.env",
+        "const { env } = process;",
+        "const unrelated = other.env;",
+      ].join("\n"),
+      "src/contracts/settings.ts": "const direct = process.env;",
+      "src/infrastructure/config.ts": "const allowed = process.env;",
+    };
+    await Promise.all(
+      Object.entries(files).map(([name, content]) =>
+        writeFile(path.join(directory, name), content),
+      ),
+    );
+
+    const result = await checkBoundaries(directory);
+    assert.equal(result.files, 3);
+    assert.equal(result.violations.length, 4);
+    for (const location of [
+      `${path.join("src", "application", "service.ts")}:1:`,
+      `${path.join("src", "application", "service.ts")}:2:`,
+      `${path.join("src", "application", "service.ts")}:3:`,
+      `${path.join("src", "contracts", "settings.ts")}:1:`,
+    ])
+      assert.ok(
+        result.violations.some(
+          (violation) =>
+            violation.startsWith(location) &&
+            violation.includes("must not read environment configuration"),
+        ),
+        location,
+      );
+  } finally {
+    assert.equal(path.dirname(path.resolve(directory)), parent);
+    assert.ok(path.basename(directory).startsWith("kernel-boundaries-env-"));
     await rm(directory, { force: true, recursive: true });
   }
 });

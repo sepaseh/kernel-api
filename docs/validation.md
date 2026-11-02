@@ -47,6 +47,9 @@ in private staging directories on the cache filesystem, then published through
 an exclusive hard link. Existing cache entries are never overwritten. Cleanup
 removes only owned staging paths and preserves write, close and cleanup errors;
 a competing ordinary cache file remains untouched.
+The cache filesystem must support hard links. On a volume that rejects them,
+`npm run check:actions` and the local `full` gate fail on each cache miss;
+the runner does not fall back to writing directly to the shared cache path.
 This required check runs once in Static checks and once within each separately
 requested local `full` gate; it does not add another CI job or suppress lint findings. Optional ShellCheck and
 Pyflakes integrations are disabled so actionlint has the same scope on supported
