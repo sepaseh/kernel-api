@@ -108,6 +108,51 @@ const cachedArchive = async (filename) => {
   return bytes;
 };
 
+const downloadArchive = async (response) => {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of response.body) {
+    size += chunk.byteLength;
+    if (size > maximumArchiveBytes)
+      throw new Error("actionlint download exceeds its size limit");
+
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks, size);
+};
+
+const writeNewArchive = async (filename, bytes) => {
+  const file = await open(filename, "wx", 0o600);
+  let failure;
+  try {
+    await file.writeFile(bytes);
+  } catch (error) {
+    failure = error;
+  }
+
+  try {
+    await file.close();
+  } catch (error) {
+    failure = failure
+      ? new AggregateError(
+          [failure, error],
+          "archive write and close both failed",
+        )
+      : error;
+  }
+  if (!failure) return;
+
+  try {
+    await rm(filename, { force: true });
+  } catch (error) {
+    throw new AggregateError(
+      [failure, error],
+      "archive write and cleanup both failed",
+    );
+  }
+  throw failure;
+};
+
 const archiveBytes = async (filename, asset, request) => {
   let bytes;
   try {
@@ -121,10 +166,9 @@ const archiveBytes = async (filename, asset, request) => {
       throw new Error(
         `actionlint download failed with HTTP ${response.status}`,
       );
-    bytes = Buffer.from(await response.arrayBuffer());
+    bytes = await downloadArchive(response);
     verifyActionlintArchive(bytes, asset.sha256);
-    await using file = await open(filename, "wx", 0o600);
-    await file.writeFile(bytes);
+    await writeNewArchive(filename, bytes);
   }
   verifyActionlintArchive(bytes, asset.sha256);
   return bytes;

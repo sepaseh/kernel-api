@@ -36,8 +36,9 @@ API checks. Before application publication, restore its complete canonical gate
 and require the real source, HTTP, database, authentication and storage checks.
 
 The source ruleset binds the native `CodeQL` context to the CodeQL application
-(`57789`). The Actions job `Analyze JavaScript and TypeScript` is separate from
-that provider result. Neither local workflow validation nor source configuration
+(`57789`). The Actions job
+`Analyze JavaScript, TypeScript and GitHub Actions` is separate from that provider
+result. Neither local workflow validation nor source configuration
 proves hosted analysis ran or that remote protection was changed.
 
 Every external action must use an immutable commit. Any future privileged

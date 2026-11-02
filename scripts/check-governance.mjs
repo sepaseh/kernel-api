@@ -1059,7 +1059,7 @@ const validateSonarProperties = (text, phase, files) => {
 export const inspectPolicy = async (root) => {
   const { policy, files } = await readInventory(root);
   const workflowFiles = [...files].filter((file) =>
-    /^\.github\/workflows\/.+\.yml$/.test(file),
+    /^\.github\/workflows\/.+\.ya?ml$/.test(file),
   );
   const [ci, rabbit, main, sonar, workflows] = await Promise.all([
     readText(root, ".github/workflows/ci.yml"),
@@ -1082,11 +1082,7 @@ export const inspectPolicy = async (root) => {
   );
   validateRuleset(main);
   validateSonarProperties(sonar, policy.phase, files);
-  return {
-    workflows: [...files].filter((file) =>
-      /^\.github\/workflows\/.+\.yml$/.test(file),
-    ).length,
-  };
+  return { workflows: workflowFiles.length };
 };
 
 export const inspectFormatting = async (root) => {

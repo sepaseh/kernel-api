@@ -850,6 +850,23 @@ const trustedWorkflow = () => ({
   },
 });
 
+test("policy integration inspects admitted .yaml workflows and rejects unsafe checkouts", async (context) => {
+  const { root, json, put } = await fixture(context);
+  const filename = ".github/workflows/guard.yaml";
+  await json(".github/bootstrap-policy.json", {
+    ...policy(),
+    allowedFiles: [...files, filename],
+  });
+  const workflow = trustedWorkflow();
+  await put(filename, stringify(workflow));
+  assert.deepEqual(await inspectPolicy(root), { workflows: 3 });
+
+  workflow.jobs.guard.steps[0].with.ref =
+    "${{ github.event.pull_request.head.sha }}";
+  await put(filename, stringify(workflow));
+  await assert.rejects(inspectPolicy(root), /trusted default-branch code/);
+});
+
 test("privileged workflows reject untrusted checkouts and floating actions", () => {
   validateWorkflowTrust(trustedWorkflow());
   for (const mutate of [

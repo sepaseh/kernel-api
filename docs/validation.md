@@ -36,7 +36,9 @@ provider skips must remain visible.
 `.github/workflows` files. The runner pins its version and verifies the release
 archive checksum before executing the extracted binary. It reads cached archive
 metadata and bytes through the same open file handle; new cache entries use
-exclusive creation and never overwrite another writer.
+exclusive creation and never overwrite another writer. Downloads stop when the
+stream exceeds the archive size limit. Failed cache writes close their handles
+before removing partial files and preserve any cleanup failure.
 This required check runs once in Static checks and once within each separately
 requested local `full` gate; it does not add another CI job or suppress lint findings. Optional ShellCheck and
 Pyflakes integrations are disabled so actionlint has the same scope on supported

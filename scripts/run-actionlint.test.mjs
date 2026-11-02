@@ -52,10 +52,7 @@ const fixture = async (context) => {
   const executions = [];
   const request = async (url) => {
     requests.push(url);
-    return {
-      ok: true,
-      arrayBuffer: async () => Uint8Array.from(syntheticArchive).buffer,
-    };
+    return new Response(syntheticArchive);
   };
   const execute = (filename, args, options) => {
     executions.push({ filename, args, options });
@@ -129,10 +126,7 @@ test("tampered downloads and cached archives cannot reach extraction", async (co
   await assert.rejects(
     runActionlint({
       ...value,
-      request: async () => ({
-        ok: true,
-        arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
-      }),
+      request: async () => new Response(new Uint8Array([1, 2, 3])),
     }),
     /pinned SHA-256/,
   );
@@ -141,6 +135,147 @@ test("tampered downloads and cached archives cannot reach extraction", async (co
   value.executions.length = 0;
   await writeFile(path.join(value.cache, value.asset.name), "tampered cache");
   await assert.rejects(runActionlint(value), /pinned SHA-256/);
+  assert.equal(value.executions.length, 0);
+});
+
+test("stops and cancels oversized streams before caching or extracting", async (context) => {
+  const value = await fixture(context);
+  let pulls = 0;
+  let cancelled = false;
+  const body = new ReadableStream(
+    {
+      pull(controller) {
+        pulls++;
+        controller.enqueue(new Uint8Array(1024 * 1024));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    },
+    { highWaterMark: 0 },
+  );
+
+  await assert.rejects(
+    runActionlint({ ...value, request: async () => new Response(body) }),
+    /download exceeds its size limit/,
+  );
+  assert.equal(pulls, 17);
+  assert.ok(cancelled);
+  assert.equal(body.locked, false);
+  assert.deepEqual(await readdir(value.cache), []);
+  assert.equal(value.executions.length, 0);
+});
+
+test("accepts chunked verified downloads and preserves stream failures", async (context) => {
+  const value = await fixture(context);
+  const outage = new Error("synthetic stream failure");
+  const failedBody = new ReadableStream({
+    start(controller) {
+      controller.error(outage);
+    },
+  });
+  await assert.rejects(
+    runActionlint({ ...value, request: async () => new Response(failedBody) }),
+    (error) => error === outage,
+  );
+  assert.equal(failedBody.locked, false);
+  assert.deepEqual(await readdir(value.cache), []);
+  assert.equal(value.executions.length, 0);
+  const body = new ReadableStream({
+    start(controller) {
+      controller.enqueue(syntheticArchive.subarray(0, 5));
+      controller.enqueue(syntheticArchive.subarray(5));
+      controller.close();
+    },
+  });
+
+  assert.equal(
+    await runActionlint({ ...value, request: async () => new Response(body) }),
+    0,
+  );
+  assert.deepEqual(
+    await readFile(path.join(value.cache, value.asset.name)),
+    syntheticArchive,
+  );
+  assert.equal(value.executions.length, 2);
+});
+
+test("closes and removes partial cache writes so a later run can recover", async (context) => {
+  const value = await fixture(context);
+  const probe = await open(
+    path.join(value.root, ".github/workflows/ci.yml"),
+    "r",
+  );
+  const prototype = Object.getPrototypeOf(probe);
+  await probe.close();
+  const write = prototype.writeFile;
+  const failure = new Error("synthetic disk full");
+  let failedHandle;
+  const writer = context.mock.method(
+    prototype,
+    "writeFile",
+    async function (bytes) {
+      failedHandle = this;
+      await write.call(this, bytes.subarray(0, 4));
+      throw failure;
+    },
+  );
+
+  await assert.rejects(runActionlint(value), (error) => error === failure);
+  writer.mock.restore();
+  assert.equal(failedHandle.fd, -1);
+  assert.deepEqual(await readdir(value.cache), []);
+  assert.equal(value.executions.length, 0);
+  assert.equal(await runActionlint(value), 0);
+  assert.equal(value.requests.length, 2);
+});
+
+test("preserves write, close and cleanup failures without removing replacement contents", async (context) => {
+  const value = await fixture(context);
+  const probe = await open(
+    path.join(value.root, ".github/workflows/ci.yml"),
+    "r",
+  );
+  const prototype = Object.getPrototypeOf(probe);
+  await probe.close();
+  const write = prototype.writeFile;
+  const writeFailure = new Error("synthetic write failure");
+  const closeFailure = new Error("synthetic close failure");
+  const filename = path.join(value.cache, value.asset.name);
+  let failedHandle;
+  const writer = context.mock.method(
+    prototype,
+    "writeFile",
+    async function (bytes) {
+      failedHandle = this;
+      await write.call(this, bytes.subarray(0, 4));
+      const close = this.close.bind(this);
+      this.close = async () => {
+        await close();
+        throw closeFailure;
+      };
+      await rm(filename);
+      await mkdir(filename);
+      await writeFile(
+        path.join(filename, "replacement.txt"),
+        "preserve replacement",
+      );
+      throw writeFailure;
+    },
+  );
+
+  await assert.rejects(runActionlint(value), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.deepEqual(error.errors[0].errors, [writeFailure, closeFailure]);
+    assert.equal(error.errors[1].code, "ERR_FS_EISDIR");
+    return true;
+  });
+  writer.mock.restore();
+  assert.equal(failedHandle.fd, -1);
+  assert.equal(
+    await readFile(path.join(filename, "replacement.txt"), "utf8"),
+    "preserve replacement",
+  );
   assert.equal(value.executions.length, 0);
 });
 
