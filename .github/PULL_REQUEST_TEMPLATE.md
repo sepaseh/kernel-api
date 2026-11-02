@@ -1,0 +1,26 @@
+## Problem and resulting behavior
+
+Explain the concrete policy change and any prerequisite PR.
+
+## Published scope
+
+- Phase:
+- Exact publication inventory:
+- Pre-PR scope review (advisory target at most 80 files; explain larger cohesive changes and any useful split):
+- Application readiness and limitations:
+
+## Verification
+
+- Exact proposed tree and base/head:
+- Full profile commands actually run and results:
+- Native CodeQL result for the current head, or blocker:
+- CodeRabbit current-head review and approval evidence, or blocker:
+- Sonar scanner, actual quality gate and complete issue report, or blocker:
+- Native required checks and approval evidence, or blocker:
+
+## Rollout and review
+
+Describe which settings require authorized application in GitHub. Do not claim
+configuration alone proves enforcement, skips prove review, governance tests prove
+API behavior, or an ambient working-tree pass validates a different inventory.
+Keep incomplete work in draft. Merge requires separate authorization.

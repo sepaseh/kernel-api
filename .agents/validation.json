@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "phase": "governance",
+  "applicationReady": false,
+  "checks": [
+    {
+      "id": "snapshot",
+      "command": "npm run check:snapshot",
+      "kind": "required",
+      "ciJobs": ["quality"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "ci-policy",
+      "command": "npm run check:ci",
+      "kind": "required",
+      "ciJobs": ["quality"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "actions-lint",
+      "command": "npm run check:actions",
+      "kind": "required",
+      "ciJobs": ["quality"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "audit",
+      "command": "npm run audit",
+      "kind": "required",
+      "ciJobs": ["audit"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "format",
+      "command": "npm run format:check",
+      "kind": "required",
+      "ciJobs": ["quality"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "guidance",
+      "command": "npm run check:guidance",
+      "kind": "required",
+      "ciJobs": ["quality"],
+      "scopes": ["governance"]
+    },
+    {
+      "id": "coverage-tests",
+      "command": "npm run test:coverage",
+      "kind": "required",
+      "ciJobs": ["governance"],
+      "scopes": ["governance"]
+    }
+  ],
+  "profiles": {
+    "full": [
+      "snapshot",
+      "ci-policy",
+      "actions-lint",
+      "audit",
+      "format",
+      "guidance",
+      "coverage-tests"
+    ],
+    "ci-quality": [
+      "snapshot",
+      "ci-policy",
+      "actions-lint",
+      "format",
+      "guidance"
+    ],
+    "ci-audit": ["audit"],
+    "ci-governance": ["coverage-tests"]
+  },
+  "externalWorkflows": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "mode": "ci"
+    },
+    {
+      "path": ".github/workflows/codeql.yml",
+      "mode": "security"
+    }
+  ]
+}

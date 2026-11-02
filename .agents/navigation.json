@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "tasks": [
+    {
+      "id": "guidance",
+      "when": "Change published instructions, navigation, validation policy or assistant workflows.",
+      "owners": [
+        "AGENTS.md",
+        ".agents/README.md",
+        ".agents/settings.json",
+        ".agents/navigation.json",
+        ".agents/validation.json",
+        "scripts/check-governance.mjs"
+      ],
+      "contracts": [
+        "docs/source-navigation.md",
+        ".agents/rules/guidance.md",
+        "docs/validation.md",
+        "CONTRIBUTING.md"
+      ],
+      "tests": ["scripts/check-governance.test.mjs"],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "guidance",
+        "format",
+        "coverage-tests"
+      ]
+    },
+    {
+      "id": "git-policy",
+      "when": "Prepare branches, commits, successive PRs, review settings or provider evidence.",
+      "owners": [
+        ".github/rulesets/main.json",
+        ".github/workflows/ci.yml",
+        ".github/workflows/codeql.yml",
+        "scripts/ci-evidence.mjs",
+        "scripts/run-actionlint.mjs"
+      ],
+      "contracts": [
+        ".agents/rules/git.md",
+        ".agents/rules/branches.md",
+        ".agents/rules/pull-requests.md",
+        "docs/branch-protection.md",
+        "docs/sonarqube.md"
+      ],
+      "tests": [
+        "scripts/ci-evidence.test.mjs",
+        "scripts/check-governance.test.mjs",
+        "scripts/run-actionlint.test.mjs"
+      ],
+      "checks": [
+        "snapshot",
+        "ci-policy",
+        "actions-lint",
+        "guidance",
+        "format",
+        "coverage-tests"
+      ]
+    }
+  ]
+}

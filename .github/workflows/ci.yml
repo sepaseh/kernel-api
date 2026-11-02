@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    name: Static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install validation dependencies
+        run: npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+      - run: npm run validate -- ci-quality
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install validation dependencies
+        run: npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+      - run: npm run validate -- ci-audit
+
+  governance:
+    name: Governance tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      artifact: ${{ steps.evidence.outputs.artifact }}
+      attempt: ${{ steps.evidence.outputs.attempt }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install validation dependencies
+        run: npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+      - run: npm run validate -- ci-governance
+      - name: Bind measured coverage to this run and source
+        id: evidence
+        env:
+          CI_EVIDENCE_SUITE: governance
+        run: node scripts/ci-evidence.mjs --record
+      - name: Share measured coverage with analysis
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.evidence.outputs.artifact }}
+          path: |
+            coverage/lcov.info
+            coverage/governance/ci-evidence.json
+          if-no-files-found: error
+          retention-days: 3
+          overwrite: false
+          include-hidden-files: false
+
+  check:
+    permissions: {}
+    needs: [quality, audit, governance]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every validation job to succeed
+        env:
+          CI_NEEDS: ${{ toJSON(needs) }}
+        run: node -e "const needs = JSON.parse(process.env.CI_NEEDS); if (!['quality', 'audit', 'governance'].every(job => needs[job]?.result === 'success')) process.exit(1)"
+
+  analysis:
+    name: SonarQube Cloud analysis
+    needs: [check, governance]
+    if: needs.check.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Require configured SonarQube Cloud analysis
+        env:
+          SONAR_TOKEN_CONFIGURED: ${{ secrets.SONAR_TOKEN != '' }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+        run: |
+          if [[ "$SONAR_TOKEN_CONFIGURED" != 'true' || -z "$SONAR_PROJECT_KEY" ]]; then
+            echo '::error::Configure SONAR_TOKEN and SONAR_PROJECT_KEY before analysis. No Sonar analysis was performed.'
+            exit 1
+          fi
+      - name: Download this run's measured coverage
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.governance.outputs.artifact }}
+          path: coverage
+          digest-mismatch: error
+      - name: Verify coverage provenance and contents
+        env:
+          CI_EVIDENCE_SUITE: governance
+          CI_EVIDENCE_PRODUCER_ATTEMPT: ${{ needs.governance.outputs.attempt }}
+        run: node scripts/ci-evidence.mjs --verify-coverage
+      - name: Install analysis dependencies without running package scripts
+        run: npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+      - name: Analyze governance tooling and measured coverage
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        env:
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} -Dsonar.scm.revision=${{ github.event.pull_request.head.sha || github.sha }}
