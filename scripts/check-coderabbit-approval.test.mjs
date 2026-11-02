@@ -434,6 +434,10 @@ test("GraphQL errors and null update payloads never establish completion", async
         ) &&
         !error.errors[0].message.includes("synthetic-token"),
     );
+    assert.equal(
+      basic.requests.filter(({ url }) => url === graphqlUrl).length,
+      1,
+    );
   }
 });
 
@@ -499,22 +503,27 @@ test("GraphQL transport failures do not expose response bodies", async () => {
   );
 });
 
-test("completion retries transient transport failures with the identical request", async () => {
-  for (const transient of [
+test("completion succeeds on attempts one, two or three with identical sequential requests", async () => {
+  const scenarios = [
     new Error("Synthetic network failure"),
     429,
     500,
     503,
     599,
-  ]) {
+  ].flatMap((transient) =>
+    [1, 2, 3].map((successAttempt) => ({ successAttempt, transient })),
+  );
+  for (const { successAttempt, transient } of scenarios) {
     const basic = fixture();
     const attempts = [];
     const waits = [];
     const fetchImpl = async (url, options) => {
       if (url !== graphqlUrl) return basic.fetchImpl(url, options);
 
+      assert.equal(waits.length, attempts.length);
       attempts.push({ options: structuredClone(options), url });
-      if (attempts.length === 3) return basic.fetchImpl(url, options);
+      if (attempts.length === successAttempt)
+        return basic.fetchImpl(url, options);
       if (transient instanceof Error) throw transient;
 
       return new Response("Synthetic transient failure", { status: transient });
@@ -525,10 +534,49 @@ test("completion retries transient transport failures with the identical request
         .approved,
       true,
     );
-    assert.equal(attempts.length, 3);
-    assert.deepEqual(attempts, [attempts[0], attempts[0], attempts[0]]);
-    assert.deepEqual(waits, [1000, 2000]);
+    assert.equal(attempts.length, successAttempt);
+    assert.deepEqual(attempts, Array(successAttempt).fill(attempts[0]));
+    assert.deepEqual(waits, [1000, 2000].slice(0, successAttempt - 1));
   }
+});
+
+test("completion does not send the next attempt until backoff completes", async () => {
+  const basic = fixture();
+  let releaseBackoff;
+  const backoff = new Promise((resolve) => {
+    releaseBackoff = resolve;
+  });
+  let enteredBackoff;
+  const waiting = new Promise((resolve) => {
+    enteredBackoff = resolve;
+  });
+  let attempts = 0;
+  const pending = run(
+    async (url, options) => {
+      if (url === graphqlUrl && ++attempts === 1)
+        return new Response("Synthetic transient failure", { status: 503 });
+
+      return basic.fetchImpl(url, options);
+    },
+    {
+      waitImpl: async (ms) => {
+        assert.equal(ms, 1000);
+        enteredBackoff();
+        await backoff;
+      },
+    },
+  );
+
+  let results;
+  try {
+    await waiting;
+    assert.equal(attempts, 1);
+  } finally {
+    releaseBackoff();
+    results = await pending;
+  }
+  assert.equal(results[0].approved, true);
+  assert.equal(attempts, 2);
 });
 
 test("completion stops after three transient failures and immediately on permanent HTTP errors", async () => {

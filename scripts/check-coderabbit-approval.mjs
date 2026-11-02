@@ -89,8 +89,8 @@ const githubClient = ({
       method: "POST",
       redirect: "error",
     };
-    let response;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const attemptCompletion = async (attempt) => {
+      let response;
       try {
         response = await fetchImpl(
           "https://api.github.com/graphql",
@@ -98,25 +98,21 @@ const githubClient = ({
         );
       } catch (error) {
         if (attempt === 3) throw error;
-
-        await waitImpl(1000 * attempt);
-        continue;
       }
-      if (
-        response.ok ||
-        attempt === 3 ||
-        (response.status !== 429 &&
-          (response.status < 500 || response.status >= 600))
-      )
-        break;
+      if (response) {
+        if (response.ok) return response.json();
 
+        requireEvidence(
+          attempt < 3 &&
+            (response.status === 429 ||
+              (response.status >= 500 && response.status < 600)),
+          `GitHub approval update failed (HTTP ${response.status}).`,
+        );
+      }
       await waitImpl(1000 * attempt);
-    }
-    requireEvidence(
-      response.ok,
-      `GitHub approval update failed (HTTP ${response.status}).`,
-    );
-    return response.json();
+      return attemptCompletion(attempt + 1);
+    };
+    return attemptCompletion(1);
   };
   const completeCheck = async (input, headSha) => {
     const payload = await sendCompletion(input);
