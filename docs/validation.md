@@ -59,11 +59,13 @@ The source-boundary and lint checks share process-ownership rules. Environment
 configuration remains infrastructure-owned. Pure source must use explicit
 process properties; whole-object captures, rest copies and nonliteral process
 keys are rejected. Native loaders stay direct so their literal module targets
-remain checkable. Application code may import permitted native utilities by
-name; contracts retain their local-only import rule. These are source-syntax
-checks against the literal Node entry-point names `process`, `globalThis` and
-`global`; they do not resolve locally shadowed bindings or perform general alias
-or data-flow tracking.
+remain checkable. Process-module promise callbacks are rejected; use named
+imports or await the module before explicit property access. Application code may
+import permitted native utilities by name; contracts retain their local-only
+import rule. These are source-syntax
+checks against the literal Node entry-point names `process`, `globalThis`,
+`global` and `module`; they do not resolve locally shadowed bindings or perform
+general alias or data-flow tracking.
 
 The [CodeQL workflow](../.github/workflows/codeql.yml) analyzes admitted JavaScript, TypeScript
 and GitHub Actions workflows using `security-extended` queries without installing dependencies

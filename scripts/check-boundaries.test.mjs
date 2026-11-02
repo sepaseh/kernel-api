@@ -59,6 +59,33 @@ const text = 'require("not-an-edge")';`);
   assert.equal(edges[0].line, 1);
 });
 
+test("module.require calls produce the same boundary edges as bare require", () => {
+  const file = path.join(root, "src/application/service.cjs");
+  for (const source of [
+    'module.require("node:http");',
+    'module["require"]("node:http");',
+    '(module as typeof module)["require" as const]("node:http");',
+  ]) {
+    const edges = inspectImports(source, file);
+    assert.equal(edges.length, 1, source);
+    assert.equal(edges[0].specifier, "node:http", source);
+    assert.match(check(edges[0].specifier, { file }), /HTTP transport/, source);
+    assert.match(
+      check(edges[0].specifier, {
+        file: path.join(root, "src/contracts/helper.cjs"),
+      }),
+      /Wire contracts/,
+      source,
+    );
+  }
+  const [computed] = inspectImports("module.require(target);", file);
+  assert.equal(computed.specifier, undefined);
+  assert.match(check(computed.specifier, { file }), /literal module paths/);
+  const [local] = inspectImports('module.require("./local.cjs");', file);
+  assert.equal(check(local.specifier, { file }), undefined);
+  assert.deepEqual(inspectImports('other.require("node:http");', file), []);
+});
+
 test("rejects former shared package imports and computed loading", () => {
   for (const specifier of ["@kernel/contracts", "@kernel/i18n/api", undefined])
     assert.ok(check(specifier));
@@ -263,6 +290,8 @@ test("process origins, copying and computed access obey the same bounded source 
   const capture = /do not capture the process object/;
   const literal = /Use literal process property names/;
   const loader = /do not extract or destructure the native loader/;
+  const awaited = /Await process module imports before/;
+  const reexport = /Do not re-export the process API/;
   const cases = [
     ["global.process.env;", environment],
     ["global?.['process']?.['env'];", environment],
@@ -306,6 +335,23 @@ test("process origins, copying and computed access obey the same bounded source 
     ["process.getBuiltinModule('process').env;", environment],
     ["(await import('node:process')).default.env;", environment],
     ["const runtime = await import('process'); runtime.env;", capture],
+    ["export { env } from 'node:process';", environment],
+    ["export { env as configuration } from 'process';", environment],
+    ["export { getBuiltinModule as load } from 'node:process';", loader],
+    ["export * from 'node:process';", reexport],
+    ["export * as runtime from 'process';", reexport],
+    ["export { default as runtime } from 'node:process';", reexport],
+    ["import('node:process').then(({ env }) => env.CONFIGURATION);", awaited],
+    [
+      "import('process').catch(() => {}).then(({ env }) => env.CONFIGURATION);",
+      awaited,
+    ],
+    ["import('node:process')['finally'](() => {});", awaited],
+    ["import('node:process').pid;", awaited],
+    ["import('node:process').default.env;", awaited],
+    ["const { then } = import('node:process');", awaited],
+    ["module.require('node:process').env;", environment],
+    ["const { env: config } = module.require('process');", environment],
   ];
   for (const [source, reason] of cases) {
     const violations = processAccessViolations(source, "source.ts");
@@ -335,6 +381,15 @@ test("process origins, copying and computed access obey the same bounded source 
     "type Runtime = typeof process;",
     "process: for (;;) { break process; }",
     "other.process.env; const { env } = other;",
+    "export { nextTick as schedule } from 'node:process';",
+    "export type { env } from 'node:process';",
+    "export type * from 'process';",
+    "export type * as runtime from 'node:process';",
+    "export { type env, nextTick } from 'process';",
+    "(await import('node:process')).nextTick;",
+    "const { nextTick: schedule } = await import('process');",
+    "const { nextTick: schedule } = module.require('node:process');",
+    "other.then(({ env }) => env.CONFIGURATION);",
   ]) {
     assert.deepEqual(processAccessViolations(source, "source.ts"), [], source);
     const [linted] = await eslint.lintText(source, {

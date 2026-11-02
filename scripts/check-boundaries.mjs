@@ -62,12 +62,30 @@ const isGlobalReference = (node) => {
 };
 const isProcessModule = (node) =>
   ["process", "node:process"].includes(literalText(node));
+const isCommonJsRequire = (expression) => {
+  expression = runtimeExpression(expression);
+  if (ts.isIdentifier(expression)) return expression.text === "require";
+  const member = staticMember(expression);
+  return (
+    member?.name === "require" &&
+    ts.isIdentifier(member.receiver) &&
+    member.receiver.text === "module"
+  );
+};
+const isProcessImportPromise = (node) => {
+  node = runtimeExpression(node);
+  return (
+    ts.isCallExpression(node) &&
+    runtimeExpression(node.expression).kind === ts.SyntaxKind.ImportKeyword &&
+    isProcessModule(node.arguments[0])
+  );
+};
 const isProcessModuleCall = (node) => {
   if (!ts.isCallExpression(node) || !isProcessModule(node.arguments[0]))
     return false;
   const expression = runtimeExpression(node.expression);
   if (expression.kind === ts.SyntaxKind.ImportKeyword) return true;
-  if (ts.isIdentifier(expression)) return expression.text === "require";
+  if (isCommonJsRequire(expression)) return true;
   const member = staticMember(expression);
   return (
     member?.name === "getBuiltinModule" && isProcessReference(member.receiver)
@@ -77,9 +95,13 @@ const isProcessModuleCall = (node) => {
 const isProcessReference = (node) => {
   node = runtimeExpression(node);
   if (!node) return false;
-  if (ts.isAwaitExpression(node)) return isProcessReference(node.expression);
+  if (ts.isAwaitExpression(node))
+    return (
+      isProcessImportPromise(node.expression) ||
+      isProcessReference(node.expression)
+    );
   if (ts.isIdentifier(node)) return node.text === "process";
-  if (isProcessModuleCall(node)) return true;
+  if (isProcessModuleCall(node) && !isProcessImportPromise(node)) return true;
   const member = staticMember(node);
   if (member?.name === "process") return isGlobalReference(member.receiver);
   return member?.name === "default" && isProcessReference(member.receiver);
@@ -88,7 +110,7 @@ const isProcessReference = (node) => {
 const isModuleLoader = (expression) => {
   expression = runtimeExpression(expression);
   if (expression.kind === ts.SyntaxKind.ImportKeyword) return true;
-  if (ts.isIdentifier(expression)) return expression.text === "require";
+  if (isCommonJsRequire(expression)) return true;
   const member = staticMember(expression);
   return (
     member?.name === "getBuiltinModule" && isProcessReference(member.receiver)
@@ -148,6 +170,13 @@ const globalBindingAccesses = (pattern) =>
       : [],
   );
 
+const processNamedAccesses = (elements) =>
+  elements
+    .filter((element) => !element.isTypeOnly)
+    .map((element) => {
+      const name = (element.propertyName ?? element.name).text;
+      return { node: element, name, capture: name === "default" };
+    });
 const processImportAccesses = (node) => {
   if (!ts.isImportDeclaration(node) || !isProcessModule(node.moduleSpecifier))
     return [];
@@ -158,12 +187,22 @@ const processImportAccesses = (node) => {
   if (bindings && ts.isNamespaceImport(bindings))
     accesses.push({ node: bindings, capture: true });
   if (bindings && ts.isNamedImports(bindings))
-    for (const element of bindings.elements) {
-      if (element.isTypeOnly) continue;
-      const name = (element.propertyName ?? element.name).text;
-      accesses.push({ node: element, name, capture: name === "default" });
-    }
+    accesses.push(...processNamedAccesses(bindings.elements));
   return accesses;
+};
+const processExportAccesses = (node) => {
+  if (
+    !ts.isExportDeclaration(node) ||
+    !isProcessModule(node.moduleSpecifier) ||
+    isErasedTypeReference(node)
+  )
+    return [];
+  if (node.exportClause && ts.isNamedExports(node.exportClause))
+    return processNamedAccesses(node.exportClause.elements).map((access) => ({
+      ...access,
+      reexport: true,
+    }));
+  return [{ node: node.exportClause ?? node, capture: true, reexport: true }];
 };
 
 const erasedPosition = (node) => {
@@ -183,7 +222,9 @@ const runtimeValueReference = (node) => {
     parent.label !== node
   );
 };
-const processObjectUseAllowed = (node) => {
+const processValueEscapes = (node) => {
+  if (!runtimeValueReference(node)) return false;
+  if (!isProcessReference(node) && !isProcessImportPromise(node)) return false;
   let expression = node;
   while (
     expression.parent &&
@@ -193,14 +234,21 @@ const processObjectUseAllowed = (node) => {
     expression = expression.parent;
   const parent = expression.parent;
   const member = staticMember(parent);
-  if (member && member.receiver === runtimeExpression(expression)) return true;
-  if (ts.isTypeOfExpression(parent)) return true;
+  if (member && member.receiver === runtimeExpression(expression)) return false;
+  if (ts.isTypeOfExpression(parent)) return false;
   const binding = bindingContext(parent);
-  return (
+  return !(
     binding &&
     binding.source === runtimeExpression(expression) &&
-    bindingElements(binding.target) !== undefined
+    bindingElements(binding.target) !== undefined &&
+    !isProcessImportPromise(binding.source)
   );
+};
+
+const awaitedDirectly = (node) => {
+  while (node.parent && erasedExpressionKinds.has(node.parent.kind))
+    node = node.parent;
+  return ts.isAwaitExpression(node.parent);
 };
 
 const calledDirectly = (node) => {
@@ -220,13 +268,18 @@ const processPropertyAccesses = (content, filename) => {
   const visit = (node) => {
     if (!erasedPosition(node)) {
       const member = staticMember(node);
-      if (member && isProcessReference(member.receiver))
+      if (member && isProcessImportPromise(member.receiver))
+        accesses.push({ node, promise: true });
+      else if (member && isProcessReference(member.receiver))
         accesses.push({
           node,
           name: member.name,
           directCall: calledDirectly(node),
         });
-      accesses.push(...processImportAccesses(node));
+      accesses.push(
+        ...processImportAccesses(node),
+        ...processExportAccesses(node),
+      );
       const binding = bindingContext(node);
       if (
         binding &&
@@ -236,12 +289,12 @@ const processPropertyAccesses = (content, filename) => {
         accesses.push(...processBindingAccesses(binding.target));
       if (binding && isGlobalReference(binding.source))
         accesses.push(...globalBindingAccesses(binding.target));
-      if (
-        runtimeValueReference(node) &&
-        isProcessReference(node) &&
-        !processObjectUseAllowed(node)
-      )
-        accesses.push({ node, capture: true });
+      if (processValueEscapes(node))
+        accesses.push({
+          node,
+          capture: true,
+          promise: isProcessImportPromise(node) && !awaitedDirectly(node),
+        });
     }
     ts.forEachChild(node, visit);
   };
@@ -253,6 +306,10 @@ const processPropertyAccesses = (content, filename) => {
 };
 
 const processAccessMessage = (access) => {
+  if (access.promise)
+    return "Await process module imports before accessing their properties; do not chain promise callbacks";
+  if (access.capture && access.reexport)
+    return "Do not re-export the process API through default, namespace or wildcard exports; use explicit named native utilities";
   if (access.capture)
     return "Use direct literal process access; do not capture the process object or import its default or namespace value";
   if (access.name === undefined)
