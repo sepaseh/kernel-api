@@ -19,6 +19,7 @@ import {
   catalogDataViolation,
   checkBoundaries,
   inspectImports,
+  processAccessViolations,
 } from "./check-boundaries.mjs";
 
 const root = path.resolve("fixture");
@@ -253,6 +254,99 @@ test("native process loaders cannot escape direct-call boundary checks", async (
     assert.equal(path.dirname(path.resolve(directory)), parent);
     assert.ok(path.basename(directory).startsWith("kernel-boundaries-loader-"));
     await rm(directory, { force: true, recursive: true });
+  }
+});
+
+test("process origins, copying and computed access obey the same bounded source and ESLint policy", async () => {
+  const eslint = new ESLint();
+  const environment = /environment configuration/;
+  const capture = /do not capture the process object/;
+  const literal = /Use literal process property names/;
+  const loader = /do not extract or destructure the native loader/;
+  const cases = [
+    ["global.process.env;", environment],
+    ["global?.['process']?.['env'];", environment],
+    ["const { ...runtime } = process; runtime.env;", environment],
+    ["let runtime; ({ ...runtime } = global.process);", environment],
+    ["const { process: { env } } = globalThis;", environment],
+    [
+      "const { ['process' as const]: { ['env' as const]: config } } = global;",
+      environment,
+    ],
+    ["const { process: { ...runtime } } = globalThis;", environment],
+    ["import { env as config } from 'node:process';", environment],
+    ["import { env } from 'process';", environment],
+    ["const { env: config } = require('node:process');", environment],
+    ["let config; ({ env: config } = require('process'));", environment],
+    ["import { getBuiltinModule as load } from 'node:process';", loader],
+    [
+      "import runtime from 'node:process'; runtime.getBuiltinModule('node:http');",
+      capture,
+    ],
+    [
+      "import * as runtime from 'process'; runtime.default.getBuiltinModule('module');",
+      capture,
+    ],
+    ["import { default as runtime } from 'node:process';", capture],
+    [
+      "import * as runtime from 'process'; function local(runtime) { return runtime.env; }",
+      capture,
+    ],
+    ["const runtime = process; runtime.env;", capture],
+    ["let runtime; runtime = global.process;", capture],
+    ["const { process: runtime } = globalThis; runtime.env;", capture],
+    ["send(process);", capture],
+    ["function expose() { return global.process; }", capture],
+    ["const value = { process };", capture],
+    ["const value = { ...process };", capture],
+    ["const key = 'env'; process[key];", literal],
+    ["const key = 'getBuiltinModule'; process[key]('node:http');", literal],
+    ["const { [key]: value } = process;", literal],
+    ["const runtime = require('node:process'); runtime.env;", capture],
+    ["process.getBuiltinModule('process').env;", environment],
+    ["(await import('node:process')).default.env;", environment],
+    ["const runtime = await import('process'); runtime.env;", capture],
+  ];
+  for (const [source, reason] of cases) {
+    const violations = processAccessViolations(source, "source.ts");
+    assert.equal(violations.length, 1, source);
+    assert.equal(violations[0].line, 1, source);
+    assert.match(violations[0].reason, reason, source);
+    const [linted] = await eslint.lintText(source, {
+      filePath: "src/application/policy.ts",
+    });
+    const ownership = linted.messages.filter(
+      (message) => message.ruleId === "foundation/environment-ownership",
+    );
+    assert.equal(ownership.length, 1, source);
+    assert.match(ownership[0].message, reason, source);
+  }
+  for (const source of [
+    "import type { env } from 'process';",
+    "import { type env, nextTick as schedule } from 'node:process';",
+    "import type runtime from 'node:process';",
+    "import type * as runtime from 'process';",
+    "const { nextTick: schedule } = require('node:process');",
+    "const { process: { nextTick: schedule } } = global;",
+    "process.getBuiltinModule('crypto');",
+    "global.process.getBuiltinModule('node:crypto');",
+    "const process = other; const record = { process: 1 }; record.process;",
+    "function local(process) { return process.pid; }",
+    "type Runtime = typeof process;",
+    "process: for (;;) { break process; }",
+    "other.process.env; const { env } = other;",
+  ]) {
+    assert.deepEqual(processAccessViolations(source, "source.ts"), [], source);
+    const [linted] = await eslint.lintText(source, {
+      filePath: "src/application/policy.ts",
+    });
+    assert.deepEqual(
+      linted.messages.filter(
+        (message) => message.ruleId === "foundation/environment-ownership",
+      ),
+      [],
+      source,
+    );
   }
 });
 

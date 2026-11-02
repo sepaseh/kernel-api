@@ -3,26 +3,26 @@ import simpleImportSort from "eslint-plugin-simple-import-sort";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-import { environmentAccessLines } from "./scripts/check-boundaries.mjs";
+import { processAccessViolations } from "./scripts/check-boundaries.mjs";
 
 const environmentOwnership = {
   meta: {
     type: "problem",
     schema: [],
     messages: {
-      environment:
-        "Contracts and application code must not read environment configuration. Read it in infrastructure.",
+      ownership: "{{reason}}",
     },
   },
   create: (context) => ({
     Program: () => {
-      for (const line of environmentAccessLines(
+      for (const { line, reason } of processAccessViolations(
         context.sourceCode.text,
         context.filename,
       ))
         context.report({
           loc: { line, column: 0 },
-          messageId: "environment",
+          messageId: "ownership",
+          data: { reason },
         });
     },
   }),

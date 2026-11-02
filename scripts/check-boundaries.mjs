@@ -56,16 +56,33 @@ const staticMember = (node) => {
   return undefined;
 };
 
+const isGlobalReference = (node) => {
+  node = runtimeExpression(node);
+  return ts.isIdentifier(node) && ["globalThis", "global"].includes(node.text);
+};
+const isProcessModule = (node) =>
+  ["process", "node:process"].includes(literalText(node));
+const isProcessModuleCall = (node) => {
+  if (!ts.isCallExpression(node) || !isProcessModule(node.arguments[0]))
+    return false;
+  const expression = runtimeExpression(node.expression);
+  if (expression.kind === ts.SyntaxKind.ImportKeyword) return true;
+  if (ts.isIdentifier(expression)) return expression.text === "require";
+  const member = staticMember(expression);
+  return (
+    member?.name === "getBuiltinModule" && isProcessReference(member.receiver)
+  );
+};
+
 const isProcessReference = (node) => {
   node = runtimeExpression(node);
   if (!node) return false;
+  if (ts.isAwaitExpression(node)) return isProcessReference(node.expression);
   if (ts.isIdentifier(node)) return node.text === "process";
+  if (isProcessModuleCall(node)) return true;
   const member = staticMember(node);
-  return (
-    member?.name === "process" &&
-    ts.isIdentifier(member.receiver) &&
-    member.receiver.text === "globalThis"
-  );
+  if (member?.name === "process") return isGlobalReference(member.receiver);
+  return member?.name === "default" && isProcessReference(member.receiver);
 };
 
 const isModuleLoader = (expression) => {
@@ -87,22 +104,103 @@ const bindingPropertyName = (binding) => {
   return ts.isIdentifier(name) ? name.text : literalText(name);
 };
 
-const processDestructuring = (node) => {
+const bindingContext = (node) => {
   if (
     (ts.isVariableDeclaration(node) || ts.isParameter(node)) &&
-    ts.isObjectBindingPattern(node.name) &&
-    isProcessReference(node.initializer)
+    node.initializer
   )
-    return node.name.elements;
+    return { target: node.name, source: runtimeExpression(node.initializer) };
   if (
     ts.isBinaryExpression(node) &&
-    node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-    isProcessReference(node.right)
-  ) {
-    const target = runtimeExpression(node.left);
-    if (ts.isObjectLiteralExpression(target)) return target.properties;
-  }
-  return [];
+    node.operatorToken.kind === ts.SyntaxKind.EqualsToken
+  )
+    return {
+      target: runtimeExpression(node.left),
+      source: runtimeExpression(node.right),
+    };
+  return undefined;
+};
+const bindingElements = (pattern) => {
+  if (ts.isObjectBindingPattern(pattern)) return pattern.elements;
+  if (ts.isObjectLiteralExpression(pattern)) return pattern.properties;
+  return undefined;
+};
+const bindingTarget = (binding) =>
+  ts.isPropertyAssignment(binding)
+    ? runtimeExpression(binding.initializer)
+    : binding.name;
+const processBindingAccesses = (pattern) => {
+  const elements = bindingElements(pattern);
+  if (!elements) return [{ node: pattern, capture: true }];
+  return elements.flatMap((binding) => {
+    if (binding.dotDotDotToken || ts.isSpreadAssignment(binding))
+      return [{ node: binding, name: "env" }];
+    const name = bindingPropertyName(binding);
+    if (name === "default")
+      return processBindingAccesses(bindingTarget(binding));
+    return [{ node: binding, name }];
+  });
+};
+const globalBindingAccesses = (pattern) =>
+  (bindingElements(pattern) ?? []).flatMap((binding) =>
+    bindingPropertyName(binding) === "process"
+      ? processBindingAccesses(bindingTarget(binding))
+      : [],
+  );
+
+const processImportAccesses = (node) => {
+  if (!ts.isImportDeclaration(node) || !isProcessModule(node.moduleSpecifier))
+    return [];
+  const clause = node.importClause;
+  if (!clause || isErasedTypeReference(node)) return [];
+  const accesses = clause.name ? [{ node: clause.name, capture: true }] : [];
+  const bindings = clause.namedBindings;
+  if (bindings && ts.isNamespaceImport(bindings))
+    accesses.push({ node: bindings, capture: true });
+  if (bindings && ts.isNamedImports(bindings))
+    for (const element of bindings.elements) {
+      if (element.isTypeOnly) continue;
+      const name = (element.propertyName ?? element.name).text;
+      accesses.push({ node: element, name, capture: name === "default" });
+    }
+  return accesses;
+};
+
+const erasedPosition = (node) => {
+  for (let parent = node.parent; parent; parent = parent.parent)
+    if (ts.isTypeNode(parent)) return true;
+  return false;
+};
+const runtimeValueReference = (node) => {
+  if (erasedExpressionKinds.has(node.kind) || ts.isAwaitExpression(node))
+    return false;
+  if (!ts.isIdentifier(node)) return true;
+  const parent = node.parent;
+  if (ts.isShorthandPropertyAssignment(parent)) return true;
+  return (
+    parent.name !== node &&
+    parent.propertyName !== node &&
+    parent.label !== node
+  );
+};
+const processObjectUseAllowed = (node) => {
+  let expression = node;
+  while (
+    expression.parent &&
+    (erasedExpressionKinds.has(expression.parent.kind) ||
+      ts.isAwaitExpression(expression.parent))
+  )
+    expression = expression.parent;
+  const parent = expression.parent;
+  const member = staticMember(parent);
+  if (member && member.receiver === runtimeExpression(expression)) return true;
+  if (ts.isTypeOfExpression(parent)) return true;
+  const binding = bindingContext(parent);
+  return (
+    binding &&
+    binding.source === runtimeExpression(expression) &&
+    bindingElements(binding.target) !== undefined
+  );
 };
 
 const calledDirectly = (node) => {
@@ -119,36 +217,59 @@ const processPropertyAccesses = (content, filename) => {
     true,
   );
   const accesses = [];
-  const add = (node, name, directCall = false) =>
-    accesses.push({
-      name,
-      directCall,
-      line:
-        source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
-    });
   const visit = (node) => {
-    const member = staticMember(node);
-    if (member && isProcessReference(member.receiver))
-      add(node, member.name, calledDirectly(node));
-    for (const binding of processDestructuring(node))
-      add(binding, bindingPropertyName(binding));
+    if (!erasedPosition(node)) {
+      const member = staticMember(node);
+      if (member && isProcessReference(member.receiver))
+        accesses.push({
+          node,
+          name: member.name,
+          directCall: calledDirectly(node),
+        });
+      accesses.push(...processImportAccesses(node));
+      const binding = bindingContext(node);
+      if (
+        binding &&
+        bindingElements(binding.target) &&
+        isProcessReference(binding.source)
+      )
+        accesses.push(...processBindingAccesses(binding.target));
+      if (binding && isGlobalReference(binding.source))
+        accesses.push(...globalBindingAccesses(binding.target));
+      if (
+        runtimeValueReference(node) &&
+        isProcessReference(node) &&
+        !processObjectUseAllowed(node)
+      )
+        accesses.push({ node, capture: true });
+    }
     ts.forEachChild(node, visit);
   };
   visit(source);
-  return accesses;
+  return accesses.map(({ node, ...access }) => ({
+    ...access,
+    line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+  }));
 };
 
-export const environmentAccessLines = (content, filename) =>
+const processAccessMessage = (access) => {
+  if (access.capture)
+    return "Use direct literal process access; do not capture the process object or import its default or namespace value";
+  if (access.name === undefined)
+    return "Use literal process property names so environment and native-loader access can be checked";
+  if (access.name === "env")
+    return "Contracts and application code must not read environment configuration; read it in infrastructure";
+  if (access.name === "getBuiltinModule" && !access.directCall)
+    return "Call process.getBuiltinModule directly with a literal module ID; do not extract or destructure the native loader";
+  return undefined;
+};
+export const processAccessViolations = (content, filename) =>
   processPropertyAccesses(content, filename)
-    .filter((access) => access.name === "env")
-    .map((access) => access.line);
-
-const nativeLoaderExtractionLines = (content, filename) =>
-  processPropertyAccesses(content, filename)
-    .filter(
-      (access) => access.name === "getBuiltinModule" && !access.directCall,
-    )
-    .map((access) => access.line);
+    .map((access) => ({
+      line: access.line,
+      reason: processAccessMessage(access),
+    }))
+    .filter((violation) => violation.reason !== undefined);
 
 export const inspectImports = (content, filename = "source.ts") => {
   const source = ts.createSourceFile(
@@ -495,16 +616,10 @@ export const checkBoundaries = async (root = repository) => {
       const ownsPureSource = ["application", "contracts"].some((owner) =>
         inside(path.join(root, "src", owner), file),
       );
-      const environmentViolations = ownsPureSource
-        ? environmentAccessLines(content, file).map(
-            (line) =>
-              `${path.relative(root, file)}:${line}: Contracts and application code must not read environment configuration; read it in infrastructure`,
-          )
-        : [];
-      const loaderViolations = ownsPureSource
-        ? nativeLoaderExtractionLines(content, file).map(
-            (line) =>
-              `${path.relative(root, file)}:${line}: Call process.getBuiltinModule directly with a literal module ID; do not extract or destructure the native loader`,
+      const processViolations = ownsPureSource
+        ? processAccessViolations(content, file).map(
+            ({ line, reason }) =>
+              `${path.relative(root, file)}:${line}: ${reason}`,
           )
         : [];
       const dataViolation =
@@ -533,8 +648,7 @@ export const checkBoundaries = async (root = repository) => {
         }),
       );
       return [
-        ...environmentViolations,
-        ...loaderViolations,
+        ...processViolations,
         ...(dataViolation
           ? [`${path.relative(root, file)}:1: ${dataViolation}`]
           : []),
