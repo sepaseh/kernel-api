@@ -25,6 +25,46 @@ const isErasedTypeReference = (node) => {
   return false;
 };
 
+const unparenthesized = (node) => {
+  while (ts.isParenthesizedExpression(node)) node = node.expression;
+  return node;
+};
+
+const staticMember = (node) => {
+  if (ts.isPropertyAccessExpression(node))
+    return { name: node.name.text, receiver: unparenthesized(node.expression) };
+  if (
+    ts.isElementAccessExpression(node) &&
+    ts.isStringLiteralLike(node.argumentExpression)
+  )
+    return {
+      name: node.argumentExpression.text,
+      receiver: unparenthesized(node.expression),
+    };
+  return undefined;
+};
+
+const isProcessReference = (node) => {
+  node = unparenthesized(node);
+  if (ts.isIdentifier(node)) return node.text === "process";
+  const member = staticMember(node);
+  return (
+    member?.name === "process" &&
+    ts.isIdentifier(member.receiver) &&
+    member.receiver.text === "globalThis"
+  );
+};
+
+const isModuleLoader = (expression) => {
+  expression = unparenthesized(expression);
+  if (expression.kind === ts.SyntaxKind.ImportKeyword) return true;
+  if (ts.isIdentifier(expression)) return expression.text === "require";
+  const member = staticMember(expression);
+  return (
+    member?.name === "getBuiltinModule" && isProcessReference(member.receiver)
+  );
+};
+
 export const inspectImports = (content, filename = "source.ts") => {
   const source = ts.createSourceFile(
     filename,
@@ -57,12 +97,7 @@ export const inspectImports = (content, filename = "source.ts") => {
       ts.isExternalModuleReference(node.moduleReference)
     )
       add(node, node.moduleReference.expression);
-    else if (
-      ts.isCallExpression(node) &&
-      (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-        (ts.isIdentifier(node.expression) &&
-          node.expression.text === "require"))
-    )
+    else if (ts.isCallExpression(node) && isModuleLoader(node.expression))
       add(node, node.arguments[0]);
     ts.forEachChild(node, visit);
   };
@@ -326,7 +361,8 @@ const sourceFiles = async (directory) => {
           ? []
           : sourceFiles(filename);
 
-      return entry.name.endsWith(".ts") && !/\.(?:test|spec)\./.test(entry.name)
+      return /\.(?:[cm]?[jt]s|[jt]sx)$/.test(entry.name) &&
+        !/\.(?:test|spec)\./.test(entry.name)
         ? [filename]
         : [];
     }),
@@ -343,14 +379,8 @@ const environmentAccessLines = (content, filename) => {
   );
   const lines = [];
   const visit = (node) => {
-    if (
-      ((ts.isPropertyAccessExpression(node) && node.name.text === "env") ||
-        (ts.isElementAccessExpression(node) &&
-          ts.isStringLiteralLike(node.argumentExpression) &&
-          node.argumentExpression.text === "env")) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === "process"
-    )
+    const member = staticMember(node);
+    if (member?.name === "env" && isProcessReference(member.receiver))
       lines.push(
         source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
       );

@@ -19,7 +19,7 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["**/*.{ts,mjs}"],
+    files: ["**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
     languageOptions: {
       globals: globals.node,
       parserOptions: { tsconfigRootDir: import.meta.dirname },
@@ -37,13 +37,24 @@ export default [
     },
   },
   {
-    files: ["src/contracts/**/*.ts", "src/application/**/*.ts"],
+    files: ["src/{contracts,application}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
     rules: {
       "no-restricted-properties": [
         "error",
         {
           object: "process",
           property: "env",
+          message:
+            "Contracts and application code must not read environment configuration. Read it in infrastructure.",
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "MemberExpression[object.type='MemberExpression'][object.object.name='globalThis']" +
+            ":matches([object.computed=false][object.property.name='process'], [object.computed=true][object.property.value='process'])" +
+            ":matches([computed=false][property.name='env'], [computed=true][property.value='env'])",
           message:
             "Contracts and application code must not read environment configuration. Read it in infrastructure.",
         },

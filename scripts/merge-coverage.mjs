@@ -40,7 +40,8 @@ const coverageRecords = (content) => {
 };
 
 export const mergeCoverageReports = (nodeReport, auditReport) => {
-  const records = nodeReport ? coverageRecords(nodeReport) : new Map();
+  const records =
+    nodeReport === undefined ? new Map() : coverageRecords(nodeReport);
   // A repeated focused audit replaces its previous measured records, while the
   // Node suite's independent source records remain unchanged.
   for (const [source, record] of coverageRecords(auditReport))

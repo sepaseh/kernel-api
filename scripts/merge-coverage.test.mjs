@@ -65,8 +65,23 @@ test("incomplete, unmeasured and unsafe reports fail instead of inventing covera
     measured("C:/outside.mjs", 1),
     measured("..\\private.mjs", 1),
     valid + valid,
-  ])
+  ]) {
     assert.throws(() => mergeCoverageReports(undefined, invalid));
+    assert.throws(() => mergeCoverageReports(invalid, valid));
+  }
+});
+
+test("an existing empty report fails intact while a missing report permits audit-only coverage", async (context) => {
+  const { root, coverage, output, audit } = await fixture(context);
+  await writeFile(output, "");
+
+  await assert.rejects(mergeCoverage(root), /complete measured records/);
+  assert.equal(await readFile(output, "utf8"), "");
+  assert.deepEqual((await readdir(coverage)).sort(), ["audit", "lcov.info"]);
+  await rm(output);
+  await mergeCoverage(root);
+  assert.equal(await readFile(output, "utf8"), audit);
+  assert.deepEqual((await readdir(coverage)).sort(), ["audit", "lcov.info"]);
 });
 
 test("the real merge operation retains Node bytes and leaves them intact on failure", async (context) => {

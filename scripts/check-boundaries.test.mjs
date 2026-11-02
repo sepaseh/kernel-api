@@ -11,6 +11,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
+import { ESLint } from "eslint";
 import ts from "typescript";
 
 import {
@@ -156,6 +157,34 @@ test("application code cannot obtain createRequire loaders through native module
       source,
     );
   }
+});
+
+test("builtin process loaders retain literal targets and reject computed module IDs", () => {
+  const file = path.join(root, "src/application/service.ts");
+  for (const source of [
+    'process.getBuiltinModule("module").createRequire(import.meta.url)("hono");',
+    'globalThis.process.getBuiltinModule("node:module").createRequire(import.meta.url)("hono");',
+    'globalThis["process"]?.["getBuiltinModule"]("module").createRequire(import.meta.url)("hono");',
+    'globalThis?.process?.getBuiltinModule?.("module").createRequire(import.meta.url)("hono");',
+  ]) {
+    const edges = inspectImports(source, file);
+    assert.equal(edges.length, 1, source);
+    assert.match(
+      check(edges[0].specifier, { file }),
+      /must not construct module loaders/,
+      source,
+    );
+  }
+  const computed = inspectImports(
+    "process.getBuiltinModule(moduleName);",
+    file,
+  );
+  assert.equal(computed.length, 1);
+  assert.match(check(computed[0].specifier, { file }), /literal module paths/);
+  const utility = inspectImports('process.getBuiltinModule("crypto");', file);
+  assert.equal(utility.length, 1);
+  assert.equal(check(utility[0].specifier, { file }), undefined);
+  assert.deepEqual(inspectImports('other.getBuiltinModule("module");'), []);
 });
 
 test("production imports cannot reach files excluded as test-only source", () => {
@@ -543,7 +572,7 @@ test("installed packages cannot bypass the application boundary through runtime 
   }
 });
 
-test("nested production files retain import order while test trees and non-TypeScript files stay excluded", async () => {
+test("nested production files retain import order while test trees and non-source files stay excluded", async () => {
   const parent = await realpath(tmpdir());
   const directory = await mkdtemp(path.join(parent, "kernel-boundaries-"));
   try {
@@ -571,7 +600,7 @@ test("nested production files retain import order while test trees and non-TypeS
       "src/contracts/types.ts": 'import "hono";\n',
       "src/ignored.spec.ts": 'import "@kernel/ignored";\n',
       "src/ignored.test.helper.ts": 'import "@kernel/ignored";\n',
-      "src/ignored.tsx": 'import "@kernel/ignored";\n',
+      "src/ignored.json": '{ "text": "not source" }\n',
       "src/test/ignored.ts": 'import "@kernel/ignored";\n',
       "src/__tests__/ignored.ts": 'import "@kernel/ignored";\n',
       "src/node_modules/ignored.ts": 'import "@kernel/ignored";\n',
@@ -607,6 +636,63 @@ test("nested production files retain import order while test trees and non-TypeS
   } finally {
     assert.equal(path.dirname(path.resolve(directory)), parent);
     assert.ok(path.basename(directory).startsWith("kernel-boundaries-"));
+    await rm(directory, { force: true, recursive: true });
+  }
+});
+
+test("JavaScript contract helpers cannot hide forbidden imports across source extensions", async () => {
+  const parent = await realpath(tmpdir());
+  const directory = await mkdtemp(path.join(parent, "kernel-boundaries-js-"));
+  try {
+    await mkdir(path.join(directory, "src/contracts"), { recursive: true });
+    const extensions = ["js", "jsx", "mjs", "cjs", "tsx", "mts", "cts"];
+    const files = {
+      "package.json": JSON.stringify({
+        name: "synthetic-js-contract-boundary",
+      }),
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: {
+          module: "ESNext",
+          moduleResolution: "bundler",
+          allowJs: true,
+        },
+        include: ["src/**/*"],
+      }),
+      "src/contracts/owner.ts": 'export { value } from "./helper-js.js";',
+      ...Object.fromEntries(
+        extensions.map((extension) => [
+          `src/contracts/helper-${extension}.${extension}`,
+          extension === "cjs"
+            ? 'const value = require("hono"); module.exports = { value };'
+            : 'export { value } from "hono";',
+        ]),
+      ),
+    };
+    await Promise.all(
+      Object.entries(files).map(([name, content]) =>
+        writeFile(path.join(directory, name), content),
+      ),
+    );
+
+    const result = await checkBoundaries(directory);
+    assert.equal(result.files, extensions.length + 1);
+    assert.equal(result.violations.length, extensions.length);
+    for (const extension of extensions)
+      assert.ok(
+        result.violations.some(
+          (violation) =>
+            violation.startsWith(
+              `${path.join("src", "contracts", `helper-${extension}.${extension}`)}:1:`,
+            ) &&
+            violation.includes(
+              "Wire contracts must depend only on local pure contract modules",
+            ),
+        ),
+        extension,
+      );
+  } finally {
+    assert.equal(path.dirname(path.resolve(directory)), parent);
+    assert.ok(path.basename(directory).startsWith("kernel-boundaries-js-"));
     await rm(directory, { force: true, recursive: true });
   }
 });
@@ -673,10 +759,16 @@ test("direct environment reads stay outside contracts and application code", asy
         "const direct = process.env;",
         'const computed = process["env"];',
         "const optional = process?.env;",
+        "const global = globalThis.process.env;",
+        'const globalComputed = globalThis["process"]["env"];',
+        'const globalOptional = globalThis?.["process"]?.env;',
+        "const grouped = (globalThis.process).env;",
+        "const wrapped = (globalThis.process.env);",
         'const text = "process.env";',
         "// process.env",
         "const { env } = process;",
         "const unrelated = other.env;",
+        "const otherProcess = other.process.env;",
       ].join("\n"),
       "src/contracts/settings.ts": "const direct = process.env;",
       "src/infrastructure/config.ts": "const allowed = process.env;",
@@ -689,11 +781,16 @@ test("direct environment reads stay outside contracts and application code", asy
 
     const result = await checkBoundaries(directory);
     assert.equal(result.files, 3);
-    assert.equal(result.violations.length, 4);
+    assert.equal(result.violations.length, 9);
     for (const location of [
       `${path.join("src", "application", "service.ts")}:1:`,
       `${path.join("src", "application", "service.ts")}:2:`,
       `${path.join("src", "application", "service.ts")}:3:`,
+      `${path.join("src", "application", "service.ts")}:4:`,
+      `${path.join("src", "application", "service.ts")}:5:`,
+      `${path.join("src", "application", "service.ts")}:6:`,
+      `${path.join("src", "application", "service.ts")}:7:`,
+      `${path.join("src", "application", "service.ts")}:8:`,
       `${path.join("src", "contracts", "settings.ts")}:1:`,
     ])
       assert.ok(
@@ -709,6 +806,47 @@ test("direct environment reads stay outside contracts and application code", asy
     assert.ok(path.basename(directory).startsWith("kernel-boundaries-env-"));
     await rm(directory, { force: true, recursive: true });
   }
+});
+
+test("ESLint enforces environment ownership for bare and global process access", async () => {
+  const eslint = new ESLint();
+  const restricted = (messages) =>
+    messages.filter((message) =>
+      ["no-restricted-properties", "no-restricted-syntax"].includes(
+        message.ruleId,
+      ),
+    );
+  for (const source of [
+    "process.env;",
+    'process["env"];',
+    "globalThis.process.env;",
+    'globalThis.process["env"];',
+    'globalThis["process"].env;',
+    'globalThis["process"]["env"];',
+    'globalThis?.["process"]?.env;',
+    "(globalThis.process).env;",
+    "(globalThis.process.env);",
+  ]) {
+    for (const filePath of [
+      "src/application/service.ts",
+      "src/contracts/helper.js",
+    ]) {
+      const [result] = await eslint.lintText(source, { filePath });
+      assert.equal(
+        restricted(result.messages).length,
+        1,
+        `${filePath}: ${source}`,
+      );
+    }
+    const [infrastructure] = await eslint.lintText(source, {
+      filePath: "src/infrastructure/config.ts",
+    });
+    assert.deepEqual(restricted(infrastructure.messages), []);
+  }
+  const [unrelated] = await eslint.lintText("other.process.env;", {
+    filePath: "src/application/service.ts",
+  });
+  assert.deepEqual(restricted(unrelated.messages), []);
 });
 
 test("directory aliases resolve local imports while preserving repository containment", async (t) => {
