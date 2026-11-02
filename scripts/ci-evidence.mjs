@@ -180,6 +180,17 @@ export const evidenceManifest = (identity, bytes) => ({
   },
 });
 
+const verifyManifest = async (filename, info, expected) => {
+  if (info.size > 16 * 1024)
+    throw new Error("CI evidence manifest is too large");
+
+  const actual = JSON.parse(await readFile(filename, "utf8"));
+  if (!isDeepStrictEqual(actual, expected))
+    throw new Error(
+      "Coverage evidence does not match the exact source, workflow, producer or measured bytes",
+    );
+};
+
 export const runEvidence = async (
   mode,
   { root = repository, environment = process.env, event, git, output } = {},
@@ -216,16 +227,8 @@ export const runEvidence = async (
   if (!verifying)
     await mkdir(path.join(root, "coverage/governance"), { recursive: true });
   const { filename, info } = await regularFile(root, manifestPath, !verifying);
-  if (verifying) {
-    if (info.size > 16 * 1024)
-      throw new Error("CI evidence manifest is too large");
-    if (
-      !isDeepStrictEqual(JSON.parse(await readFile(filename, "utf8")), expected)
-    )
-      throw new Error(
-        "Coverage evidence does not match the exact source, workflow, producer or measured bytes",
-      );
-  } else {
+  if (verifying) await verifyManifest(filename, info, expected);
+  else {
     await writeFile(filename, JSON.stringify(expected, null, 2) + "\n", "utf8");
     const values = {
       artifact: `coverage-${identity.suite}-${identity.runId}-${identity.attempt}`,

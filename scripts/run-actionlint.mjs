@@ -1,12 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { constants } from "node:fs";
 import {
   chmod,
   lstat,
   mkdir,
   mkdtemp,
+  open,
   readdir,
-  readFile,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -83,18 +84,34 @@ const workflowFiles = async (root) => {
     files.push(`.github/workflows/${entry.name}`);
   }
   if (!files.length) throw new Error("No actual GitHub workflow files to lint");
-  return files.sort();
+  return files.sort((left, right) => left.localeCompare(right, "en"));
+};
+
+const cachedArchive = async (filename) => {
+  await using file = await open(
+    filename,
+    constants.O_RDONLY | (constants.O_NONBLOCK ?? 0),
+  );
+  const info = await file.stat();
+  const entry = await lstat(filename);
+  if (
+    !info.isFile() ||
+    !entry.isFile() ||
+    entry.isSymbolicLink() ||
+    info.dev !== entry.dev ||
+    info.ino !== entry.ino
+  )
+    throw new Error("Cached actionlint archive must be an ordinary file");
+  if (info.size > maximumArchiveBytes)
+    throw new Error("Cached actionlint archive exceeds its size limit");
+  const bytes = await file.readFile();
+  return bytes;
 };
 
 const archiveBytes = async (filename, asset, request) => {
   let bytes;
   try {
-    const info = await lstat(filename);
-    if (!info.isFile() || info.isSymbolicLink())
-      throw new Error("Cached actionlint archive must be an ordinary file");
-    if (info.size > maximumArchiveBytes)
-      throw new Error("Cached actionlint archive exceeds its size limit");
-    bytes = await readFile(filename);
+    bytes = await cachedArchive(filename);
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
@@ -106,7 +123,8 @@ const archiveBytes = async (filename, asset, request) => {
       );
     bytes = Buffer.from(await response.arrayBuffer());
     verifyActionlintArchive(bytes, asset.sha256);
-    await writeFile(filename, bytes, { flag: "wx" });
+    await using file = await open(filename, "wx", 0o600);
+    await file.writeFile(bytes);
   }
   verifyActionlintArchive(bytes, asset.sha256);
   return bytes;
@@ -119,16 +137,14 @@ export const runActionlint = async ({
   execute = spawnSync,
 } = {}) => {
   const files = await workflowFiles(root);
-  let cache = root;
-  for (const segment of [
-    "coverage",
-    "tools",
-    "actionlint",
-    actionlintVersion,
-  ]) {
-    cache = path.join(cache, segment);
-    await ordinaryDirectory(cache, true);
-  }
+  const coverage = path.join(root, "coverage");
+  const tools = path.join(coverage, "tools");
+  const actionlint = path.join(tools, "actionlint");
+  const cache = path.join(actionlint, actionlintVersion);
+  await ordinaryDirectory(coverage, true);
+  await ordinaryDirectory(tools, true);
+  await ordinaryDirectory(actionlint, true);
+  await ordinaryDirectory(cache, true);
   const bytes = await archiveBytes(
     path.join(cache, asset.name),
     asset,

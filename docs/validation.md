@@ -34,9 +34,11 @@ provider skips must remain visible.
 
 `npm run check:actions` runs the official actionlint binary over the actual
 `.github/workflows` files. The runner pins its version and verifies the release
-archive checksum before executing the extracted binary. This required check runs
-once in Static checks and once within each separately requested local `full` gate;
-it does not add another CI job or suppress lint findings. Optional ShellCheck and
+archive checksum before executing the extracted binary. It reads cached archive
+metadata and bytes through the same open file handle; new cache entries use
+exclusive creation and never overwrite another writer.
+This required check runs once in Static checks and once within each separately
+requested local `full` gate; it does not add another CI job or suppress lint findings. Optional ShellCheck and
 Pyflakes integrations are disabled so actionlint has the same scope on supported
 Windows and Linux hosts.
 

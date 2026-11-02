@@ -1,13 +1,17 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import {
   mkdir,
   mkdtemp,
+  open,
   readdir,
   readFile,
+  rename,
   rm,
   symlink,
+  truncate,
   writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -139,6 +143,107 @@ test("tampered downloads and cached archives cannot reach extraction", async (co
   await assert.rejects(runActionlint(value), /pinned SHA-256/);
   assert.equal(value.executions.length, 0);
 });
+
+test("cache reads retain the checked file when its path is replaced", async (context) => {
+  const value = await fixture(context);
+  await runActionlint(value);
+  value.executions.length = 0;
+  const filename = path.join(value.cache, value.asset.name);
+  const handle = await open(filename, "r");
+  const prototype = Object.getPrototypeOf(handle);
+  await handle.close();
+  const read = prototype.readFile;
+  let replaced = false;
+  const replacement = context.mock.method(
+    prototype,
+    "readFile",
+    async function (...args) {
+      if (!replaced) {
+        await rename(filename, filename + ".original");
+        await writeFile(filename, "unverified replacement");
+        replaced = true;
+      }
+      return read.apply(this, args);
+    },
+  );
+
+  assert.equal(await runActionlint(value), 0);
+  replacement.mock.restore();
+  assert.ok(replaced);
+  assert.equal(value.executions.length, 2);
+  assert.equal(value.requests.length, 1);
+  assert.equal(await readFile(filename, "utf8"), "unverified replacement");
+});
+
+test("rejects cache replacement during inspection and oversized cached files", async (context) => {
+  const value = await fixture(context);
+  await runActionlint(value);
+  value.executions.length = 0;
+  const filename = path.join(value.cache, value.asset.name);
+  const handle = await open(filename, "r");
+  const prototype = Object.getPrototypeOf(handle);
+  await handle.close();
+  const stat = prototype.stat;
+  const replacement = context.mock.method(
+    prototype,
+    "stat",
+    async function (...args) {
+      const info = await stat.apply(this, args);
+      await rename(filename, filename + ".original");
+      await writeFile(filename, syntheticArchive);
+      return info;
+    },
+  );
+
+  await assert.rejects(runActionlint(value), /must be an ordinary file/);
+  replacement.mock.restore();
+  assert.equal(value.executions.length, 0);
+  await truncate(filename, 17 * 1024 * 1024);
+  await assert.rejects(runActionlint(value), /exceeds its size limit/);
+  assert.equal(value.executions.length, 0);
+  assert.equal(value.requests.length, 1);
+});
+
+test("does not overwrite a cache entry created while downloading", async (context) => {
+  const value = await fixture(context);
+  const filename = path.join(value.cache, value.asset.name);
+  await assert.rejects(
+    runActionlint({
+      ...value,
+      request: async (url) => {
+        await writeFile(filename, "concurrent cache entry");
+        return value.request(url);
+      },
+    }),
+    { code: "EEXIST" },
+  );
+  assert.equal(await readFile(filename, "utf8"), "concurrent cache entry");
+  assert.equal(value.executions.length, 0);
+});
+
+test(
+  "rejects a FIFO cache entry without waiting for a writer",
+  {
+    skip:
+      process.platform === "win32" && "POSIX FIFOs are unavailable on Windows",
+  },
+  async (context) => {
+    const value = await fixture(context);
+    await runActionlint(value);
+    value.executions.length = 0;
+    const filename = path.join(value.cache, value.asset.name);
+    await rm(filename);
+    const result = spawnSync("/usr/bin/mkfifo", [filename], {
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    assert.equal(result.status, 0, result.stderr);
+
+    await assert.rejects(runActionlint(value), /must be an ordinary file/);
+    assert.equal(value.executions.length, 0);
+    assert.equal(value.requests.length, 1);
+  },
+);
 
 test("download errors fail closed without executing or leaving extraction directories", async (context) => {
   const value = await fixture(context);
