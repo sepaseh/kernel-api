@@ -7,7 +7,7 @@ The first publication is governance only.
 - [Validation and exact-snapshot evidence](validation.md)
 - [Governance testing](testing.md)
 - [Test reliability](test-reliability.md)
-- [Main-branch protection and bootstrap](branch-protection.md)
+- [Main-branch protection](branch-protection.md)
 - [SonarQube Cloud and CodeRabbit preflight](sonarqube.md)
 - [Assistant instructions](../AGENTS.md)
 - [Contributing](../CONTRIBUTING.md)

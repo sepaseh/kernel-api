@@ -34,6 +34,7 @@ const lcov = (source = "src/example.ts") =>
   `TN:\nSF:${source}\nDA:1,1\nLF:1\nLH:1\nend_of_record\n`;
 const identityOptions = () => ({
   environment: {
+    CI_EVIDENCE_SUITE: "governance",
     GITHUB_REPOSITORY: "example/api",
     GITHUB_EVENT_NAME: "pull_request",
     GITHUB_SHA: commit,
@@ -67,7 +68,7 @@ const fixture = async (context) => {
     await rm(root, { recursive: true, force: true });
   });
   await mkdir(path.join(root, "src"));
-  await mkdir(path.join(root, "coverage"));
+  await mkdir(path.join(root, "coverage/governance"), { recursive: true });
   await writeFile(
     path.join(root, "src/example.ts"),
     "export const value = 1;\n",
@@ -83,11 +84,14 @@ const fixture = async (context) => {
 };
 const readManifest = async (root) =>
   JSON.parse(
-    await readFile(path.join(root, "coverage/ci-evidence.json"), "utf8"),
+    await readFile(
+      path.join(root, "coverage/governance/ci-evidence.json"),
+      "utf8",
+    ),
   );
 const putManifest = (root, value) =>
   writeFile(
-    path.join(root, "coverage/ci-evidence.json"),
+    path.join(root, "coverage/governance/ci-evidence.json"),
     JSON.stringify(value),
   );
 
@@ -95,6 +99,7 @@ test("records measured bytes and verifies the exact same-run source identity", a
   const options = await fixture(context);
   const identity = await runEvidence("--record", options);
   assert.deepEqual(identity, {
+    suite: "governance",
     repository: "example/api",
     head,
     base,
@@ -105,7 +110,7 @@ test("records measured bytes and verifies the exact same-run source identity", a
     attempt: "1",
   });
   assert.deepEqual(options.outputs, [
-    { artifact: "coverage-123-1", attempt: "1" },
+    { artifact: "coverage-governance-123-1", attempt: "1" },
   ]);
   assert.deepEqual(
     await readManifest(options.root),
@@ -113,6 +118,22 @@ test("records measured bytes and verifies the exact same-run source identity", a
   );
   await runEvidence("--verify-coverage", options);
   assert.equal(options.outputs.length, 1);
+});
+
+test("rejects a missing or different coverage suite before recording or consuming evidence", async (context) => {
+  const options = await fixture(context);
+  await runEvidence("--record", options);
+  for (const suite of [undefined, "unit", "governance/../unit"]) {
+    const environment = { ...options.environment, CI_EVIDENCE_SUITE: suite };
+    await assert.rejects(
+      runEvidence("--record", { ...options, environment }),
+      /exact clean checkout/,
+    );
+    await assert.rejects(
+      runEvidence("--verify-coverage", { ...options, environment }),
+      /exact clean checkout/,
+    );
+  }
 });
 
 test("hashes report bytes without rewriting CRLF or Windows source separators", async (context) => {
@@ -296,6 +317,20 @@ test("analysis reruns accept only the exact successful producer attempt output",
     }),
     /does not match/,
   );
+
+  await runEvidence("--record", options);
+  assert.deepEqual(options.outputs.at(-1), {
+    artifact: "coverage-governance-123-2",
+    attempt: "2",
+  });
+  await assert.rejects(
+    runEvidence("--verify-coverage", options),
+    /does not match/,
+  );
+  options.environment.CI_EVIDENCE_PRODUCER_ATTEMPT = "2";
+  await runEvidence("--verify-coverage", options);
+  options.environment.GITHUB_RUN_ATTEMPT = "3";
+  await runEvidence("--verify-coverage", options);
 });
 
 test("rejects empty, truncated and malformed LCOV", async (context) => {
@@ -393,7 +428,10 @@ test("fails closed for missing, oversized, invalid or non-file manifests", async
   await assert.rejects(runEvidence("--verify-coverage", options), {
     code: "ENOENT",
   });
-  const filename = path.join(options.root, "coverage/ci-evidence.json");
+  const filename = path.join(
+    options.root,
+    "coverage/governance/ci-evidence.json",
+  );
   await writeFile(filename, "invalid JSON");
   await assert.rejects(runEvidence("--verify-coverage", options), SyntaxError);
   await truncate(filename, 16 * 1024 + 1);
@@ -435,7 +473,7 @@ test("CLI handler publishes the artifact and rejects tampering in an isolated su
   assert.equal(run("--record").status, 0);
   assert.equal(
     await readFile(outputPath, "utf8"),
-    "artifact=coverage-123-1\nattempt=1\n",
+    "artifact=coverage-governance-123-1\nattempt=1\n",
   );
   assert.equal(run("--verify-coverage").status, 0);
   await writeFile(
@@ -515,6 +553,7 @@ test(
       GITHUB_EVENT_NAME: "pull_request",
       GITHUB_EVENT_PATH: eventPath,
       GITHUB_OUTPUT: outputPath,
+      CI_EVIDENCE_SUITE: "governance",
       GITHUB_REPOSITORY: "example/api",
       GITHUB_RUN_ATTEMPT: "2",
       GITHUB_RUN_ID: "456",
@@ -532,9 +571,10 @@ test(
     assert.equal(recorded.status, 0, recorded.stderr);
     assert.equal(
       await readFile(outputPath, "utf8"),
-      "artifact=coverage-456-2\nattempt=2\n",
+      "artifact=coverage-governance-456-2\nattempt=2\n",
     );
     assert.deepEqual((await readManifest(root)).identity, {
+      suite: "governance",
       repository: "example/api",
       head: fixtureCommit,
       base: fixtureCommit,

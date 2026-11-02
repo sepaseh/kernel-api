@@ -36,21 +36,23 @@ Never claim that checking an ambient working tree validates a partial PR.
 
 The governance profile validates its own rules, workflow security, package audit,
 formatting, documentation and measured governance tests. It does not run API
-tests. Before publishing application source, restore all ten full application
-checks and complete source, HTTP, database, authentication and storage validation.
+tests. Before publishing application source, restore the complete application
+gate and complete source, HTTP, database, authentication and storage validation.
 Do not replace those checks with governance evidence or hide missing tests.
 
 ## Review and main-branch protection
 
-Use ordinary GitHub, CodeRabbit and SonarQube Cloud integrations. Require CI,
+Use ordinary GitHub, CodeQL, CodeRabbit and SonarQube Cloud integrations. Require CI,
+CodeQL,
 scanner execution, the actual Sonar provider quality gate, an approving review
 and resolved conversations. Enforce rules for administrators, dismiss stale
 approvals, require the latest push to be approved, and prevent force pushes and
-deletion. Read [branch protection](docs/branch-protection.md) for bootstrap limits
-and the separate current-head CodeRabbit approval guard.
+deletion. Use the native approval count; no separate publisher or custom approval
+check is required. Read [branch protection](docs/branch-protection.md) and inspect
+the actual current-head provider evidence.
 
 Before every authorized CodeRabbit request or re-review, enforce the
-[preflight](.agents/rules/pull-requests.md#before-requesting-coderabbit): all
+[preflight](.agents/rules/pull-requests.md#coderabbit-request-preflight): all
 non-CodeRabbit required checks, scanner and actual gate must pass for the exact
 head, with zero open or unresolved Sonar issues at every severity. A new commit
 invalidates that evidence. Exclude only CodeRabbit's own native and approval

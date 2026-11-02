@@ -36,11 +36,9 @@
     ".github/PULL_REQUEST_TEMPLATE.md",
     ".github/bootstrap-policy.json",
     ".github/dependabot.yml",
-    ".github/rulesets/bootstrap.json",
     ".github/rulesets/main.json",
     ".github/workflows/ci.yml",
-    ".github/workflows/coderabbit-approval.yml",
-    ".github/workflows/review-events.yml",
+    ".github/workflows/codeql.yml",
     ".gitignore",
     ".nvmrc",
     ".prettierignore",
@@ -60,12 +58,12 @@
     "docs/validation.md",
     "package-lock.json",
     "package.json",
-    "scripts/check-coderabbit-approval.mjs",
-    "scripts/check-coderabbit-approval.test.mjs",
     "scripts/check-governance.mjs",
     "scripts/check-governance.test.mjs",
     "scripts/ci-evidence.mjs",
     "scripts/ci-evidence.test.mjs",
+    "scripts/run-actionlint.mjs",
+    "scripts/run-actionlint.test.mjs",
     "sonar-project.properties"
   ]
 }

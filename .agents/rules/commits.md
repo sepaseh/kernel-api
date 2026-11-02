@@ -15,8 +15,8 @@ Allowed types are `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`,
 - Use `!` only for an actual incompatible change.
 - Do not commit when a required check fails.
 - Do not amend or rewrite history without explicit authorization.
-- Add a body for a non-obvious reason/tradeoff and a verified issue reference when
-  useful. A breaking footer describes an actual incompatible change.
-- Use the [commit workflow](../skills/commit/SKILL.md) and [Git rule](git.md): review
-  the final working/staged scope, run the full canonical gate and stage explicit
-  paths. A commit request does not authorize pushing or publishing a pull request.
+- Add a body for a reason or tradeoff that the diff does not make clear, and a
+  verified issue reference when useful. Do not infer release impact from a label.
+- Follow the full final-tree gate and staged-scope review in [Git workflow](git.md)
+  and the [commit skill](../skills/commit/SKILL.md); this repository has no reduced
+  commit-only gate.

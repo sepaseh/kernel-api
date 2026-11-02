@@ -36,7 +36,7 @@ weaken checks or report unavailable evidence as a pass. Governance checks cover
 snapshot boundaries, configuration, workflow security, audit, formatting,
 documentation and measured governance tests. They do not validate the local API.
 
-Before publishing application source, establish all ten full application checks
+Before publishing application source, establish the complete application gate
 for the precise source phase, including real relevant HTTP, database,
 authentication and storage tests. Keep the complete gate required for drafts
 and documentation changes once that application phase is published.
@@ -45,14 +45,16 @@ and documentation changes once that application phase is published.
 
 Follow [branch protection](docs/branch-protection.md) and the
 [Sonar/CodeRabbit preflight](docs/sonarqube.md#before-requesting-coderabbit).
-Review must cover the exact current head. Scanner success and the actual provider
+Review must cover the exact current head and include the native CodeQL result.
+Scanner success and the actual provider
 quality gate are separate requirements. A CodeRabbit progress status or ordinary
 approval count does not prove that CodeRabbit approved that head.
 
-The new trusted default-branch guard cannot enforce itself before its first
-publication. Keep the first PR in draft until the bootstrap procedure and real
-provider evidence are explicitly reviewed; do not weaken already active
-requirements or merge merely to create a baseline.
+Use the native approval count; no separate publisher or custom approval check
+is required. Keep incomplete work in draft unless the owner explicitly requests
+ready-for-review status. That status does not establish merge readiness. Verify
+the actual current-head provider evidence before any separately authorized merge;
+do not weaken active requirements to unblock publication.
 
 Use a Conventional Commit title and the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
 Do not merge without separate authorization.
