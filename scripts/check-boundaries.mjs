@@ -25,27 +25,40 @@ const isErasedTypeReference = (node) => {
   return false;
 };
 
-const unparenthesized = (node) => {
-  while (ts.isParenthesizedExpression(node)) node = node.expression;
+const erasedExpressionKinds = new Set([
+  ts.SyntaxKind.ParenthesizedExpression,
+  ts.SyntaxKind.AsExpression,
+  ts.SyntaxKind.TypeAssertionExpression,
+  ts.SyntaxKind.SatisfiesExpression,
+  ts.SyntaxKind.NonNullExpression,
+]);
+const runtimeExpression = (node) => {
+  while (node && erasedExpressionKinds.has(node.kind)) node = node.expression;
   return node;
+};
+
+const literalText = (node) => {
+  node = runtimeExpression(node);
+  return node && ts.isStringLiteralLike(node) ? node.text : undefined;
 };
 
 const staticMember = (node) => {
   if (ts.isPropertyAccessExpression(node))
-    return { name: node.name.text, receiver: unparenthesized(node.expression) };
-  if (
-    ts.isElementAccessExpression(node) &&
-    ts.isStringLiteralLike(node.argumentExpression)
-  )
     return {
-      name: node.argumentExpression.text,
-      receiver: unparenthesized(node.expression),
+      name: node.name.text,
+      receiver: runtimeExpression(node.expression),
+    };
+  if (ts.isElementAccessExpression(node))
+    return {
+      name: literalText(node.argumentExpression),
+      receiver: runtimeExpression(node.expression),
     };
   return undefined;
 };
 
 const isProcessReference = (node) => {
-  node = unparenthesized(node);
+  node = runtimeExpression(node);
+  if (!node) return false;
   if (ts.isIdentifier(node)) return node.text === "process";
   const member = staticMember(node);
   return (
@@ -56,7 +69,7 @@ const isProcessReference = (node) => {
 };
 
 const isModuleLoader = (expression) => {
-  expression = unparenthesized(expression);
+  expression = runtimeExpression(expression);
   if (expression.kind === ts.SyntaxKind.ImportKeyword) return true;
   if (ts.isIdentifier(expression)) return expression.text === "require";
   const member = staticMember(expression);
@@ -64,6 +77,78 @@ const isModuleLoader = (expression) => {
     member?.name === "getBuiltinModule" && isProcessReference(member.receiver)
   );
 };
+
+const bindingPropertyName = (binding) => {
+  if (binding.dotDotDotToken || ts.isSpreadAssignment(binding))
+    return undefined;
+  const name = binding.propertyName ?? binding.name;
+  if (!name) return undefined;
+  if (ts.isComputedPropertyName(name)) return literalText(name.expression);
+  return ts.isIdentifier(name) ? name.text : literalText(name);
+};
+
+const processDestructuring = (node) => {
+  if (
+    (ts.isVariableDeclaration(node) || ts.isParameter(node)) &&
+    ts.isObjectBindingPattern(node.name) &&
+    isProcessReference(node.initializer)
+  )
+    return node.name.elements;
+  if (
+    ts.isBinaryExpression(node) &&
+    node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+    isProcessReference(node.right)
+  ) {
+    const target = runtimeExpression(node.left);
+    if (ts.isObjectLiteralExpression(target)) return target.properties;
+  }
+  return [];
+};
+
+const calledDirectly = (node) => {
+  while (node.parent && erasedExpressionKinds.has(node.parent.kind))
+    node = node.parent;
+  return ts.isCallExpression(node.parent) && node.parent.expression === node;
+};
+
+const processPropertyAccesses = (content, filename) => {
+  const source = ts.createSourceFile(
+    filename,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const accesses = [];
+  const add = (node, name, directCall = false) =>
+    accesses.push({
+      name,
+      directCall,
+      line:
+        source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
+    });
+  const visit = (node) => {
+    const member = staticMember(node);
+    if (member && isProcessReference(member.receiver))
+      add(node, member.name, calledDirectly(node));
+    for (const binding of processDestructuring(node))
+      add(binding, bindingPropertyName(binding));
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return accesses;
+};
+
+export const environmentAccessLines = (content, filename) =>
+  processPropertyAccesses(content, filename)
+    .filter((access) => access.name === "env")
+    .map((access) => access.line);
+
+const nativeLoaderExtractionLines = (content, filename) =>
+  processPropertyAccesses(content, filename)
+    .filter(
+      (access) => access.name === "getBuiltinModule" && !access.directCall,
+    )
+    .map((access) => access.line);
 
 export const inspectImports = (content, filename = "source.ts") => {
   const source = ts.createSourceFile(
@@ -75,8 +160,7 @@ export const inspectImports = (content, filename = "source.ts") => {
   const imports = [];
   const add = (node, value) =>
     imports.push({
-      specifier:
-        value && ts.isStringLiteralLike(value) ? value.text : undefined,
+      specifier: literalText(value),
       line:
         source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
       typeOnly: isErasedTypeReference(node),
@@ -370,26 +454,6 @@ const sourceFiles = async (directory) => {
   return files.flat();
 };
 
-const environmentAccessLines = (content, filename) => {
-  const source = ts.createSourceFile(
-    filename,
-    content,
-    ts.ScriptTarget.Latest,
-    true,
-  );
-  const lines = [];
-  const visit = (node) => {
-    const member = staticMember(node);
-    if (member?.name === "env" && isProcessReference(member.receiver))
-      lines.push(
-        source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1,
-      );
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return lines;
-};
-
 export const checkBoundaries = async (root = repository) => {
   root = await realpath(root);
   const manifest = JSON.parse(
@@ -428,12 +492,19 @@ export const checkBoundaries = async (root = repository) => {
     files.map(async (file) => {
       const content = await readFile(file, "utf8");
       const edges = inspectImports(content, file);
-      const environmentViolations = ["application", "contracts"].some((owner) =>
+      const ownsPureSource = ["application", "contracts"].some((owner) =>
         inside(path.join(root, "src", owner), file),
-      )
+      );
+      const environmentViolations = ownsPureSource
         ? environmentAccessLines(content, file).map(
             (line) =>
               `${path.relative(root, file)}:${line}: Contracts and application code must not read environment configuration; read it in infrastructure`,
+          )
+        : [];
+      const loaderViolations = ownsPureSource
+        ? nativeLoaderExtractionLines(content, file).map(
+            (line) =>
+              `${path.relative(root, file)}:${line}: Call process.getBuiltinModule directly with a literal module ID; do not extract or destructure the native loader`,
           )
         : [];
       const dataViolation =
@@ -463,6 +534,7 @@ export const checkBoundaries = async (root = repository) => {
       );
       return [
         ...environmentViolations,
+        ...loaderViolations,
         ...(dataViolation
           ? [`${path.relative(root, file)}:1: ${dataViolation}`]
           : []),

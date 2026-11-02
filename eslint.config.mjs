@@ -3,6 +3,31 @@ import simpleImportSort from "eslint-plugin-simple-import-sort";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import { environmentAccessLines } from "./scripts/check-boundaries.mjs";
+
+const environmentOwnership = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      environment:
+        "Contracts and application code must not read environment configuration. Read it in infrastructure.",
+    },
+  },
+  create: (context) => ({
+    Program: () => {
+      for (const line of environmentAccessLines(
+        context.sourceCode.text,
+        context.filename,
+      ))
+        context.report({
+          loc: { line, column: 0 },
+          messageId: "environment",
+        });
+    },
+  }),
+};
+
 export default [
   {
     ignores: [
@@ -38,27 +63,11 @@ export default [
   },
   {
     files: ["src/{contracts,application}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
+    plugins: {
+      foundation: { rules: { "environment-ownership": environmentOwnership } },
+    },
     rules: {
-      "no-restricted-properties": [
-        "error",
-        {
-          object: "process",
-          property: "env",
-          message:
-            "Contracts and application code must not read environment configuration. Read it in infrastructure.",
-        },
-      ],
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector:
-            "MemberExpression[object.type='MemberExpression'][object.object.name='globalThis']" +
-            ":matches([object.computed=false][object.property.name='process'], [object.computed=true][object.property.value='process'])" +
-            ":matches([computed=false][property.name='env'], [computed=true][property.value='env'])",
-          message:
-            "Contracts and application code must not read environment configuration. Read it in infrastructure.",
-        },
-      ],
+      "foundation/environment-ownership": "error",
     },
   },
 ];

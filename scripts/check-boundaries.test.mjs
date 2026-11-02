@@ -187,6 +187,75 @@ test("builtin process loaders retain literal targets and reject computed module 
   assert.deepEqual(inspectImports('other.getBuiltinModule("module");'), []);
 });
 
+test("native process loaders cannot escape direct-call boundary checks", async () => {
+  const parent = await realpath(tmpdir());
+  const directory = await mkdtemp(
+    path.join(parent, "kernel-boundaries-loader-"),
+  );
+  try {
+    await Promise.all(
+      ["application", "contracts", "infrastructure"].map((name) =>
+        mkdir(path.join(directory, "src", name), { recursive: true }),
+      ),
+    );
+    const files = {
+      "package.json": JSON.stringify({
+        name: "synthetic-native-loader-boundary",
+      }),
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: { module: "ESNext", moduleResolution: "bundler" },
+        include: ["src/**/*.ts"],
+      }),
+      "src/application/direct.ts": [
+        'const crypto = process.getBuiltinModule("crypto");',
+        'const alsoCrypto = (globalThis.process.getBuiltinModule)("crypto" as const);',
+      ].join("\n"),
+      "src/application/extracted.ts": [
+        "const { getBuiltinModule: load } = process;",
+        "const { ['getBuiltinModule' as const]: globalLoad } = globalThis.process;",
+        "const alias = process.getBuiltinModule;",
+        "let assigned; ({ getBuiltinModule: assigned } = globalThis['process']);",
+        "function receive({ getBuiltinModule: load } = process) { return load; }",
+        "const globalAlias = globalThis['process']['getBuiltinModule' as const];",
+        "const { getBuiltinModule: unrelated } = other; const otherAlias = other.getBuiltinModule;",
+      ].join("\n"),
+      "src/contracts/extracted.ts":
+        "const { getBuiltinModule: load } = process;",
+      "src/infrastructure/extracted.ts":
+        "const { getBuiltinModule: load } = process;",
+    };
+    await Promise.all(
+      Object.entries(files).map(([name, content]) =>
+        writeFile(path.join(directory, name), content),
+      ),
+    );
+
+    const result = await checkBoundaries(directory);
+    assert.equal(result.files, 4);
+    assert.equal(result.violations.length, 7);
+    for (const location of [
+      ...[1, 2, 3, 4, 5, 6].map(
+        (line) => `${path.join("src", "application", "extracted.ts")}:${line}:`,
+      ),
+      `${path.join("src", "contracts", "extracted.ts")}:1:`,
+    ])
+      assert.ok(
+        result.violations.some(
+          (violation) =>
+            violation.startsWith(location) &&
+            violation.includes(
+              "Call process.getBuiltinModule directly with a literal module ID",
+            ),
+        ),
+        location,
+      );
+  } finally {
+    assert.equal(path.dirname(path.resolve(directory)), parent);
+    assert.ok(path.basename(directory).startsWith("kernel-boundaries-loader-"));
+    await rm(directory, { force: true, recursive: true });
+  }
+});
+
 test("production imports cannot reach files excluded as test-only source", () => {
   const file = path.join(root, "src/application/service.ts");
   for (const relative of [
@@ -764,11 +833,18 @@ test("direct environment reads stay outside contracts and application code", asy
         'const globalOptional = globalThis?.["process"]?.env;',
         "const grouped = (globalThis.process).env;",
         "const wrapped = (globalThis.process.env);",
+        "const asserted = process['env' as const];",
+        "const assertedGlobal = globalThis['process' as const]['env' as const];",
+        "const assertedReceiver = (globalThis.process as typeof process).env;",
         'const text = "process.env";',
         "// process.env",
         "const { env } = process;",
+        "const { env: configured } = globalThis.process;",
+        "const { ['env' as const]: assertedBinding } = globalThis['process' as const];",
+        "let assigned; ({ env: assigned } = globalThis.process);",
         "const unrelated = other.env;",
         "const otherProcess = other.process.env;",
+        "const { env: otherEnvironment } = other.process;",
       ].join("\n"),
       "src/contracts/settings.ts": "const direct = process.env;",
       "src/infrastructure/config.ts": "const allowed = process.env;",
@@ -781,7 +857,7 @@ test("direct environment reads stay outside contracts and application code", asy
 
     const result = await checkBoundaries(directory);
     assert.equal(result.files, 3);
-    assert.equal(result.violations.length, 9);
+    assert.equal(result.violations.length, 16);
     for (const location of [
       `${path.join("src", "application", "service.ts")}:1:`,
       `${path.join("src", "application", "service.ts")}:2:`,
@@ -791,6 +867,13 @@ test("direct environment reads stay outside contracts and application code", asy
       `${path.join("src", "application", "service.ts")}:6:`,
       `${path.join("src", "application", "service.ts")}:7:`,
       `${path.join("src", "application", "service.ts")}:8:`,
+      `${path.join("src", "application", "service.ts")}:9:`,
+      `${path.join("src", "application", "service.ts")}:10:`,
+      `${path.join("src", "application", "service.ts")}:11:`,
+      `${path.join("src", "application", "service.ts")}:14:`,
+      `${path.join("src", "application", "service.ts")}:15:`,
+      `${path.join("src", "application", "service.ts")}:16:`,
+      `${path.join("src", "application", "service.ts")}:17:`,
       `${path.join("src", "contracts", "settings.ts")}:1:`,
     ])
       assert.ok(
@@ -811,10 +894,8 @@ test("direct environment reads stay outside contracts and application code", asy
 test("ESLint enforces environment ownership for bare and global process access", async () => {
   const eslint = new ESLint();
   const restricted = (messages) =>
-    messages.filter((message) =>
-      ["no-restricted-properties", "no-restricted-syntax"].includes(
-        message.ruleId,
-      ),
+    messages.filter(
+      (message) => message.ruleId === "foundation/environment-ownership",
     );
   for (const source of [
     "process.env;",
@@ -826,6 +907,10 @@ test("ESLint enforces environment ownership for bare and global process access",
     'globalThis?.["process"]?.env;',
     "(globalThis.process).env;",
     "(globalThis.process.env);",
+    "const { env } = process;",
+    "const { env: configured } = globalThis.process;",
+    'const { ["env"]: configured } = globalThis["process"];',
+    "let configured; ({ env: configured } = globalThis.process);",
   ]) {
     for (const filePath of [
       "src/application/service.ts",
@@ -847,6 +932,22 @@ test("ESLint enforces environment ownership for bare and global process access",
     filePath: "src/application/service.ts",
   });
   assert.deepEqual(restricted(unrelated.messages), []);
+  for (const source of [
+    "process['env' as const];",
+    "process[('env' as string) as 'env'];",
+    "process[('env' as 'env')!];",
+    "process['env' satisfies string];",
+    "process[<'env'>'env'];",
+    "globalThis['process' as const]['env' as const];",
+    "(globalThis.process as typeof process).env;",
+    "const { ['env' as const]: configured } = globalThis.process;",
+    "function settings({ env: configured } = globalThis.process) { return configured; }",
+  ]) {
+    const [result] = await eslint.lintText(source, {
+      filePath: "src/application/service.ts",
+    });
+    assert.equal(restricted(result.messages).length, 1, source);
+  }
 });
 
 test("directory aliases resolve local imports while preserving repository containment", async (t) => {
