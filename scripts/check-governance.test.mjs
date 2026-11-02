@@ -267,6 +267,11 @@ const fixture = async (context, phase = "governance") => {
         },
       },
       permissions: { contents: "read", "pull-requests": "read" },
+      concurrency: {
+        group: "coderabbit-approval",
+        queue: "max",
+        "cancel-in-progress": false,
+      },
       jobs: {
         guard: {
           steps: [
@@ -679,6 +684,52 @@ test("policy integration rejects untrusted guard checkout, floating actions, and
   await assert.rejects(inspectPolicy(root), /provider identities/);
 });
 
+test("approval concurrency retains pending checks for every PR", async (context) => {
+  const { root, put } = await fixture(context);
+  const filename = ".github/workflows/coderabbit-approval.yml";
+  const guard = parseYaml(await readFile(path.join(root, filename), "utf8"));
+
+  for (const concurrency of [
+    { group: "coderabbit-approval", "cancel-in-progress": false },
+    { ...guard.concurrency, queue: "single" },
+    { ...guard.concurrency, "cancel-in-progress": true },
+  ]) {
+    await put(filename, stringify({ ...guard, concurrency }));
+    await assert.rejects(inspectPolicy(root), /queue pending runs/);
+  }
+});
+
+test("workflow checkout trust follows effective job write permissions", async (context) => {
+  const { root, put } = await fixture(context);
+  const filename = ".github/workflows/coderabbit-approval.yml";
+  const workflow = parseYaml(await readFile(path.join(root, filename), "utf8"));
+  workflow.on = { pull_request: {} };
+  const job = workflow.jobs.guard;
+  const checkout = job.steps[0];
+  checkout.with.ref = "${{ github.event.pull_request.head.sha }}";
+  const inspect = async () => {
+    await put(filename, stringify(workflow));
+    return inspectPolicy(root);
+  };
+
+  await inspect();
+  job.permissions = { checks: "write" };
+  await assert.rejects(inspect(), /trusted default-branch code/);
+  checkout.with.ref = "${{ github.workflow_sha }}";
+  await inspect();
+
+  checkout.with.ref = "${{ github.event.pull_request.head.sha }}";
+  delete job.permissions;
+  workflow.permissions.checks = "write";
+  await assert.rejects(inspect(), /trusted default-branch code/);
+  job.permissions = { contents: "read" };
+  await inspect();
+  job.permissions = { contents: "write" };
+  await assert.rejects(inspect(), /trusted default-branch code/);
+  job.permissions = "write-all";
+  await assert.rejects(inspect(), /explicit and minimal/);
+});
+
 test("guidance resolves only published task paths, canonical commands, and safe Markdown links", async (context) => {
   const { root, json, put } = await fixture(context);
   assert.deepEqual(await inspectGuidance(root), {
@@ -692,6 +743,8 @@ test("guidance resolves only published task paths, canonical commands, and safe 
   await assert.rejects(inspectGuidance(root), /project the canonical/);
   await json(".agents/settings.json", settings());
   await put("README.md", "Read [unpublished API](src/index.ts).\n");
+  await assert.rejects(inspectGuidance(root), /published inventory/);
+  await put("README.md", "Read [guide][setup].\n\n[setup]: ../missing.md\n");
   await assert.rejects(inspectGuidance(root), /published inventory/);
   const published = new Set(files);
   validateMarkdownLinks(
@@ -936,6 +989,33 @@ test("Markdown link scanning handles malformed long input and checks angle desti
       ),
     /published inventory/,
   );
+});
+
+test("Markdown reference definitions validate local destinations, encoding, angles, and titles", () => {
+  const published = new Set(files);
+  validateMarkdownLinks(
+    "README.md",
+    '[guide][setup]\n[setup]: <.agents/rules/safety.md#section> "Safety guide"\n' +
+      "[safety]:\n  .agents/rules/safety.md 'Safety'\n" +
+      '[external]: https://example.invalid "External"\n[anchor]: #section\n',
+    published,
+  );
+  for (const target of [
+    "../missing.md",
+    "src/index.ts",
+    "/private.md",
+    ".env",
+    "%zz",
+    "<src/index.ts>",
+    '<../missing.md> "Missing guide"',
+  ])
+    assert.throws(() =>
+      validateMarkdownLinks(
+        "README.md",
+        `[guide][setup]\n[setup]: ${target}\n`,
+        published,
+      ),
+    );
 });
 
 test("catalog duplication exceptions cover only the ten published literal data files", async (context) => {

@@ -18,6 +18,7 @@ permissions:
 
 concurrency:
   group: coderabbit-approval
+  queue: max
   cancel-in-progress: false
 
 jobs:

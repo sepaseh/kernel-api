@@ -17,7 +17,7 @@ const checkNodeId = "CR_synthetic_901";
 const graphqlUrl = "https://api.github.com/graphql";
 const repositoryEvent = { default_branch: "main", node_id: repositoryId };
 const pull = (overrides = {}) => ({
-  base: { sha: base },
+  base: { ref: "main", sha: base },
   head: { sha: head },
   id: 101,
   number: 1,
@@ -115,6 +115,7 @@ const run = (fetchImpl, overrides = {}) =>
     token: "synthetic-token",
     workflowRef: `${repository}/.github/workflows/coderabbit-approval.yml@refs/heads/main`,
     workflowSha: base,
+    waitImpl: async () => {},
     ...overrides,
   });
 
@@ -495,6 +496,114 @@ test("GraphQL transport failures do not expose response bodies", async () => {
     (error) =>
       error instanceof AggregateError &&
       error.errors[0].message === "GitHub approval update failed (HTTP 503).",
+  );
+});
+
+test("completion retries transient transport failures with the identical request", async () => {
+  for (const transient of [
+    new Error("Synthetic network failure"),
+    429,
+    500,
+    503,
+    599,
+  ]) {
+    const basic = fixture();
+    const attempts = [];
+    const waits = [];
+    const fetchImpl = async (url, options) => {
+      if (url !== graphqlUrl) return basic.fetchImpl(url, options);
+
+      attempts.push({ options: structuredClone(options), url });
+      if (attempts.length === 3) return basic.fetchImpl(url, options);
+      if (transient instanceof Error) throw transient;
+
+      return new Response("Synthetic transient failure", { status: transient });
+    };
+
+    assert.equal(
+      (await run(fetchImpl, { waitImpl: async (ms) => waits.push(ms) }))[0]
+        .approved,
+      true,
+    );
+    assert.equal(attempts.length, 3);
+    assert.deepEqual(attempts, [attempts[0], attempts[0], attempts[0]]);
+    assert.deepEqual(waits, [1000, 2000]);
+  }
+});
+
+test("completion stops after three transient failures and immediately on permanent HTTP errors", async () => {
+  for (const failure of [
+    new Error("Synthetic network failure"),
+    429,
+    503,
+    400,
+    401,
+    403,
+    404,
+  ]) {
+    const basic = fixture();
+    const attempts = [];
+    const waits = [];
+    const fetchImpl = async (url, options) => {
+      if (url !== graphqlUrl) return basic.fetchImpl(url, options);
+
+      attempts.push(options.body);
+      if (failure instanceof Error) throw failure;
+
+      return new Response("Private synthetic-token failure", {
+        status: failure,
+      });
+    };
+    const transient =
+      failure instanceof Error || failure === 429 || failure >= 500;
+
+    await assert.rejects(
+      run(fetchImpl, { waitImpl: async (ms) => waits.push(ms) }),
+      (error) =>
+        error instanceof AggregateError &&
+        error.errors.length === 1 &&
+        (failure instanceof Error
+          ? error.errors[0] === failure
+          : error.errors[0].message ===
+            `GitHub approval update failed (HTTP ${failure}).`),
+    );
+    assert.equal(attempts.length, transient ? 3 : 1);
+    assert.deepEqual(waits, transient ? [1000, 2000] : []);
+  }
+});
+
+test("listed PRs on every page publish approval only when targeting main", async () => {
+  const basic = fixture();
+  const listUrl = `https://api.github.com/repos/${repository}/pulls?state=open&per_page=100`;
+  const secondPage = `${listUrl}&page=2`;
+  const fetchImpl = async (url, options) => {
+    if (url === listUrl)
+      return response(
+        [pull({ base: { ref: "feature", sha: base }, id: 102, number: 2 })],
+        `<${secondPage}>; rel="next"`,
+      );
+    if (url === secondPage)
+      return response([
+        pull({ base: { sha: base }, id: 103, number: 3 }),
+        pull(),
+      ]);
+
+    return basic.fetchImpl(url, options);
+  };
+
+  const results = await run(fetchImpl, {
+    event: { repository: repositoryEvent },
+    eventName: "workflow_dispatch",
+  });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].pullNumber, 1);
+  assert.equal(results[0].approved, true);
+  assert.equal(
+    basic.requests.filter(({ options }) => options.method === "POST").length,
+    2,
+  );
+  assert.ok(
+    basic.requests.every(({ url }) => !/\/pulls\/[23](?:\/|$)/.test(url)),
   );
 });
 

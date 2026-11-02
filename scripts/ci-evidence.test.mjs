@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
 import {
+  copyFile,
   mkdir,
   mkdtemp,
   readFile,
@@ -451,3 +453,98 @@ test("CLI handler publishes the artifact and rejects tampering in an isolated su
   assert.equal(invalid.status, 1);
   assert.match(invalid.stderr, /Usage:/);
 });
+
+test(
+  "direct CLI records and verifies evidence from a real synthetic Git checkout",
+  {
+    skip: existsSync("/usr/bin/git")
+      ? false
+      : "The Ubuntu CI evidence CLI requires /usr/bin/git, which is unavailable on this host.",
+  },
+  async (context) => {
+    const { root } = await fixture(context);
+    await mkdir(path.join(root, ".github/workflows"), { recursive: true });
+    await mkdir(path.join(root, "scripts"));
+    await writeFile(
+      path.join(root, ".github/workflows/ci.yml"),
+      "name: Synthetic CI\non: push\njobs: {}\n",
+    );
+    const scriptPath = path.join(root, "scripts/ci-evidence.mjs");
+    await copyFile(new URL("./ci-evidence.mjs", import.meta.url), scriptPath);
+    const git = (...args) => {
+      const result = spawnSync("/usr/bin/git", args, {
+        cwd: root,
+        encoding: "utf8",
+        env: { GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" },
+        windowsHide: true,
+      });
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim();
+    };
+    git("init");
+    git("config", "user.name", "Synthetic CI Fixture");
+    git("config", "user.email", "ci-fixture@example.invalid");
+    git("config", "commit.gpgSign", "false");
+    git("config", "core.hooksPath", "/dev/null");
+    git(
+      "add",
+      ".github/workflows/ci.yml",
+      "src/example.ts",
+      "coverage/lcov.info",
+    );
+    git("commit", "-m", "test: create synthetic CI evidence fixture");
+    const fixtureCommit = git("rev-parse", "HEAD");
+    const fixtureTree = git("rev-parse", "HEAD^{tree}");
+    const fixtureWorkflow = git("rev-parse", "HEAD:.github/workflows/ci.yml");
+    const eventPath = path.join(root, "event.json");
+    const outputPath = path.join(root, "output.txt");
+    await writeFile(
+      eventPath,
+      JSON.stringify({
+        repository: { full_name: "example/api" },
+        pull_request: {
+          head: { sha: fixtureCommit },
+          base: { sha: fixtureCommit, repo: { full_name: "example/api" } },
+        },
+      }),
+    );
+    const environment = {
+      CI_EVIDENCE_PRODUCER_ATTEMPT: "2",
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_NOSYSTEM: "1",
+      GITHUB_EVENT_NAME: "pull_request",
+      GITHUB_EVENT_PATH: eventPath,
+      GITHUB_OUTPUT: outputPath,
+      GITHUB_REPOSITORY: "example/api",
+      GITHUB_RUN_ATTEMPT: "2",
+      GITHUB_RUN_ID: "456",
+      GITHUB_SHA: fixtureCommit,
+    };
+    const run = (mode) =>
+      spawnSync(process.execPath, [scriptPath, mode], {
+        cwd: root,
+        encoding: "utf8",
+        env: environment,
+        windowsHide: true,
+      });
+
+    const recorded = run("--record");
+    assert.equal(recorded.status, 0, recorded.stderr);
+    assert.equal(
+      await readFile(outputPath, "utf8"),
+      "artifact=coverage-456-2\nattempt=2\n",
+    );
+    assert.deepEqual((await readManifest(root)).identity, {
+      repository: "example/api",
+      head: fixtureCommit,
+      base: fixtureCommit,
+      commit: fixtureCommit,
+      tree: fixtureTree,
+      workflow: fixtureWorkflow,
+      runId: "456",
+      attempt: "2",
+    });
+    const verified = run("--verify-coverage");
+    assert.equal(verified.status, 0, verified.stderr);
+  },
+);

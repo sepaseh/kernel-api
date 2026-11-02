@@ -717,6 +717,11 @@ export const validateNavigation = (
 };
 
 function* markdownTargets(content) {
+  for (const match of content.matchAll(
+    /^ {0,3}\[[^\]\r\n]+\]:[ \t]*(?:\r?\n[ \t]*)?(?:<([^>\r\n]*)>|([^\s]+))/gm,
+  ))
+    yield match[1] ?? match[2];
+
   let cursor = 0;
   while (cursor < content.length) {
     const opening = content.indexOf("](", cursor);
@@ -858,11 +863,10 @@ const validateWorkflowTrust = (workflow) => {
       job.permissions !== "write-all",
       "Job permissions must be explicit and minimal.",
     );
+    const permissions = job.permissions ?? workflow.permissions;
+    const trusted = targetEvent || Object.values(permissions).includes("write");
     for (const step of job.steps ?? []) {
-      validateActionStep(
-        step,
-        targetEvent || workflow.permissions.checks === "write",
-      );
+      validateActionStep(step, trusted);
     }
   }
 };
@@ -939,7 +943,20 @@ export const inspectPolicy = async (root) => {
   ]);
   validateCiWorkflow(parseYaml(ci));
   validateCodeRabbit(parseYaml(rabbit));
-  workflows.forEach((text) => validateWorkflowTrust(parseYaml(text)));
+  workflows.forEach((text, index) => {
+    const workflow = parseYaml(text);
+    validateWorkflowTrust(workflow);
+    if (workflowFiles[index] === ".github/workflows/coderabbit-approval.yml")
+      equal(
+        workflow.concurrency,
+        {
+          group: "coderabbit-approval",
+          queue: "max",
+          "cancel-in-progress": false,
+        },
+        "Approval verification must queue pending runs without cancelling another PR's evidence.",
+      );
+  });
   for (const file of [
     ".github/rulesets/main.json",
     ".github/rulesets/bootstrap.json",

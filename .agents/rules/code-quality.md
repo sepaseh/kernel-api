@@ -2,23 +2,22 @@
 
 ## Validate code changes
 
-Run the smallest check that covers the files you changed, then broaden before handoff when practical.
+Run the smallest declared check that covers the files you changed. Before an
+authorized commit or PR, run `npm run validate -- full` from the
+[validation manifest](../validation.json), including for documentation changes.
 
-- Typecheck: `npm run typecheck`
-- Lint: `npm run lint`
-- Static API build check: `npm run typecheck` (TypeScript validation without emitted artifacts)
-- Use `npm run knip` as an optional aid when reviewing unused exports and
-  dependencies; it does not replace the full validation profile.
+The current governance publication does not define typecheck, lint, lint-fix or
+Knip scripts. Those checks apply only after application source and its tooling
+are published; use the commands declared by that phase's manifest and package.
 
-For docs-only tasks, run `npm run format:check` and validate links and referenced
-commands. Code-only checks such as lint, typecheck, and Knip are unnecessary
-unless configuration or source files also changed.
+For docs-only development, start with `npm run format:check` and validate links
+and referenced commands. Focused checks do not replace the full profile.
 
 ## Autofix workflow
 
-- Let ESLint handle import sorting and existing configured code rules.
-- Use `npm run lint:fix` when safe to auto-fix formatting/lint issues.
-- Never sort imports manually if ESLint can do it.
+- After application tooling is published, let ESLint handle import sorting and
+  configured code rules using that phase's declared autofix command.
+- Never sort imports manually if the published ESLint configuration can do it.
 - Do not introduce a formatter or new tooling unless the user asks.
 
 ## Readable code over comments
@@ -78,5 +77,5 @@ files or reorder independent-looking work without checking dependencies.
 ## No unused code
 
 - Remove unused files, exports, dependencies, translations, and routes.
-- Verify cleanup using the available checks in the validation manifest. The optional
-  `npm run knip` does not replace the full profile.
+- Verify cleanup using the available checks in the validation manifest. Optional
+  tools declared by later application phases do not replace the full profile.

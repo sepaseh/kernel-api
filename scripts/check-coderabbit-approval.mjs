@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 const checkName = "CodeRabbit approval";
@@ -44,7 +45,12 @@ const nextPageUrl = (link, initial) => {
   return next;
 };
 
-const githubClient = ({ fetchImpl = fetch, repository, token }) => {
+const githubClient = ({
+  fetchImpl = fetch,
+  repository,
+  token,
+  waitImpl = delay,
+}) => {
   requireEvidence(
     typeof repository === "string" &&
       /^[\w.-]+\/[\w.-]+$/.test(repository) &&
@@ -76,18 +82,44 @@ const githubClient = ({ fetchImpl = fetch, repository, token }) => {
     );
     return { data: await response.json(), link: response.headers.get("link") };
   };
-  const completeCheck = async (input, headSha) => {
-    const response = await fetchImpl("https://api.github.com/graphql", {
+  const sendCompletion = async (input) => {
+    const requestOptions = {
       body: JSON.stringify({ query: updateCheckRun, variables: { input } }),
       headers,
       method: "POST",
       redirect: "error",
-    });
+    };
+    let response;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        response = await fetchImpl(
+          "https://api.github.com/graphql",
+          requestOptions,
+        );
+      } catch (error) {
+        if (attempt === 3) throw error;
+
+        await waitImpl(1000 * attempt);
+        continue;
+      }
+      if (
+        response.ok ||
+        attempt === 3 ||
+        (response.status !== 429 &&
+          (response.status < 500 || response.status >= 600))
+      )
+        break;
+
+      await waitImpl(1000 * attempt);
+    }
     requireEvidence(
       response.ok,
       `GitHub approval update failed (HTTP ${response.status}).`,
     );
-    const payload = await response.json();
+    return response.json();
+  };
+  const completeCheck = async (input, headSha) => {
+    const payload = await sendCompletion(input);
     requireEvidence(
       payload?.errors === undefined ||
         (Array.isArray(payload.errors) && payload.errors.length === 0),
@@ -371,7 +403,9 @@ export const runCodeRabbitApproval = async (options) => {
   );
   const pulls = event.pull_request
     ? [event.pull_request]
-    : await client.list("pulls?state=open&per_page=100");
+    : (await client.list("pulls?state=open&per_page=100")).filter(
+        (pull) => pull.base?.ref === "main",
+      );
   const settled = await Promise.allSettled(
     pulls.map((pull) => verifyPull(options, pull, client)),
   );
