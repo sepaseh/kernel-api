@@ -172,7 +172,11 @@ test("cache reads retain the checked file when its path is replaced", async (con
   assert.ok(replaced);
   assert.equal(value.executions.length, 2);
   assert.equal(value.requests.length, 1);
-  assert.equal(await readFile(filename, "utf8"), "unverified replacement");
+  await using replacementFile = await open(filename, "r");
+  assert.equal(
+    await replacementFile.readFile("utf8"),
+    "unverified replacement",
+  );
 });
 
 test("rejects cache replacement during inspection and oversized cached files", async (context) => {
