@@ -31,7 +31,7 @@ npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
 npm run validate -- full
 ```
 
-The current [manifest](.agents/validation.json) runs all ten required checks,
+The current [manifest](.agents/validation.json) runs every required check,
 including source boundaries, typechecking, lint, measured foundation and tooling
 tests, and audit-helper tests. These results cover the published snapshot;
 they do not establish HTTP, authentication, database or storage behavior.

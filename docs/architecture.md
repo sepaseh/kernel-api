@@ -32,6 +32,6 @@ Independent frontends communicate through HTTP.
 
 The [backend](../.agents/rules/backend.md),
 [data lifecycle](../.agents/rules/data-lifecycle.md) and
-[localization](../.agents/rules/localization.md) rules define constraints for that
+[localization](../.agents/rules/localization.md) rules define constraints for those
 owners as they are published. Their presence does not prove implementation or
 deployment beyond the declared inventory.

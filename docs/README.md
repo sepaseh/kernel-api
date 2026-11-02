@@ -8,12 +8,12 @@ port definitions, tests and repository tooling.
 - [Validation and exact-snapshot evidence](validation.md)
 - [Foundation and tooling tests](testing.md)
 - [Test reliability](test-reliability.md)
-- [Main-branch protection and bootstrap](branch-protection.md)
+- [Main-branch protection](branch-protection.md)
 - [SonarQube Cloud and CodeRabbit preflight](sonarqube.md)
 - [Assistant instructions](../AGENTS.md)
 - [Contributing](../CONTRIBUTING.md)
 
-Only the four foundation contract modules are currently published. Feature
+Published contract modules are declared by the inventory. Feature
 service, HTTP, database, authentication adapter, storage and deployment guides
 belong to later source publications. Their local presence is not publication
 evidence.

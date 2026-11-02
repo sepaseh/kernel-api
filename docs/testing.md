@@ -4,10 +4,11 @@ Test observable policy failures using synthetic GitHub responses and owned
 temporary fixtures. Never read real tokens, environments, databases, uploads or
 other checkouts as fixtures.
 
-Cover incomplete and unsafe review pagination, stale heads, dismissed approvals,
-wrong reviewer identity, skipped or neutral provider checks, workflow privilege
-boundaries and exact publication scope. Test the actual enforcing tools, not copies of their
-implementation.
+Cover exact publication scope, native protection requirements, CodeQL triggers
+and query settings, minimal upload permissions, workflow privilege boundaries and
+coverage provenance. Use synthetic inputs to reject missing or stale source
+evidence and altered reports. Test the actual enforcing tools, not copies of
+their implementation.
 
 The two foundation suites exercise authorization requirements, semantic errors,
 unique internal identities, canonical permission and locale metadata, and shared
