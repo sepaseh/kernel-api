@@ -2,7 +2,7 @@
 
 The [publication inventory](../.github/bootstrap-policy.json) declares what is
 actually published. The [canonical manifest](../.agents/validation.json) owns all
-ten real source-phase checks. Run its entire full profile on the exact proposed
+required source-phase checks. Run its entire full profile on the exact proposed
 tree before an authorized commit or PR.
 
 Use pure tests with synthetic feature ports for application policy and operation

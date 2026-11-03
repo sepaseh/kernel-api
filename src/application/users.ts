@@ -82,14 +82,13 @@ export const createUsersService = ({
       oldMobile,
       newMobile,
     ]);
-  const mobileContext = async (
+  const authorizeUpdate = async (
     transaction: UsersWritePort,
     actor: Actor,
-    id: string,
+    current: UserRecord,
     mode: "profile" | "management",
-    changingMobile = true,
+    changingMobile: boolean,
   ) => {
-    const current = await find(id, transaction);
     const liveActor = await transaction.find(actor.account.id);
     if (
       liveActor?.status !== "active" ||
@@ -97,8 +96,10 @@ export const createUsersService = ({
     )
       throw new ApplicationError("unauthenticated", "authenticationRequired");
     if (
-      (mode === "profile" && id !== liveActor.id) ||
-      (changingMobile && id !== liveActor.id && !liveActor.isSystemAdmin) ||
+      (mode === "profile" && current.id !== liveActor.id) ||
+      (changingMobile &&
+        current.id !== liveActor.id &&
+        !liveActor.isSystemAdmin) ||
       (changingMobile && current.isSystemAdmin && !liveActor.isSystemAdmin)
     )
       throw new ApplicationError("forbidden", "systemAdminRequired");
@@ -108,7 +109,6 @@ export const createUsersService = ({
       !(await transaction.hasPermission(liveActor.id, "users.update"))
     )
       throw new ApplicationError("forbidden", "permissionDenied");
-    return current;
   };
 
   return {
@@ -122,9 +122,11 @@ export const createUsersService = ({
       if (!/^09\d{9}$/.test(mobile))
         throw new ApplicationError("invalid", "mobileInvalid");
       if (!otp) throw new Error("Mobile verification is not configured.");
-      const current = await repository.transaction((transaction) =>
-        mobileContext(transaction, actor, id, mode),
-      );
+      const current = await repository.transaction(async (transaction) => {
+        const user = await find(id, transaction);
+        await authorizeUpdate(transaction, actor, user, mode, true);
+        return user;
+      });
       if (current.mobile === mobile)
         throw new ApplicationError("invalid", "updateFieldsRequired");
       return otp.issue(
@@ -278,45 +280,47 @@ export const createUsersService = ({
       );
       if (firstName) changes.firstName = firstName;
       if (lastName) changes.lastName = lastName;
+      let mobile: string | undefined;
       if (input.mobile !== undefined) {
-        const mobile = requiredString(input.mobile, "mobile");
+        mobile = requiredString(input.mobile, "mobile");
         if (!/^09\d{9}$/.test(mobile))
           throw new ApplicationError("invalid", "mobileInvalid");
-        changes.mobile = mobile;
       }
-      if (!Object.keys(changes).length)
+      if (!mobile && !Object.keys(changes).length)
         throw new ApplicationError("invalid", "updateFieldsRequired");
-      const updated = changes.mobile
-        ? await repository.transaction(async (transaction) => {
-            const current = await find(id, transaction);
-            const changingMobile = changes.mobile !== current.mobile;
-            await mobileContext(transaction, actor, id, mode, changingMobile);
-            if (changes.mobile !== current.mobile) {
-              const code = requiredString(input.otp, "otp");
-              if (!otp)
-                throw new Error("Mobile verification is not configured.");
-              await transaction.consumeOtp(
-                otp.prepare(
-                  changes.mobile!,
-                  "change_mobile",
-                  code,
-                  mobileSubject(
-                    actor,
-                    id,
-                    current.mobile,
-                    changes.mobile!,
-                    mode,
-                  ),
-                ),
-              );
-            } else {
-              // An unchanged form field must not overwrite a concurrent change.
-              delete changes.mobile;
-            }
-            return transaction.update(id, changes, actor.account.id);
-          })
-        : await repository.update(id, changes, actor.account.id);
-      if (!updated) throw new ApplicationError("not-found", "userNotFound");
+      const updated = await repository.transaction(async (transaction) => {
+        const current = await find(id, transaction);
+        // An unchanged form field must not overwrite a concurrent change.
+        const newMobile = mobile === current.mobile ? undefined : mobile;
+        await authorizeUpdate(
+          transaction,
+          actor,
+          current,
+          mode,
+          newMobile !== undefined,
+        );
+        if (newMobile) {
+          const code = requiredString(input.otp, "otp");
+          if (!otp) throw new Error("Mobile verification is not configured.");
+          await transaction.consumeOtp(
+            otp.prepare(
+              newMobile,
+              "change_mobile",
+              code,
+              mobileSubject(actor, id, current.mobile, newMobile, mode),
+            ),
+          );
+        } else if (!Object.keys(changes).length) {
+          throw new ApplicationError("invalid", "updateFieldsRequired");
+        }
+        const value = await transaction.update(
+          id,
+          newMobile ? { ...changes, mobile: newMobile } : changes,
+          actor.account.id,
+        );
+        if (!value) throw new ApplicationError("not-found", "userNotFound");
+        return value;
+      });
       const roles = await repository.getRoles([id]);
       return serialize(updated, roles.get(id) ?? []);
     },

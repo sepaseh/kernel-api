@@ -56,20 +56,42 @@ const actor: Actor = {
   },
 };
 
-test("managed profile updates enforce the same name bound and preserve optional fields", async () => {
-  let writes = 0;
+const managementFixture = () => {
+  const transaction: UsersWritePort = {
+    countActiveAdmins: unused,
+    deleteSessions: unused,
+    existingRoleIds: unused,
+    find: async (id) => (id === target.id ? target : actor.account),
+    hasActiveSession: async () => true,
+    hasPermission: async () => true,
+    consumeOtp: async () => {},
+    remove: unused,
+    replaceRoles: unused,
+    resetCredentialPassword: unused,
+    setStatus: unused,
+    setSystemAdmin: unused,
+    update: (id, changes, actorId) => repository.update(id, changes, actorId),
+  };
   const repository: UsersRepository = {
     deleteSessions: unused,
     find: async () => target,
     getRoles: async () => new Map(),
     list: unused,
-    transaction: unused,
-    update: async (_id, update) => {
-      writes++;
-      return { ...target, ...update };
-    },
+    transaction: (work) => work(transaction),
+    update: unused,
   };
-  const service = createUsersService({ provider, repository });
+  const auth = { ...provider };
+  const service = createUsersService({ provider: auth, repository, otp });
+  return { auth, repository, service, transaction };
+};
+
+test("managed profile updates enforce the same name bound and preserve optional fields", async () => {
+  let writes = 0;
+  const { service, transaction } = managementFixture();
+  transaction.update = async (_id, update) => {
+    writes++;
+    return { ...target, ...update };
+  };
   for (const field of ["first_name", "last_name"]) {
     for (const value of [
       null,
@@ -286,35 +308,6 @@ test("user deletion accepts an unused record without masking infrastructure fail
     (error) => error === failure,
   );
 });
-
-const managementFixture = () => {
-  const transaction: UsersWritePort = {
-    countActiveAdmins: unused,
-    deleteSessions: unused,
-    existingRoleIds: unused,
-    find: async (id) => (id === target.id ? target : actor.account),
-    hasActiveSession: async () => true,
-    hasPermission: async () => true,
-    consumeOtp: async () => {},
-    remove: unused,
-    replaceRoles: unused,
-    resetCredentialPassword: unused,
-    setStatus: unused,
-    setSystemAdmin: unused,
-    update: (id, changes, actorId) => repository.update(id, changes, actorId),
-  };
-  const repository: UsersRepository = {
-    deleteSessions: unused,
-    find: async () => target,
-    getRoles: async () => new Map(),
-    list: unused,
-    transaction: (work) => work(transaction),
-    update: unused,
-  };
-  const auth = { ...provider };
-  const service = createUsersService({ provider: auth, repository, otp });
-  return { auth, repository, service, transaction };
-};
 
 test("managed user creation normalizes identity and revokes the provider-created session", async () => {
   const { auth, repository, service } = managementFixture();
@@ -553,7 +546,7 @@ test("status and administrator changes reject malformed or self-deactivating req
 });
 
 test("managed profile updates reject no-op changes and handle disappearance during persistence", async () => {
-  const { repository, service } = managementFixture();
+  const { repository, service, transaction } = managementFixture();
 
   await assert.rejects(
     service.update(actor, target.id, { mobile: "invalid" }),
@@ -562,7 +555,28 @@ test("managed profile updates reject no-op changes and handle disappearance duri
       kind: "invalid",
     },
   );
-  repository.update = async () => undefined;
+  for (const input of [{}, { mobile: target.mobile }]) {
+    await assert.rejects(service.update(actor, target.id, input), {
+      key: "updateFieldsRequired",
+      kind: "invalid",
+    });
+  }
+
+  let attemptedConsumption = 0;
+  let committedConsumption = 0;
+  repository.transaction = async (work) => {
+    let pendingConsumption = 0;
+    const result = await work({
+      ...transaction,
+      consumeOtp: async () => {
+        attemptedConsumption++;
+        pendingConsumption++;
+      },
+    });
+    committedConsumption += pendingConsumption;
+    return result;
+  };
+  transaction.update = async () => undefined;
   await assert.rejects(
     service.update(actor, target.id, { mobile: "09120000003", otp: "123456" }),
     {
@@ -570,7 +584,9 @@ test("managed profile updates reject no-op changes and handle disappearance duri
       kind: "not-found",
     },
   );
-  repository.update = async (_id, update) => ({ ...target, ...update });
+  assert.equal(attemptedConsumption, 1);
+  assert.equal(committedConsumption, 0);
+  transaction.update = async (_id, update) => ({ ...target, ...update });
   const updated = await service.update(actor, target.id, {
     mobile: "09120000003",
     otp: "123456",
@@ -578,4 +594,42 @@ test("managed profile updates reject no-op changes and handle disappearance duri
   assert.equal(updated.mobile, "09120000003");
   assert.equal(updated.first_name, target.firstName);
   assert.equal(updated.last_name, target.lastName);
+  assert.equal(committedConsumption, 1);
+});
+
+test("name-only updates enforce live authorization and omit an unchanged mobile", async () => {
+  const { service, transaction } = managementFixture();
+  const editor = { ...actor.account, isSystemAdmin: false };
+  transaction.find = async (id) => (id === target.id ? target : editor);
+  transaction.hasPermission = async () => false;
+  const changes = { first_name: "Changed" };
+
+  await assert.rejects(service.update(actor, target.id, changes), {
+    key: "permissionDenied",
+    kind: "forbidden",
+  });
+  await assert.rejects(service.update(actor, target.id, changes, "profile"), {
+    key: "systemAdminRequired",
+    kind: "forbidden",
+  });
+  transaction.hasActiveSession = async () => false;
+  await assert.rejects(service.update(actor, target.id, changes), {
+    key: "authenticationRequired",
+    kind: "unauthenticated",
+  });
+
+  transaction.hasActiveSession = async () => true;
+  transaction.hasPermission = async () => true;
+  transaction.consumeOtp = unused;
+  transaction.update = async (id, update, actorId) => {
+    assert.equal(id, target.id);
+    assert.equal(actorId, editor.id);
+    assert.deepEqual(update, { firstName: "Changed" });
+    return { ...target, ...update };
+  };
+  const updated = await service.update(actor, target.id, {
+    ...changes,
+    mobile: target.mobile,
+  });
+  assert.equal(updated.first_name, "Changed");
 });

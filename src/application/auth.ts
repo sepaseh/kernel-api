@@ -17,7 +17,6 @@ import { requiredString } from "./validation.ts";
 const isMobile = (value: string) => /^09\d{9}$/.test(value);
 const isOtpPurpose = (value: unknown): value is OtpPurpose =>
   value === "forgot_password" ||
-  value === "login" ||
   value === "register" ||
   value === "verify_email";
 
@@ -86,7 +85,7 @@ export const createAuthService = ({
       if (!(await validPasswordLength(password)))
         throw new ApplicationError("invalid", "passwordResetInvalid");
       const existing = await persistence.findUserByMobile(mobile);
-      if (!existing)
+      if (existing?.status !== "active")
         throw new ApplicationError("invalid", "passwordResetInvalid");
       await persistence.resetPasswordWithOtp({
         newHash: await provider.hashPassword(password),

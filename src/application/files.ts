@@ -6,14 +6,15 @@ import type {
   PublicFileContent,
   UploadedFile,
 } from "./ports/files.ts";
+import { FileInsertNotCommittedError } from "./ports/files.ts";
 import type { ObjectStorage } from "./ports/object-storage.ts";
 
 const safeObjectName = (name: string) =>
   name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
 
-const observe = (notify: () => void) => {
+const observe = (notify: () => unknown) => {
   try {
-    notify();
+    void Promise.resolve(notify()).catch(() => undefined);
   } catch {
     // Diagnostic observers must not change storage effects or mask domain failures.
   }
@@ -98,6 +99,7 @@ export const createFilesService = ({
       if (size > uploadLimitBytes) {
         throw new ApplicationError("too-large", "fileTooLarge");
       }
+      const createdAt = now();
       observe(() => events?.stage?.("storage"));
       const stored = await storageOperation(
         "put",
@@ -110,7 +112,7 @@ export const createFilesService = ({
         await repository.insert({
           bucket: stored.bucket,
           contentType,
-          createdAt: now(),
+          createdAt,
           createdBy: actor.account.id,
           id,
           objectKey: stored.objectKey,
@@ -119,6 +121,8 @@ export const createFilesService = ({
           visibility,
         });
       } catch (error) {
+        if (!(error instanceof FileInsertNotCommittedError)) throw error;
+
         try {
           await storageOperation(
             "delete",
@@ -131,10 +135,13 @@ export const createFilesService = ({
             events?.cleanupFailed?.({ error: cleanupError, fileId: id }),
           );
         }
-        throw error;
+        throw error.cause;
       }
       observe(() => events?.stage?.("response"));
-      const url = storage.url(stored.bucket, stored.objectKey, visibility);
+      const url =
+        visibility === "public"
+          ? storage.url(stored.bucket, stored.objectKey, visibility)
+          : undefined;
       observe(() =>
         events?.uploaded?.({
           contentType,

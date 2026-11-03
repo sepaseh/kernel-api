@@ -35,6 +35,9 @@ export type UsersWritePort = {
   resetCredentialPassword: (userId: string, hash: string) => Promise<boolean>;
   setStatus: (id: string, status: UserRecord["status"]) => Promise<void>;
   setSystemAdmin: (id: string, value: boolean) => Promise<void>;
+  // A mobile change requires an active actor changing their own account or an
+  // active system administrator. Check live state in the conditional write;
+  // rejection must not apply any part of the update.
   update: (
     id: string,
     update: UserUpdate,
@@ -50,12 +53,5 @@ export type UsersRepository = {
   transaction: <T>(
     work: (transaction: UsersWritePort) => Promise<T>,
   ) => Promise<T>;
-  // A mobile change requires an active actor changing their own account or an
-  // active system administrator. Check live state in the conditional write;
-  // rejection must not apply any part of the update.
-  update: (
-    id: string,
-    update: UserUpdate,
-    actorId: string,
-  ) => Promise<UserRecord | undefined>;
+  update: UsersWritePort["update"];
 };
