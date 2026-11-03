@@ -46,6 +46,14 @@ export type UsersWritePort = {
 };
 
 export type UsersRepository = {
+  // Create the user and password credential atomically without issuing a session.
+  createWithCredential: (input: {
+    authEmail: string;
+    firstName: string;
+    lastName: string;
+    mobile: string;
+    passwordHash: string;
+  }) => Promise<UserRecord>;
   deleteSessions: (userId: string) => Promise<void>;
   find: (id: string) => Promise<UserRecord | undefined>;
   getRoles: (userIds: string[]) => Promise<Map<string, UserRole[]>>;

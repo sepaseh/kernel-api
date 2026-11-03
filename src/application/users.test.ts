@@ -4,11 +4,7 @@ import { test } from "node:test";
 import { profileNameMaxLength } from "../contracts/profile.ts";
 import { ApplicationError } from "./errors.ts";
 import type { Actor, UserRecord } from "./models.ts";
-import {
-  type AuthProvider,
-  AuthRejection,
-  type OtpGateway,
-} from "./ports/auth.ts";
+import type { AuthProvider, OtpGateway } from "./ports/auth.ts";
 import type { UsersRepository, UsersWritePort } from "./ports/users.ts";
 import { createUsersService } from "./users.ts";
 
@@ -73,6 +69,7 @@ const managementFixture = () => {
     update: (id, changes, actorId) => repository.update(id, changes, actorId),
   };
   const repository: UsersRepository = {
+    createWithCredential: unused,
     deleteSessions: unused,
     find: async () => target,
     getRoles: async () => new Map(),
@@ -158,6 +155,7 @@ test("application policy prevents non-admins changing an administrator's mobile"
     },
   };
   const repository: UsersRepository = {
+    createWithCredential: unused,
     deleteSessions: unused,
     find: async () => admin,
     getRoles: async () => new Map(),
@@ -219,6 +217,7 @@ for (const operation of ["remove", "deactivate", "demote"] as const) {
       update: unused,
     };
     const repository: UsersRepository = {
+      createWithCredential: unused,
       deleteSessions: unused,
       find: async () => target,
       getRoles: unused,
@@ -261,6 +260,7 @@ const deletionService = (remove: UsersWritePort["remove"]) => {
     update: unused,
   };
   const repository: UsersRepository = {
+    createWithCredential: unused,
     deleteSessions: unused,
     find: async () => target,
     getRoles: unused,
@@ -309,31 +309,28 @@ test("user deletion accepts an unused record without masking infrastructure fail
   );
 });
 
-test("managed user creation normalizes identity and revokes the provider-created session", async () => {
+test("managed creation validates password bounds and persists only a hashed credential", async () => {
   const { auth, repository, service } = managementFixture();
   const effects: string[] = [];
-  auth.signUp = async (input) => {
+  auth.passwordBounds = async () => ({ min: 8, max: 20 });
+  auth.hashPassword = async (password) => {
+    assert.equal(password, "synthetic-password");
+    effects.push("hash");
+    return "synthetic-hash";
+  };
+  repository.createWithCredential = async (input) => {
     assert.match(input.authEmail, /^[0-9a-f-]{36}@kernel\.local$/);
     assert.deepEqual(input, {
       authEmail: input.authEmail,
       firstName: "New",
       lastName: "User",
       mobile: target.mobile,
-      name: "New User",
-      password: "synthetic-password",
+      passwordHash: "synthetic-hash",
     });
     effects.push("create");
-    return { token: "synthetic-provider-token", userId: target.id };
+    return { ...target, firstName: input.firstName, lastName: input.lastName };
   };
-  repository.deleteSessions = async (id) => {
-    assert.equal(id, target.id);
-    effects.push("revoke");
-  };
-  repository.find = async (id) => {
-    assert.equal(id, target.id);
-    effects.push("read");
-    return target;
-  };
+  repository.find = unused;
   const input = {
     first_name: " New ",
     last_name: " User ",
@@ -345,22 +342,31 @@ test("managed user creation normalizes identity and revokes the provider-created
     key: "mobileInvalid",
     kind: "invalid",
   });
+  for (const password of ["short", "x".repeat(21)]) {
+    await assert.rejects(service.create({ ...input, password }), {
+      key: "userDataInvalid",
+      kind: "invalid",
+    });
+  }
   assert.deepEqual(effects, []);
   const result = await service.create(input);
   assert.equal(result.id, target.id);
+  assert.equal(result.first_name, "New");
   assert.equal("token" in result, false);
-  assert.deepEqual(effects, ["create", "revoke", "read"]);
-  auth.signUp = async () => {
-    throw new AuthRejection();
+  assert.equal("passwordHash" in result, false);
+  assert.deepEqual(effects, ["hash", "create"]);
+
+  const duplicate = new ApplicationError("invalid", "userDataInvalid");
+  repository.createWithCredential = async () => {
+    throw duplicate;
   };
-  await assert.rejects(service.create(input), {
-    key: "userDataInvalid",
-    kind: "invalid",
-  });
-  const failure = new Error("Synthetic provider outage");
-  auth.signUp = async () => {
+  await assert.rejects(service.create(input), (error) => error === duplicate);
+
+  const failure = new Error("Synthetic password hash failure");
+  auth.hashPassword = async () => {
     throw failure;
   };
+  repository.createWithCredential = unused;
   await assert.rejects(service.create(input), (error) => error === failure);
 });
 
