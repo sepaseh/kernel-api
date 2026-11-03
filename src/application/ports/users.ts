@@ -35,21 +35,6 @@ export type UsersWritePort = {
   resetCredentialPassword: (userId: string, hash: string) => Promise<boolean>;
   setStatus: (id: string, status: UserRecord["status"]) => Promise<void>;
   setSystemAdmin: (id: string, value: boolean) => Promise<void>;
-  update: (
-    id: string,
-    update: UserUpdate,
-    actorId: string,
-  ) => Promise<UserRecord | undefined>;
-};
-
-export type UsersRepository = {
-  deleteSessions: (userId: string) => Promise<void>;
-  find: (id: string) => Promise<UserRecord | undefined>;
-  getRoles: (userIds: string[]) => Promise<Map<string, UserRole[]>>;
-  list: (query: UsersQuery) => Promise<{ items: UserRecord[]; total: number }>;
-  transaction: <T>(
-    work: (transaction: UsersWritePort) => Promise<T>,
-  ) => Promise<T>;
   // A mobile change requires an active actor changing their own account or an
   // active system administrator. Check live state in the conditional write;
   // rejection must not apply any part of the update.
@@ -58,4 +43,23 @@ export type UsersRepository = {
     update: UserUpdate,
     actorId: string,
   ) => Promise<UserRecord | undefined>;
+};
+
+export type UsersRepository = {
+  // Create the user and password credential atomically without issuing a session.
+  createWithCredential: (input: {
+    authEmail: string;
+    firstName: string;
+    lastName: string;
+    mobile: string;
+    passwordHash: string;
+  }) => Promise<UserRecord>;
+  deleteSessions: (userId: string) => Promise<void>;
+  find: (id: string) => Promise<UserRecord | undefined>;
+  getRoles: (userIds: string[]) => Promise<Map<string, UserRole[]>>;
+  list: (query: UsersQuery) => Promise<{ items: UserRecord[]; total: number }>;
+  transaction: <T>(
+    work: (transaction: UsersWritePort) => Promise<T>,
+  ) => Promise<T>;
+  update: UsersWritePort["update"];
 };

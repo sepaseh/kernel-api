@@ -11,6 +11,7 @@ import type {
   FileUploadStage,
   UploadFileSource,
 } from "./ports/files.ts";
+import { FileInsertNotCommittedError } from "./ports/files.ts";
 import type { ObjectStorage } from "./ports/object-storage.ts";
 
 const actor: Actor = {
@@ -170,16 +171,27 @@ test("public uploads use the injected ports and private records cannot be read p
 });
 
 test("ordinary authenticated uploads remain private with no public URL and retain defaults", async () => {
-  const { records, service } = fixture();
+  const { records, service, storage } = fixture();
+  storage.url = () => "https://storage.example/unexpected-private-url";
   const result = await service.upload({
     actor,
     source: { ...source, name: "", type: "" },
     visibility: "private",
   });
-  assert.equal(result.url, undefined);
+  assert.equal(Object.hasOwn(result, "url"), false);
   assert.equal(result.contentType, "application/octet-stream");
   assert.equal(records.get(result.id)?.originalName, "upload");
   assert.equal(records.get(result.id)?.objectKey, "fixture-file/upload");
+});
+
+test("system administrators can upload public files without a settings grant", async () => {
+  const { service } = fixture();
+  const result = await service.upload({
+    actor: { ...actor, account: { ...actor.account, isSystemAdmin: true } },
+    source,
+    visibility: "public",
+  });
+  assert.equal(result.visibility, "public");
 });
 
 test("metadata failure attempts object cleanup and remains the thrown error if cleanup fails", async () => {
@@ -187,7 +199,7 @@ test("metadata failure attempts object cleanup and remains the thrown error if c
   const metadataError = new Error("Synthetic metadata failure");
   const cleanupError = new Error("Synthetic cleanup failure");
   repository.insert = async () => {
-    throw metadataError;
+    throw new FileInsertNotCommittedError(metadataError);
   };
   storage.delete = async (_bucket, key) => {
     deleted.push(key);
@@ -222,7 +234,7 @@ test("metadata rollback deletes the stored object and never emits upload success
   const { deleted, objects, repository, service } = fixture();
   const failure = new Error("Synthetic metadata rollback");
   repository.insert = async () => {
-    throw failure;
+    throw new FileInsertNotCommittedError(failure);
   };
   let uploaded = false;
 
@@ -240,6 +252,29 @@ test("metadata rollback deletes the stored object and never emits upload success
   assert.deepEqual(deleted, ["fixture-file/a-b-picture.png"]);
   assert.equal(objects.size, 0);
   assert.equal(uploaded, false);
+});
+
+test("an ambiguous metadata failure preserves bytes that the committed row may reference", async () => {
+  const { deleted, records, repository, service } = fixture();
+  const failure = new Error("Synthetic lost commit acknowledgement");
+  repository.insert = async (record) => {
+    records.set(record.id, record);
+    throw failure;
+  };
+
+  await assert.rejects(
+    service.upload({
+      actor: { ...actor, permissions: ["settings.update"] },
+      source,
+      visibility: "public",
+    }),
+    (error) => error === failure,
+  );
+  assert.deepEqual(deleted, []);
+  assert.deepEqual(
+    (await service.getPublicContent("fixture-file")).contents,
+    new Uint8Array([1, 2, 3]),
+  );
 });
 
 test("actual empty or oversized data is rejected before any object or metadata write", async () => {
@@ -359,6 +394,29 @@ test("upload completion observer exceptions cannot turn committed private upload
   assert.equal(objects.size, 1);
 });
 
+test("rejected asynchronous observers do not turn a committed upload into a failure", async () => {
+  const { records, service } = fixture();
+  const stages: FileUploadStage[] = [];
+  let completed = false;
+  const result = await service.upload(
+    { actor, source, visibility: "private" },
+    {
+      stage: async (stage) => {
+        stages.push(stage);
+        throw new Error("Synthetic asynchronous stage failure");
+      },
+      uploaded: async () => {
+        completed = true;
+        throw new Error("Synthetic asynchronous completion failure");
+      },
+    },
+  );
+
+  assert.equal(records.has(result.id), true);
+  assert.equal(stages.at(-1), "response");
+  assert.equal(completed, true);
+});
+
 test("storage failure observers cannot mask a failed object write or create metadata", async () => {
   const { objects, records, service, storage } = fixture();
   const failure = new Error("Synthetic storage write failure");
@@ -413,7 +471,7 @@ test("metadata failure still cleans up after a stage observer throws", async () 
   const { deleted, objects, repository, service } = fixture();
   const failure = new Error("Synthetic metadata failure");
   repository.insert = async () => {
-    throw failure;
+    throw new FileInsertNotCommittedError(failure);
   };
 
   await assert.rejects(
@@ -437,7 +495,7 @@ test("failed cleanup observers preserve the original metadata failure", async ()
   const metadataFailure = new Error("Synthetic metadata failure");
   const cleanupFailure = new Error("Synthetic object deletion failure");
   repository.insert = async () => {
-    throw metadataFailure;
+    throw new FileInsertNotCommittedError(metadataFailure);
   };
   storage.delete = async (_bucket, key) => {
     deleted.push(key);

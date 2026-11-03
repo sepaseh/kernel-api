@@ -41,6 +41,6 @@ npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
 npm run validate -- full
 ```
 
-The [canonical manifest](.agents/validation.json) owns all ten real source-phase
+The [canonical manifest](.agents/validation.json) owns the required source-phase
 checks. Foundation, fake-port and local infrastructure tests do not establish
 unpublished database, authentication adapter, HTTP, server or deployment behavior.

@@ -17,7 +17,7 @@ Keep framework dependencies out of contracts, core modules and ports.
 Publish application services, catalogs, adapters, migrations, HTTP, collections
 and deployment assets in focused owner groups.
 Introduce each owner with its necessary dependencies and tests; do not publish
-unused interfaces or broken placeholders merely to fill a file budget.
+unused interfaces or broken placeholders.
 
 ## Validation and authorization
 
@@ -34,37 +34,37 @@ verification fixtures, never additional implementation checkouts. Remove only
 owned fixtures after closing their processes.
 
 Do not validate a partial PR against ambient unpublished API files, skip failures,
-weaken checks or report unavailable evidence as a pass. The source-phase full
-profile runs all ten required checks, including real source boundaries,
-typechecking, lint, measured foundation/tooling coverage and audit-helper tests.
+weaken checks or report unavailable evidence as a pass. The full profile runs
+every required check in the current manifest, including real source boundaries,
+typechecking, lint, measured published-source and tooling coverage and audit-helper tests.
 It applies to every PR, including drafts and documentation-only changes.
 
 Tests must cover each published owner. Introduce real relevant HTTP, database,
 authentication and storage tests with those later owners; pure foundation and
-governance tests do not prove their behavior. The previous six-check governance
-profile is historical evidence for that earlier scope, not a source-phase gate.
+governance tests do not prove their behavior. Earlier governance evidence cannot
+replace the current source-phase gate.
 
 ## Review and protection
 
 Follow [branch protection](docs/branch-protection.md) and the
 [Sonar/CodeRabbit preflight](docs/sonarqube.md#before-requesting-coderabbit).
-Review must cover the exact current head. Scanner success and the actual provider
+Review must cover the exact current head and include the native CodeQL result.
+Scanner success and the actual provider
 quality gate are separate requirements. A CodeRabbit progress status or ordinary
 approval count does not prove that CodeRabbit approved that head.
 
-The trusted default-branch guard cannot enforce itself before its first
-publication. A ready-for-review PR may still have pending provider evidence when
-that status is explicitly requested by the user; disclose the missing results
-and keep merging blocked. Do not weaken active requirements or merge merely to
-create a baseline. A request to publish ready for review does not authorize a
-CodeRabbit request before its preflight passes.
+Use the native approval count; no separate publisher or custom approval check
+is required. Keep incomplete work in draft unless the owner explicitly requests
+ready-for-review status. That status does not establish merge readiness. Verify
+the actual current-head provider evidence before any separately authorized merge;
+do not weaken active requirements to unblock publication. A ready-for-review
+request does not authorize a CodeRabbit request before its preflight passes.
 
 For a stack, each PR targets its immediate prerequisite so its diff contains
-only that slice. Full CI and the read-only bootstrap file budget run on these
-PRs. Trusted target workflows protect PRs into `main` only; PRs targeting other
-branches must not claim that enforcement. After prerequisites are reviewed and
-merged, retarget to `main` and obtain fresh current-head/base evidence before
-any separately authorized merge.
+only that slice. Full CI and CodeQL run for every PR base. Main-branch protection
+applies when the PR targets `main`. After prerequisites are reviewed and merged,
+retarget to `main` and obtain fresh current-head/base evidence before any
+separately authorized merge.
 
 Use a Conventional Commit title and the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
 Do not merge without separate authorization.

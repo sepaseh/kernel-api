@@ -7,6 +7,8 @@ export type ObjectStorage = {
   delete(bucket: string, objectKey: string): Promise<void>;
   ensureReady(): Promise<void>;
   get(bucket: string, objectKey: string): Promise<Uint8Array>;
+  // The adapter owns cleanup of partial writes it can attribute to this call.
+  // A rejected put does not authorize deletion of an object at the same key.
   put(input: {
     contentType: string;
     data: Uint8Array;
