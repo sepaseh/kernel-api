@@ -35,6 +35,12 @@ export const createFilesService = ({
   storage,
   uploadLimitBytes,
 }: FilesDependencies) => {
+  const validateSize = (size: number) => {
+    if (!size) throw new ApplicationError("invalid", "fileEmpty");
+    if (size > uploadLimitBytes)
+      throw new ApplicationError("too-large", "fileTooLarge");
+  };
+
   const storageOperation = async <T>(
     operation: "delete" | "get" | "put",
     run: () => Promise<T>,
@@ -85,20 +91,14 @@ export const createFilesService = ({
       ) {
         throw new ApplicationError("forbidden", "publicUploadDenied");
       }
-      if (!source.size) throw new ApplicationError("invalid", "fileEmpty");
-      if (source.size > uploadLimitBytes) {
-        throw new ApplicationError("too-large", "fileTooLarge");
-      }
+      validateSize(source.size);
       const id = newId();
       const objectKey = `${id}/${safeObjectName(source.name || "upload")}`;
       const contentType = source.type || "application/octet-stream";
       observe(() => events?.stage?.("read"));
       const data = await source.read();
       const size = data.byteLength;
-      if (!size) throw new ApplicationError("invalid", "fileEmpty");
-      if (size > uploadLimitBytes) {
-        throw new ApplicationError("too-large", "fileTooLarge");
-      }
+      validateSize(size);
       const createdAt = now();
       observe(() => events?.stage?.("storage"));
       const stored = await storageOperation(
