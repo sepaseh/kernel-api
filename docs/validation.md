@@ -15,12 +15,6 @@ changes, without changed-path or target-branch filters. Foundation tests do not
 stand in for unpublished service, HTTP, database, authentication or storage tests.
 Add relevant real behavior evidence as each owner is published.
 
-CI runs the full gate when a PR opens, receives new commits, reopens or changes
-its target branch. Title and description edits skip the validation jobs and use a
-separate queue, so they cannot displace queued verification. Metadata-only runs
-do not report the required `check` or scanner contexts. Drafts already receive
-validation, so marking a PR ready does not repeat it.
-
 CI displays each real suite separately and partitions the canonical full gate:
 
 | Job              | Manifest profile | Required work                                                                     |
