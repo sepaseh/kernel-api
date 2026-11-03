@@ -3,12 +3,14 @@ import { createHash } from "node:crypto";
 import { constants } from "node:fs";
 import {
   chmod,
+  link,
   lstat,
   mkdir,
   mkdtemp,
   open,
   readdir,
   rm,
+  rmdir,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
@@ -121,7 +123,7 @@ const downloadArchive = async (response) => {
   return Buffer.concat(chunks, size);
 };
 
-const writeNewArchive = async (filename, bytes) => {
+const writeArchive = async (filename, bytes) => {
   const file = await open(filename, "wx", 0o600);
   let failure;
   try {
@@ -140,17 +142,34 @@ const writeNewArchive = async (filename, bytes) => {
         )
       : error;
   }
-  if (!failure) return;
+  if (failure) throw failure;
+};
+
+const writeNewArchive = async (filename, bytes) => {
+  const directory = await mkdtemp(
+    path.join(path.dirname(filename), "download-"),
+  );
+  const archive = path.join(directory, path.basename(filename));
+  let failure;
+  try {
+    await writeArchive(archive, bytes);
+    await link(archive, filename);
+  } catch (error) {
+    failure = error;
+  }
 
   try {
-    await rm(filename, { force: true });
+    await rm(archive, { force: true });
+    await rmdir(directory);
   } catch (error) {
-    throw new AggregateError(
-      [failure, error],
-      "archive write and cleanup both failed",
-    );
+    failure = failure
+      ? new AggregateError(
+          [failure, error],
+          "archive publication and cleanup both failed",
+        )
+      : error;
   }
-  throw failure;
+  if (failure) throw failure;
 };
 
 const archiveBytes = async (filename, asset, request) => {

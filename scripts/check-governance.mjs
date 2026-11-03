@@ -1144,6 +1144,13 @@ const npm = (args, root, capture = false) => {
     stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
   });
 };
+/** @typedef {{ status: number | null, error?: Error }} CheckResult */
+
+/**
+ * @param {string} profile
+ * @param {string} root
+ * @param {(name: string) => CheckResult | Promise<CheckResult>} [execute]
+ */
 export const runProfile = async (
   profile,
   root,

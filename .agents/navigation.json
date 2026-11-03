@@ -57,6 +57,34 @@
         "format",
         "coverage-tests"
       ]
+    },
+    {
+      "id": "pure-foundation",
+      "when": "Change published pure contracts, identity, authorization or validation policy.",
+      "owners": [
+        "src/application/authorization.ts",
+        "src/application/errors.ts",
+        "src/application/identity.ts",
+        "src/application/models.ts",
+        "src/application/permissions.ts",
+        "src/application/validation.ts"
+      ],
+      "contracts": [
+        "src/contracts/locales.ts",
+        "src/contracts/otp.ts",
+        "src/contracts/permissions.ts",
+        "src/contracts/profile.ts",
+        "src/application/ports/auth.ts",
+        ".agents/rules/backend.md",
+        ".agents/rules/imports.md",
+        "src/contracts/settings.ts"
+      ],
+      "tests": [
+        "src/application/foundation.test.ts",
+        "src/application/validation.test.ts",
+        "scripts/check-boundaries.test.mjs"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
     }
   ]
 }

@@ -13,14 +13,16 @@ separately as a Dependabot secret when Dependabot analysis is needed.
 Set `SONAR_PROJECT_KEY` to the actual imported key; `SONAR_HOST_URL` defaults
 to `https://sonarcloud.io`. Inspect names only, never secret values.
 
-The first publication analyzes its published governance scripts and imports real
-`coverage/lcov.info` measured once by the **Governance tests** job. The provenance
-manifest at `coverage/governance/ci-evidence.json` binds coverage to the governance
+The foundation publication analyzes its published `src` and `scripts` and imports
+real `coverage/lcov.info` measured once by the **Governance tests** job. Its
+manifest profile runs foundation/tooling coverage and audit-helper tests. The
+provenance manifest at `coverage/governance/ci-evidence.json` binds coverage to the governance
 suite, source, workflow and producing attempt. Analysis downloads the immutable
 `coverage-governance-<run>-<attempt>` artifact directly from that producer and
 verifies its identity and report bytes before scanning. Do not reuse another
-head's report or attribute this coverage to unpublished API source. The scanner
-sets the SCM revision to the PR head, or the triggering commit for other events,
+head's report or attribute foundation/tooling coverage to unpublished application
+services, adapters or HTTP behavior. The scanner sets the SCM revision to the PR
+head, or the triggering commit for other events,
 while coverage remains bound to the exact tested checkout and merge base.
 
 Require both **SonarQube Cloud analysis** from GitHub Actions and the actual
@@ -32,6 +34,13 @@ project configuration and a green provider gate are distinct facts.
 Fork PRs do not receive Sonar credentials. Review external code before placing it
 on an authorized branch for credentialed analysis. Never expose a token through
 a privileged checkout of fork code.
+
+Full CI, CodeQL and scanner analysis can run on stacked PRs targeting prerequisite
+branches. Main-branch protection applies when a PR targets `main`; use native
+provider checks and the native approval count. After retargeting to `main`, require
+fresh head/base evidence and actual provider results. A user-authorized ready-for-review
+status with pending checks does not establish analysis, authorize merging or
+relax the preflight below.
 
 ## Before requesting CodeRabbit
 

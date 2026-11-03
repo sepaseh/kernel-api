@@ -1,7 +1,8 @@
 # API translation catalogs
 
-This rule constrains later API source publication. The current governance
-phase publishes no application source and establishes no API test results.
+The current publication inventory declares which source owners are published.
+This rule applies when its corresponding owner is published. Unpublished local
+source and rule text do not establish validated behavior.
 
 API messages belong to src/infrastructure/localization/catalogs/<code>.ts. The local
 index composes all ten codes from supportedLanguages in src/contracts/locales.ts.
@@ -14,7 +15,13 @@ Frontend UI/common/calendar catalogs belong to their independent frontend reposi
 
 src/application/localization.ts defines the pure message-key/resource types without
 reading runtime catalogs. Application imports from it must be erased type references.
-When adding or retiring a message, update this vocabulary and all ten catalogs together;
+During the foundation phase, when runtime catalogs are outside the publication
+inventory, adding or retiring a message updates the vocabulary only. Catalog
+updates and parity validation are deferred until the catalog owner is published;
+do not add unpublished catalogs to a foundation change. Changes to
+`supportedLanguages` metadata alone do not add or retire message keys.
+Once the catalog owner is published, update this vocabulary and all ten catalogs
+together when adding or retiring a message;
 src/infrastructure/localization/catalogs.test.ts checks exact parity, data purity and registry/settings consistency.
 Only infrastructure/localization/i18n.ts initializes i18next.
 

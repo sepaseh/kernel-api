@@ -40,8 +40,12 @@
     "npm run check:ci",
     "npm run check:actions",
     "npm run audit",
+    "npm run check:boundaries",
+    "npm run typecheck",
+    "npm run lint",
     "npm run format:check",
     "npm run check:guidance",
-    "npm run test:coverage"
+    "npm run test:coverage",
+    "npm run test:audit"
   ]
 }

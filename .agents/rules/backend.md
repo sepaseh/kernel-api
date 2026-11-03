@@ -1,7 +1,8 @@
 # Backend boundaries
 
-This rule constrains later API source publication. The current governance
-phase publishes no application source and establishes no API test results.
+The current publication inventory declares which source owners are published.
+This rule applies when its corresponding owner is published. Unpublished local
+source and rule text do not establish validated behavior.
 
 Read this rule before changing `src`. The backend uses a small application,
 infrastructure and HTTP presentation split. Keep it lightweight: no DDD layer,

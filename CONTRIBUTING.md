@@ -1,9 +1,10 @@
 # Contributing to Kernel API
 
-Publish the repository in focused PRs. The first publication contains only rules,
-assistant guidance, repository configuration and the tools that verify them.
-The [inventory](.github/bootstrap-policy.json) declares the exact proposed paths.
-Preserve all unrelated local source and private runtime state.
+Publish the repository in focused PRs. The current foundation phase contains
+pure contracts, core modules, their required authentication port definitions,
+tests and repository tooling. The [inventory](.github/bootstrap-policy.json)
+declares the exact proposed paths. Preserve unrelated local source and private
+runtime state.
 
 ## Scope and PR planning
 
@@ -13,9 +14,11 @@ a GitHub rename is one entry. Explain why a larger cohesive change belongs
 together. File count is advisory: exceeding 100 files alone does not fail CI,
 block merging or require deleting or recreating a PR.
 
-Keep API source, migrations, catalogs, collections, deployment and release
-workflows out of the governance PR. Introduce executable workflows together with
-their owners and tests in later focused PRs; do not publish broken placeholders.
+Keep framework dependencies out of contracts, core modules and ports.
+Application services, adapters, catalogs, migrations, HTTP routes, composition,
+collections and deployment assets belong to their own later publications.
+Introduce each owner with its necessary dependencies and tests; do not publish
+unused interfaces or broken placeholders.
 
 ## Validation and authorization
 
@@ -32,14 +35,15 @@ verification fixtures, never additional implementation checkouts. Remove only
 owned fixtures after closing their processes.
 
 Do not validate a partial PR against ambient unpublished API files, skip failures,
-weaken checks or report unavailable evidence as a pass. Governance checks cover
-snapshot boundaries, configuration, workflow security, audit, formatting,
-documentation and measured governance tests. They do not validate the local API.
+weaken checks or report unavailable evidence as a pass. The foundation full
+profile runs every required check from the manifest, including real source boundaries,
+typechecking, lint, measured foundation/tooling coverage and audit-helper tests.
+It applies to every PR, including drafts and documentation-only changes.
 
-Before publishing application source, establish the complete application gate
-for the precise source phase, including real relevant HTTP, database,
-authentication and storage tests. Keep the complete gate required for drafts
-and documentation changes once that application phase is published.
+Tests must cover each published owner. Introduce real relevant HTTP, database,
+authentication and storage tests with those later owners; pure foundation and
+governance tests do not prove their behavior. Earlier governance evidence cannot
+replace the current source-phase gate.
 
 ## Review and protection
 
@@ -54,7 +58,14 @@ Use the native approval count; no separate publisher or custom approval check
 is required. Keep incomplete work in draft unless the owner explicitly requests
 ready-for-review status. That status does not establish merge readiness. Verify
 the actual current-head provider evidence before any separately authorized merge;
-do not weaken active requirements to unblock publication.
+do not weaken active requirements to unblock publication. A ready-for-review
+request does not authorize a CodeRabbit request before its preflight passes.
+
+For a stack, each PR targets its immediate prerequisite so its diff contains
+only that slice. Full CI and CodeQL run for every PR base. Main-branch protection
+applies when the PR targets `main`. After prerequisites are reviewed and merged,
+retarget to `main` and obtain fresh current-head/base evidence before any
+separately authorized merge.
 
 Use a Conventional Commit title and the [PR template](.github/PULL_REQUEST_TEMPLATE.md).
 Do not merge without separate authorization.

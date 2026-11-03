@@ -210,12 +210,10 @@ test("closes and removes partial cache writes so a later run can recover", async
   await probe.close();
   const write = prototype.writeFile;
   const failure = new Error("synthetic disk full");
-  let failedHandle;
   const writer = context.mock.method(
     prototype,
     "writeFile",
     async function (bytes) {
-      failedHandle = this;
       await write.call(this, bytes.subarray(0, 4));
       throw failure;
     },
@@ -223,14 +221,78 @@ test("closes and removes partial cache writes so a later run can recover", async
 
   await assert.rejects(runActionlint(value), (error) => error === failure);
   writer.mock.restore();
-  assert.equal(failedHandle.fd, -1);
+  assert.equal(writer.mock.calls[0].this.fd, -1);
   assert.deepEqual(await readdir(value.cache), []);
   assert.equal(value.executions.length, 0);
   assert.equal(await runActionlint(value), 0);
   assert.equal(value.requests.length, 2);
 });
 
-test("preserves write, close and cleanup failures without removing replacement contents", async (context) => {
+test("failed archive writes preserve ordinary cache replacements", async (context) => {
+  const value = await fixture(context);
+  const probe = await open(
+    path.join(value.root, ".github/workflows/ci.yml"),
+    "r",
+  );
+  const prototype = Object.getPrototypeOf(probe);
+  await probe.close();
+  const write = prototype.writeFile;
+  const failure = new Error("synthetic disk full");
+  const filename = path.join(value.cache, value.asset.name);
+  const writer = context.mock.method(
+    prototype,
+    "writeFile",
+    async function (bytes) {
+      await write.call(this, bytes.subarray(0, 4));
+      await rm(filename, { force: true });
+      await writeFile(filename, "ordinary replacement");
+      throw failure;
+    },
+  );
+
+  await assert.rejects(runActionlint(value), (error) => error === failure);
+  writer.mock.restore();
+  assert.equal(writer.mock.calls[0].this.fd, -1);
+  assert.equal(await readFile(filename, "utf8"), "ordinary replacement");
+  assert.deepEqual(await readdir(value.cache), [value.asset.name]);
+  assert.equal(value.executions.length, 0);
+});
+
+test("exclusive publication preserves a cache entry created after staging closes", async (context) => {
+  const value = await fixture(context);
+  const probe = await open(
+    path.join(value.root, ".github/workflows/ci.yml"),
+    "r",
+  );
+  const prototype = Object.getPrototypeOf(probe);
+  await probe.close();
+  const write = prototype.writeFile;
+  const filename = path.join(value.cache, value.asset.name);
+  let competitorCreated = false;
+  const writer = context.mock.method(
+    prototype,
+    "writeFile",
+    async function (bytes) {
+      await write.call(this, bytes);
+      const close = this.close.bind(this);
+      this.close = async () => {
+        await close();
+        await writeFile(filename, "concurrent cache entry", { flag: "wx" });
+        competitorCreated = true;
+      };
+    },
+  );
+
+  await assert.rejects(runActionlint(value), { code: "EEXIST" });
+  writer.mock.restore();
+  assert.ok(competitorCreated);
+  assert.equal(writer.mock.calls[0].this.fd, -1);
+  assert.equal(await readFile(filename, "utf8"), "concurrent cache entry");
+  assert.deepEqual(await readdir(value.cache), [value.asset.name]);
+  assert.equal(value.executions.length, 0);
+});
+
+test("preserves write, close and cleanup failures inside owned staging", async (context) => {
   const value = await fixture(context);
   const probe = await open(
     path.join(value.root, ".github/workflows/ci.yml"),
@@ -241,24 +303,26 @@ test("preserves write, close and cleanup failures without removing replacement c
   const write = prototype.writeFile;
   const writeFailure = new Error("synthetic write failure");
   const closeFailure = new Error("synthetic close failure");
-  const filename = path.join(value.cache, value.asset.name);
-  let failedHandle;
+  let archive;
   const writer = context.mock.method(
     prototype,
     "writeFile",
     async function (bytes) {
-      failedHandle = this;
       await write.call(this, bytes.subarray(0, 4));
       const close = this.close.bind(this);
       this.close = async () => {
         await close();
         throw closeFailure;
       };
-      await rm(filename);
-      await mkdir(filename);
+      const directories = await readdir(value.cache);
+      assert.equal(directories.length, 1);
+      assert.ok(directories[0].startsWith("download-"));
+      archive = path.join(value.cache, directories[0], value.asset.name);
+      await rm(archive);
+      await mkdir(archive);
       await writeFile(
-        path.join(filename, "replacement.txt"),
-        "preserve replacement",
+        path.join(archive, "cleanup-blocker.txt"),
+        "owned staging fixture",
       );
       throw writeFailure;
     },
@@ -271,10 +335,10 @@ test("preserves write, close and cleanup failures without removing replacement c
     return true;
   });
   writer.mock.restore();
-  assert.equal(failedHandle.fd, -1);
+  assert.equal(writer.mock.calls[0].this.fd, -1);
   assert.equal(
-    await readFile(path.join(filename, "replacement.txt"), "utf8"),
-    "preserve replacement",
+    await readFile(path.join(archive, "cleanup-blocker.txt"), "utf8"),
+    "owned staging fixture",
   );
   assert.equal(value.executions.length, 0);
 });

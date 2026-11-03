@@ -6,17 +6,21 @@ Run the smallest declared check that covers the files you changed. Before an
 authorized commit or PR, run `npm run validate -- full` from the
 [validation manifest](../validation.json), including for documentation changes.
 
-The current governance publication does not define typecheck, lint, lint-fix or
-Knip scripts. Those checks apply only after application source and its tooling
-are published; use the commands declared by that phase's manifest and package.
+The foundation publication defines source-boundary, typecheck and lint commands
+alongside measured source/tooling tests. Select the relevant focused checks from
+the manifest and package; none replaces the complete full profile. A passing
+foundation gate does not validate unpublished HTTP, database, authentication or
+storage behavior.
 
 For docs-only development, start with `npm run format:check` and validate links
 and referenced commands. Focused checks do not replace the full profile.
 
 ## Autofix workflow
 
-- After application tooling is published, let ESLint handle import sorting and
-  configured code rules using that phase's declared autofix command.
+- Let the installed ESLint handle import sorting and configured code rules with
+  `--fix` on the intended files, preserving unrelated work.
+- Do not assume a `lint:fix` script or Knip command exists; use only commands
+  declared by the published package and manifest.
 - Never sort imports manually if the published ESLint configuration can do it.
 - Do not introduce a formatter or new tooling unless the user asks.
 

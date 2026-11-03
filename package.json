@@ -11,13 +11,27 @@
     "check:snapshot": "node scripts/check-governance.mjs snapshot",
     "check:ci": "node scripts/check-governance.mjs ci-policy",
     "check:actions": "node scripts/run-actionlint.mjs",
-    "audit": "node scripts/check-governance.mjs audit",
+    "audit": "node scripts/run-audit.mjs",
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
     "format:check": "node scripts/check-governance.mjs format",
     "check:guidance": "node scripts/check-governance.mjs guidance",
-    "test:coverage": "node scripts/check-governance.mjs coverage-tests"
+    "test:coverage": "node scripts/check-governance.mjs coverage-tests",
+    "test:audit": "node scripts/check-governance.mjs audit-helper-tests"
   },
   "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/node": "24.19.2",
+    "eslint": "10.14.0",
+    "eslint-plugin-simple-import-sort": "14.0.0",
+    "globals": "17.13.0",
     "prettier": "3.9.10",
-    "yaml": "2.9.1"
+    "yaml": "2.9.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.1"
+  },
+  "overrides": {
+    "minimatch@10.2.6": "11.0.3"
   }
 }
