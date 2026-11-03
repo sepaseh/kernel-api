@@ -525,7 +525,7 @@ test("CI profiles partition the canonical full gate and execute each check once"
 });
 
 test("the actual aggregate rejects missing, failed, skipped and cancelled suites", () => {
-  const command = parseYaml(ciText).jobs.check.steps[0].run;
+  const command = parseYaml(ciText).jobs.aggregate.steps[0].run;
   const script = /^node -e "(.*)"$/.exec(command)?.[1];
   assert.ok(script);
   const healthy = Object.fromEntries(
@@ -559,7 +559,7 @@ test("the actual aggregate rejects missing, failed, skipped and cancelled suites
   assert.equal(execute({}), 1);
 });
 
-test("CI policy rejects conditional, filtered, duplicated, advisory, or redirected validation", () => {
+test("CI policy rejects weakened, filtered, duplicated, advisory, or redirected validation", () => {
   const healthy = parseYaml(ciText);
   validateCiWorkflow(healthy);
   for (const mutate of [
@@ -570,10 +570,10 @@ test("CI policy rejects conditional, filtered, duplicated, advisory, or redirect
       ci.on.pull_request.branches = ["main"];
     },
     (ci) => {
-      ci.jobs.check.if = "false";
+      ci.jobs.aggregate.if = "false";
     },
     (ci) => {
-      ci.jobs.check.needs.pop();
+      ci.jobs.aggregate.needs.pop();
     },
     (ci) => {
       ci.jobs.governance.if = "false";
@@ -582,7 +582,7 @@ test("CI policy rejects conditional, filtered, duplicated, advisory, or redirect
       ci.jobs.audit["continue-on-error"] = true;
     },
     (ci) => {
-      ci.jobs.check["continue-on-error"] = true;
+      ci.jobs.aggregate["continue-on-error"] = true;
     },
     (ci) => {
       ci.jobs.quality.steps[3].if = "github.event_name != 'pull_request'";
@@ -594,13 +594,47 @@ test("CI policy rejects conditional, filtered, duplicated, advisory, or redirect
       ci.jobs.quality.steps[3].run += " || true";
     },
     (ci) => {
-      ci.jobs.check.steps.push({ run: "npm run validate -- full" });
+      ci.jobs.aggregate.steps.push({ run: "npm run validate -- full" });
     },
     (ci) => {
       ci.jobs.hidden = { steps: [{ run: "npm test" }] };
     },
     (ci) => {
       ci.defaults = { run: { shell: "custom-shell" } };
+    },
+  ]) {
+    const changed = structuredClone(healthy);
+    mutate(changed);
+    assert.throws(() => validateCiWorkflow(changed));
+  }
+});
+
+test("CI keeps retarget validation and isolates metadata edits from required checks", () => {
+  const healthy = parseYaml(ciText);
+  for (const mutate of [
+    (ci) => {
+      ci.on.pull_request.types = ci.on.pull_request.types.filter(
+        (type) => type !== "edited",
+      );
+    },
+    (ci) => {
+      ci.on.pull_request.types.push("ready_for_review");
+    },
+    (ci) => {
+      ci.jobs.quality.if =
+        "github.event_name != 'pull_request' || github.event.action != 'edited'";
+    },
+    (ci) => {
+      ci.jobs.aggregate.if = "always()";
+    },
+    (ci) => {
+      ci.jobs.aggregate.name = "check";
+    },
+    (ci) => {
+      ci.jobs.analysis.name = "SonarQube Cloud analysis";
+    },
+    (ci) => {
+      ci.concurrency.group = "ci-${{ github.event_name }}-${{ github.ref }}";
     },
   ]) {
     const changed = structuredClone(healthy);

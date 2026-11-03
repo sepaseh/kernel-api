@@ -485,6 +485,11 @@ const setupNode = (cache = true) => ({
 });
 const sonarConfiguration = `if [[ "$SONAR_TOKEN_CONFIGURED" != 'true' || -z "$SONAR_PROJECT_KEY" ]]; then\n  echo '::error::Configure SONAR_TOKEN and SONAR_PROJECT_KEY before analysis. No Sonar analysis was performed.'\n  exit 1\nfi\n`;
 
+const ciEventCondition =
+  "github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != ''";
+const ciCheckName = (name, metadataName) =>
+  expression(`(${ciEventCondition}) && '${name}' || '${metadataName}'`);
+
 export const validateCiWorkflow = (workflow) => {
   equal(
     Object.keys(workflow ?? {}).sort((left, right) =>
@@ -499,17 +504,11 @@ export const validateCiWorkflow = (workflow) => {
     {
       push: { branches: ["main"] },
       pull_request: {
-        types: [
-          "opened",
-          "synchronize",
-          "reopened",
-          "edited",
-          "ready_for_review",
-        ],
+        types: ["opened", "synchronize", "reopened", "edited"],
       },
       workflow_dispatch: null,
     },
-    "Every PR, including drafts and metadata edits, must trigger full CI without path or branch filters.",
+    "Keep PR creation, source updates, reopening and retargeting without path or branch filters.",
   );
   equal(
     workflow.permissions,
@@ -520,19 +519,20 @@ export const validateCiWorkflow = (workflow) => {
     workflow.concurrency,
     {
       group:
-        "ci-" +
+        expression(`(${ciEventCondition}) && 'ci' || 'ci-metadata'`) +
+        "-" +
         expression("github.event_name") +
         "-" +
         expression("github.ref"),
       "cancel-in-progress": false,
     },
-    "Queue verification by event and ref without cancelling active evidence.",
+    "Queue metadata edits separately from validation without cancelling active evidence.",
   );
   equal(
     Object.keys(workflow.jobs ?? {}).sort((left, right) =>
       left.localeCompare(right),
     ),
-    ["analysis", "audit", "check", "governance", "quality"],
+    ["aggregate", "analysis", "audit", "governance", "quality"],
     "Keep static checks, dependency audit, governance tests, aggregate and analysis explicit.",
   );
   const baseSteps = [
@@ -553,6 +553,7 @@ export const validateCiWorkflow = (workflow) => {
       job,
       {
         name,
+        if: ciEventCondition,
         "runs-on": "ubuntu-latest",
         "timeout-minutes": 20,
         ...(governance
@@ -564,7 +565,7 @@ export const validateCiWorkflow = (workflow) => {
             }
           : {}),
       },
-      "Each CI suite must run unconditionally in its owning job.",
+      "Each CI suite must run for every verification event in its owning job.",
     );
     const expected = [...baseSteps, { run: `npm run validate -- ci-${id}` }];
     if (governance)
@@ -592,17 +593,18 @@ export const validateCiWorkflow = (workflow) => {
       "CI suites must execute disjoint canonical profiles once; only governance produces measured coverage.",
     );
   }
-  const { steps: checkSteps, ...check } = workflow.jobs.check;
+  const { steps: checkSteps, ...check } = workflow.jobs.aggregate;
   equal(
     check,
     {
+      name: ciCheckName("check", "Metadata only (aggregate)"),
       permissions: {},
       needs: ["quality", "audit", "governance"],
-      if: "always()",
+      if: `always() && (${ciEventCondition})`,
       "runs-on": "ubuntu-latest",
       "timeout-minutes": 5,
     },
-    "The stable check context must always aggregate every required suite.",
+    "The stable check context must always aggregate every required suite on verification events only.",
   );
   equal(
     stepsWithoutNames(checkSteps),
@@ -618,13 +620,13 @@ export const validateCiWorkflow = (workflow) => {
   equal(
     analysis,
     {
-      name: "SonarQube Cloud analysis",
-      needs: ["check", "governance"],
-      if: "needs.check.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+      name: ciCheckName("SonarQube Cloud analysis", "Metadata only (analysis)"),
+      needs: ["aggregate", "governance"],
+      if: `needs.aggregate.result == 'success' && (${ciEventCondition}) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)`,
       "runs-on": "ubuntu-latest",
       "timeout-minutes": 15,
     },
-    "Sonar must depend on successful validation and must not expose secrets to fork PRs.",
+    "Sonar must keep its native check name on verification events, depend on successful validation and retain fork isolation.",
   );
   equal(
     stepsWithoutNames(analysisSteps),

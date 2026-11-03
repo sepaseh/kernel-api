@@ -4,19 +4,22 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, edited, ready_for_review]
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.ref }}
+  group: >-
+    ${{ (github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != '') && 'ci' || 'ci-metadata' }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   quality:
     name: Static checks
+    if: >-
+      github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -34,6 +37,8 @@ jobs:
 
   audit:
     name: Dependency audit
+    if: >-
+      github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -51,6 +56,8 @@ jobs:
 
   governance:
     name: Governance tests
+    if: >-
+      github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != ''
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
@@ -85,10 +92,13 @@ jobs:
           overwrite: false
           include-hidden-files: false
 
-  check:
+  aggregate:
+    name: >-
+      ${{ (github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != '') && 'check' || 'Metadata only (aggregate)' }}
     permissions: {}
     needs: [quality, audit, governance]
-    if: always()
+    if: >-
+      always() && (github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != '')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -98,9 +108,11 @@ jobs:
         run: node -e "const needs = JSON.parse(process.env.CI_NEEDS); if (!['quality', 'audit', 'governance'].every(job => needs[job]?.result === 'success')) process.exit(1)"
 
   analysis:
-    name: SonarQube Cloud analysis
-    needs: [check, governance]
-    if: needs.check.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    name: >-
+      ${{ (github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != '') && 'SonarQube Cloud analysis' || 'Metadata only (analysis)' }}
+    needs: [aggregate, governance]
+    if: >-
+      needs.aggregate.result == 'success' && (github.event_name != 'pull_request' || github.event.action != 'edited' || github.event.changes.base.ref.from != '') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
