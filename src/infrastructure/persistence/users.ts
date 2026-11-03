@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { and, asc, count, eq, inArray, like, or, sql } from "drizzle-orm";
 
 import { ApplicationError } from "../../application/errors.ts";
@@ -164,9 +166,41 @@ const writePort = (database: WriteExecutor): UsersWritePort => ({
 export const createDrizzleUsersRepository = (
   database: Database,
 ): UsersRepository => ({
-  async deleteSessions(userId) {
-    await database.delete(session).where(eq(session.userId, userId));
+  async createWithCredential(input) {
+    const id = randomUUID();
+    const now = new Date();
+    return database.transaction(async (transaction) => {
+      const [created] = await transaction
+        .insert(user)
+        .values({
+          createdAt: now,
+          email: input.authEmail,
+          emailVerified: false,
+          firstName: input.firstName,
+          id,
+          isSystemAdmin: false,
+          lastName: input.lastName,
+          mobile: input.mobile,
+          name: `${input.firstName} ${input.lastName}`,
+          status: "active",
+          updatedAt: now,
+        })
+        .onConflictDoNothing()
+        .returning();
+      if (!created) throw new ApplicationError("invalid", "userDataInvalid");
+      await transaction.insert(account).values({
+        accountId: id,
+        createdAt: now,
+        id: randomUUID(),
+        password: input.passwordHash,
+        providerId: "credential",
+        updatedAt: now,
+        userId: id,
+      });
+      return mapUserRecord(created);
+    });
   },
+  deleteSessions: writePort(database).deleteSessions,
   find: writePort(database).find,
   getRoles: (userIds) => getRolesByUserIds(database, userIds),
   async list(query) {

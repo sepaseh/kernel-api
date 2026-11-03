@@ -2,11 +2,7 @@ import { profileNameMaxLength } from "../contracts/profile.ts";
 import { ApplicationError } from "./errors.ts";
 import { internalEmail } from "./identity.ts";
 import type { Actor, UserRecord } from "./models.ts";
-import {
-  type AuthProvider,
-  AuthRejection,
-  type OtpGateway,
-} from "./ports/auth.ts";
+import type { AuthProvider, OtpGateway } from "./ports/auth.ts";
 import type {
   UserRole,
   UsersRepository,
@@ -148,22 +144,18 @@ export const createUsersService = ({
       const password = requiredString(input.password, "password");
       if (!/^09\d{9}$/.test(mobile))
         throw new ApplicationError("invalid", "mobileInvalid");
-      try {
-        const created = await provider.signUp({
-          authEmail: internalEmail(mobile),
-          firstName,
-          lastName,
-          mobile,
-          name: `${firstName} ${lastName}`,
-          password,
-        });
-        await repository.deleteSessions(created.userId);
-        return serialize(await find(created.userId));
-      } catch (error) {
-        if (error instanceof AuthRejection)
-          throw new ApplicationError("invalid", "userDataInvalid");
-        throw error;
-      }
+      const { min, max } = await provider.passwordBounds();
+      if (password.length < min || password.length > max)
+        throw new ApplicationError("invalid", "userDataInvalid");
+      const passwordHash = await provider.hashPassword(password);
+      const created = await repository.createWithCredential({
+        authEmail: internalEmail(mobile),
+        firstName,
+        lastName,
+        mobile,
+        passwordHash,
+      });
+      return serialize(created);
     },
     get,
     async list(query: Record<string, string | undefined>) {
