@@ -1,18 +1,18 @@
-# Foundation validation
+# API validation
 
 The [canonical manifest](../.agents/validation.json) owns commands and profiles.
 Run `npm run validate -- full` against an isolated export of the exact
 [publication inventory](../.github/bootstrap-policy.json) before each authorized
 commit or PR. Preserve unrelated files in the working checkout.
 
-The foundation full profile runs every required check declared by the manifest,
-including source boundaries, typechecking, lint, measured foundation/tooling
-coverage and audit-helper tests. The manifest owns the complete commands and
-order; earlier governance evidence cannot replace this source-phase gate.
+The full profile runs every required check declared by the current manifest,
+including source boundaries, typechecking, lint, measured published-source and
+tooling coverage, and audit-helper tests. The manifest owns the complete
+commands and order. Each source phase requires its own validation evidence.
 
 Run the complete profile for every PR, including drafts and documentation-only
-changes, without changed-path or target-branch filters. Foundation tests do not
-stand in for unpublished service, HTTP, database, authentication or storage tests.
+changes, without changed-path or target-branch filters. Pure or fake-port tests do not
+stand in for unpublished HTTP, database, authentication adapter or storage tests.
 Add relevant real behavior evidence as each owner is published.
 
 CI displays each real suite separately and partitions the canonical full gate:
@@ -21,14 +21,14 @@ CI displays each real suite separately and partitions the canonical full gate:
 | ---------------- | ---------------- | --------------------------------------------------------------------------------- |
 | Static checks    | `ci-quality`     | Snapshot, CI policy, actionlint, boundaries, types, lint, formatting and guidance |
 | Dependency audit | `ci-audit`       | Locked dependency audit                                                           |
-| Governance tests | `ci-governance`  | Measured foundation/tooling coverage and audit-helper tests                       |
+| Governance tests | `ci-governance`  | Measured published-source and tooling coverage, and audit-helper tests            |
 
 Each check belongs to one CI job and runs once. The required `check` context only
 aggregates these jobs: missing, failed, skipped or cancelled work fails the result.
 It does not install dependencies or rerun tests. Local `full` validation runs
-the complete canonical profile in its declared order. Published pure foundation
-tests run within the coverage check; service, HTTP, browser and application-build
-jobs are not available in this foundation publication.
+the complete canonical profile in its declared order. The coverage check runs the
+published foundation, service and catalog tests. HTTP, browser and application-build
+jobs belong to later source phases.
 
 The Sonar job waits for successful validation and consumes the governance job's
 measured report directly, bound to its suite, source, workflow run and producing

@@ -79,6 +79,8 @@ export type AuthPersistence = {
   findUserById: (id: string) => Promise<UserRecord | undefined>;
   findUserByMobile: (mobile: string) => Promise<UserRecord | undefined>;
   getPermissions: (userId: string) => Promise<PermissionKey[]>;
+  // Check the live account state and consume the OTP with the password change
+  // atomically. Inactive accounts cannot reset their password.
   resetPasswordWithOtp: (input: {
     userId: string;
     newHash: string;

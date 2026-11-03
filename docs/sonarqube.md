@@ -13,17 +13,18 @@ separately as a Dependabot secret when Dependabot analysis is needed.
 Set `SONAR_PROJECT_KEY` to the actual imported key; `SONAR_HOST_URL` defaults
 to `https://sonarcloud.io`. Inspect names only, never secret values.
 
-The foundation publication analyzes its published `src` and `scripts` and imports
-real `coverage/lcov.info` measured once by the **Governance tests** job. Its
-manifest profile runs foundation/tooling coverage and audit-helper tests. The
-provenance manifest at `coverage/governance/ci-evidence.json` binds coverage to the governance
-suite, source, workflow and producing attempt. Analysis downloads the immutable
+The current source phase analyzes its published `src` and `scripts` and imports
+real `coverage/lcov.info` measured once by the **Governance tests** job. The job
+runs the published owner suites and tooling and audit-helper tests. Its
+provenance manifest at `coverage/governance/ci-evidence.json` binds coverage to
+the tested commit and tree, PR head and base, workflow and producing attempt.
+Analysis downloads the immutable
 `coverage-governance-<run>-<attempt>` artifact directly from that producer and
 verifies its identity and report bytes before scanning. Do not reuse another
-head's report or attribute foundation/tooling coverage to unpublished application
-services, adapters or HTTP behavior. The scanner sets the SCM revision to the PR
-head, or the triggering commit for other events,
-while coverage remains bound to the exact tested checkout and merge base.
+head's report or attribute it to owners outside the inventory or to deployed
+service behavior. The scanner sets the SCM revision to the PR head or the
+triggering commit while coverage remains bound to the exact tested checkout and
+merge base.
 
 Require both **SonarQube Cloud analysis** from GitHub Actions and the actual
 **SonarCloud Code Analysis** provider gate from the verified Sonar application.

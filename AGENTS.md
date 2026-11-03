@@ -8,14 +8,12 @@ clones or implementation copies require prior explicit user authorization.
 
 ## Published scope
 
-The current **foundation** phase publishes pure contracts, core application
-modules, the authentication port definitions needed by those modules, their
-tests and repository tooling. The publication inventory is
-[.github/bootstrap-policy.json](.github/bootstrap-policy.json).
-Other local source may exist outside that inventory; preserve it without
-including it in the proposed snapshot. Application services, adapters, catalogs,
-migrations, HTTP routes and a server are not published in this phase.
-`applicationReady` remains false; no running API or production readiness is established.
+The publication inventory and validation manifest declare the current reviewed
+source phase. Publish only the owned contracts, services, adapters, tests and
+guides admitted there; preserve all other local source and private runtime state.
+Each newly published owner requires its complete dependencies and actual tests.
+`applicationReady` remains false; local source tests establish no production OTP
+delivery, deployed integration or production readiness.
 
 Before opening a PR, aim for **80 or fewer changed files** and split independent
 changes when useful. Count additions, deletions, renames and binaries. This is
@@ -37,8 +35,8 @@ inventory before an authorized commit or PR. Report actual outcomes in chat.
 Create QA reports only on explicit request under ignored `test-results/`.
 Never claim that checking an ambient working tree validates a partial PR.
 
-The foundation profile runs every required check from the manifest, including
-real source boundaries, typechecking, lint, measured foundation tests and
+The full profile runs every required check from the current manifest, including
+real source boundaries, typechecking, lint, measured published-source tests and
 audit-helper tests. Run the full profile for drafts and documentation changes
 too. Add the relevant real HTTP, database, authentication and storage tests as
 their owners are published; pure foundation or governance tests cannot establish

@@ -570,6 +570,9 @@ test("CI policy rejects conditional, filtered, duplicated, advisory, or redirect
       ci.on.pull_request.branches = ["main"];
     },
     (ci) => {
+      ci.on.pull_request.types = ["opened"];
+    },
+    (ci) => {
       ci.jobs.check.if = "false";
     },
     (ci) => {

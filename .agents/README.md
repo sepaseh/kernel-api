@@ -5,15 +5,14 @@ Start with [AGENTS.md](../AGENTS.md) and
 rules. [Settings](settings.json) indexes the published rules and skills;
 [validation.json](validation.json) owns the current full profile.
 
-The current foundation inventory publishes pure contracts, core modules, their
-required port definitions and tests. Application rules apply to each owner when
+The current inventory declares the published source owners and their tests. Application rules apply to each owner when
 it is published; their presence is not evidence of additional source or a
 deployed API. Preserve unpublished local work and private runtime state.
 
 Read [Git workflow](rules/git.md) for branch, commit, PR and review work.
 Commit and push require authorization. Run the full current profile on the exact
-proposed inventory before each authorized commit or PR. The foundation full
-profile runs all required checks from the manifest, including source boundaries,
+proposed inventory before each authorized commit or PR. The full profile runs
+every required check in the current manifest, including source boundaries,
 types, lint and source/tooling coverage. Before opening a PR, aim for 80 or fewer files
 and split independent changes when useful. File count is advisory: explain a
 cohesive larger change in the PR; exceeding 100 alone does not fail CI or require

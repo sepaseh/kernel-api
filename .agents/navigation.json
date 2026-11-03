@@ -85,6 +85,56 @@
         "scripts/check-boundaries.test.mjs"
       ],
       "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+    },
+    {
+      "id": "services-and-catalogs",
+      "when": "Change published application policies, ports, feature contracts or API catalog data.",
+      "owners": [
+        "src/application/account.ts",
+        "src/application/auth.ts",
+        "src/application/calendar.ts",
+        "src/application/files.ts",
+        "src/application/roles.ts",
+        "src/application/settings.ts",
+        "src/application/users.ts",
+        "src/application/ports/account.ts",
+        "src/application/ports/auth.ts",
+        "src/application/ports/calendar.ts",
+        "src/application/ports/files.ts",
+        "src/application/ports/object-storage.ts",
+        "src/application/ports/roles.ts",
+        "src/application/ports/settings.ts",
+        "src/application/ports/users.ts",
+        "src/infrastructure/localization/catalogs/ar.ts",
+        "src/infrastructure/localization/catalogs/de.ts",
+        "src/infrastructure/localization/catalogs/en.ts",
+        "src/infrastructure/localization/catalogs/es.ts",
+        "src/infrastructure/localization/catalogs/fa.ts",
+        "src/infrastructure/localization/catalogs/fr.ts",
+        "src/infrastructure/localization/catalogs/index.ts",
+        "src/infrastructure/localization/catalogs/it.ts",
+        "src/infrastructure/localization/catalogs/pt.ts",
+        "src/infrastructure/localization/catalogs/ru.ts",
+        "src/infrastructure/localization/catalogs/tr.ts"
+      ],
+      "contracts": [
+        "src/contracts",
+        ".agents/rules/backend.md",
+        ".agents/rules/data-lifecycle.md",
+        ".agents/rules/localization.md",
+        "docs/input-validation.md",
+        "docs/localization.md",
+        "docs/sequences.md"
+      ],
+      "tests": [
+        "src/application/account.test.ts",
+        "src/application/auth.test.ts",
+        "src/application/files.test.ts",
+        "src/application/management.test.ts",
+        "src/application/users.test.ts",
+        "src/infrastructure/localization/catalogs.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
     }
   ]
 }

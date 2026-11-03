@@ -1,19 +1,21 @@
 # Documentation map
 
-The foundation publication contains pure contracts, core modules, their required
-port definitions, tests and repository tooling.
+The publication inventory owns the current source phase.
 
-- [Architecture and publication scope](architecture.md)
-- [Task navigation](source-navigation.md)
-- [Validation and exact-snapshot evidence](validation.md)
-- [Foundation and tooling tests](testing.md)
-- [Test reliability](test-reliability.md)
-- [Main-branch protection](branch-protection.md)
+- [Architecture](architecture.md)
+- [Branch protection](branch-protection.md)
+- [Feature development](feature-development.md)
+- [Input validation](input-validation.md)
+- [Localization](localization.md)
+- [Sequences](sequences.md)
 - [SonarQube Cloud and CodeRabbit preflight](sonarqube.md)
+- [Source navigation](source-navigation.md)
+- [Test reliability](test-reliability.md)
+- [Testing](testing.md)
+- [Validation](validation.md)
 - [Assistant instructions](../AGENTS.md)
 - [Contributing](../CONTRIBUTING.md)
 
-Published contract modules are declared by the inventory. Feature
-service, HTTP, database, authentication adapter, storage and deployment guides
-belong to later source publications. Their local presence is not publication
-evidence.
+The inventory declares the published contracts, application services and
+catalogs. HTTP, database, authentication adapter, storage and deployment guides
+belong to later source publications.
