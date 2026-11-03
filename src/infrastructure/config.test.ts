@@ -154,6 +154,19 @@ test("database location resolution preserves memory, absolute file and remote UR
   );
 });
 
+test("local database file URLs reject queries and fragments", () => {
+  for (const value of [
+    "file:memdb1?mode=memory&cache=shared",
+    "file:///synthetic/database.sqlite?",
+    "file:synthetic.sqlite#fragment",
+  ]) {
+    assert.throws(
+      () => resolveDatabaseUrl(value),
+      /Local database file URLs cannot contain a query or fragment/,
+    );
+  }
+});
+
 test("numeric limits accept only explicit safe positive integers in range", () => {
   const config = loadConfig({
     ...base,

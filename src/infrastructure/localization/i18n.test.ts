@@ -52,3 +52,15 @@ test("interpolation preserves numeric and plain-text values without mutating cat
     assert.ok(apiMessages[code].fieldRequired.includes("{{field}}"));
   }
 });
+
+test("interpolation values cannot override the fixed language or translation options", () => {
+  const translate = getTranslator("fa");
+  assert.equal(
+    translate("fieldRequired", {
+      field: "synthetic_field",
+      lng: "en",
+      skipInterpolation: 1,
+    }),
+    apiMessages.fa.fieldRequired.replace("{{field}}", "synthetic_field"),
+  );
+});

@@ -224,6 +224,7 @@ const fixture = async (context: TestContext) => {
   const state: {
     fault?: string;
     truncate?: boolean;
+    dropPutResponse?: boolean;
     redirectRegion?: string;
     message?: string;
     location?: string;
@@ -327,6 +328,10 @@ const fixture = async (context: TestContext) => {
           return;
         }
         existing.objects.set(key, body);
+        if (state.dropPutResponse) {
+          response.destroy();
+          return;
+        }
         response.writeHead(200, { etag: '"fixture-etag"' });
         response.end();
       } else if (operation === "get") {
@@ -707,6 +712,8 @@ test("public URLs preserve configured prefixes and encoded values without traver
     "https://user:password@cdn.example.test/",
     "https://cdn.example.test/?key=value",
     "https://cdn.example.test/#fragment",
+    "https://cdn.example.test/assets/?",
+    "https://cdn.example.test/assets/#",
   ]) {
     assert.throws(
       () => publicObjectUrl(base, "owned-public", "id/file"),
@@ -871,6 +878,22 @@ test("the factory selects the reviewed local adapter or signed MinIO adapter and
   assert.throws(
     () => createObjectStorage({ ...config, storageDriver: "unknown" as never }),
     /Unsupported object storage driver/,
+  );
+});
+
+test("a lost PUT response can leave stored bytes without deleting them", async (context) => {
+  const { storage, state, buckets, records } = await fixture(context);
+  await storage.ensureReady();
+  state.dropPutResponse = true;
+  const value = input("private");
+  await assert.rejects(storage.put(value));
+  assert.deepEqual(
+    buckets.get("kernel-fixture-private")?.objects.get(value.objectKey),
+    Buffer.from(value.data),
+  );
+  assert.equal(
+    records.some(({ operation }) => operation === "delete"),
+    false,
   );
 });
 

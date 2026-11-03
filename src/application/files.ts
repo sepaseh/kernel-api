@@ -9,8 +9,10 @@ import type {
 import { FileInsertNotCommittedError } from "./ports/files.ts";
 import type { ObjectStorage } from "./ports/object-storage.ts";
 
-const safeObjectName = (name: string) =>
-  name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
+const safeObjectName = (name: string) => {
+  const segment = name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
+  return segment === "." || segment === ".." ? "upload" : segment;
+};
 
 const observe = (notify: () => unknown) => {
   try {

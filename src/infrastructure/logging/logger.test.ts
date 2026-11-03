@@ -310,17 +310,17 @@ test("hostile Error accessors cannot throw through serialization or expose raw d
 test("routes Better Auth diagnostics through the active request logger without raw arguments", async () => {
   const output = captureLogs();
   const authLogger = createAuthLogger(output.logger);
+  const error = Object.assign(new Error("synthetic-provider-error"), {
+    code: "ECONNREFUSED",
+    password: "synthetic-provider-password",
+  });
   await Promise.all(
     ["first", "second"].map((requestId) =>
       requestLogContext.run(
         { logger: output.logger.child({ requestId }) },
         async () => {
           await Promise.resolve();
-          authLogger.log(
-            "error",
-            "synthetic-provider-message",
-            new Error("synthetic-provider-error"),
-          );
+          authLogger.log("error", "synthetic-provider-message", error);
         },
       ),
     ),
@@ -335,5 +335,12 @@ test("routes Better Auth diagnostics through the active request logger without r
     ["first", "second"],
   );
   assert.equal(output.records()[2].requestId, undefined);
+  for (const record of output.records().slice(0, 2)) {
+    const loggedError = record.err as Record<string, unknown>;
+    assert.equal(loggedError.type, "Error");
+    assert.equal(loggedError.code, "ECONNREFUSED");
+    assert.equal(loggedError.message, "Error details withheld");
+    assert.equal(loggedError.password, undefined);
+  }
   assert.doesNotMatch(output.lines.join(""), /synthetic-/);
 });

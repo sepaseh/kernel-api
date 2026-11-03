@@ -21,12 +21,12 @@ const trustedOrigin = (value: string) => {
 };
 
 export const resolveDatabaseUrl = (value: string) => {
-  if (
-    !value.startsWith("file:") ||
-    value.startsWith("file://") ||
-    value === "file::memory:"
-  )
-    return value;
+  if (!value.startsWith("file:")) return value;
+  if (/[?#]/.test(value))
+    throw new Error(
+      "Local database file URLs cannot contain a query or fragment.",
+    );
+  if (value.startsWith("file://") || value === "file::memory:") return value;
   return pathToFileURL(
     path.resolve(repositoryRoot, value.slice("file:".length)),
   ).href;
