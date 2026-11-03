@@ -416,6 +416,7 @@ test("OTP requests validate mobile and purpose before delivery", async () => {
   for (const input of [
     { mobile: "invalid", purpose: "register" },
     { mobile: account.mobile, purpose: "login" },
+    { mobile: account.mobile, purpose: "verify_email" },
     { mobile: account.mobile, purpose: "unsupported" },
     { mobile: account.mobile },
   ]) {
@@ -425,13 +426,12 @@ test("OTP requests validate mobile and purpose before delivery", async () => {
     });
   }
   assert.deepEqual(issues, []);
-  for (const purpose of ["register", "forgot_password", "verify_email"]) {
+  for (const purpose of ["register", "forgot_password"]) {
     await service.requestOtp({ mobile: account.mobile, purpose });
   }
   assert.deepEqual(issues, [
     [account.mobile, "register"],
     [account.mobile, "forgot_password"],
-    [account.mobile, "verify_email"],
   ]);
 });
 
@@ -547,6 +547,12 @@ test("registration maps credential rejection while preserving provider outages",
 
 test("recovery and login reject missing or inactive identities before provider writes", async () => {
   const dependencies = fixture();
+  dependencies.provider.hashPassword = async () => {
+    assert.fail("Invalid recovery reached password hashing");
+  };
+  dependencies.persistence.resetPasswordWithOtp = async () => {
+    assert.fail("Invalid recovery reached password persistence");
+  };
   dependencies.provider.signIn = async () => {
     assert.fail("Invalid identity reached provider");
   };

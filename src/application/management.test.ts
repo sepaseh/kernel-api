@@ -319,15 +319,16 @@ test("ordinary branding saves omit language writes even after concurrent selecti
 test("settings validate complete palettes before persistence and discard unknown palette keys", async () => {
   const { service, writes } = settingsFixture();
 
-  for (const dark_theme of [
-    undefined,
-    null,
-    [],
-    {},
-    { ...palette, color_primary: "red" },
-    { ...palette, color_link: "#123" },
+  for (const [dark_theme, key] of [
+    [undefined, "fieldRequired"],
+    [null, "fieldRequired"],
+    [[], "fieldRequired"],
+    [{}, "colorInvalid"],
+    [{ ...palette, color_primary: "red" }, "colorInvalid"],
+    [{ ...palette, color_link: "#123" }, "colorInvalid"],
   ]) {
     await assert.rejects(service.update(admin, { ...branding, dark_theme }), {
+      key,
       kind: "invalid",
     });
   }

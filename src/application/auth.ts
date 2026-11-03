@@ -16,9 +16,7 @@ import { requiredString } from "./validation.ts";
 
 const isMobile = (value: string) => /^09\d{9}$/.test(value);
 const isOtpPurpose = (value: unknown): value is OtpPurpose =>
-  value === "forgot_password" ||
-  value === "register" ||
-  value === "verify_email";
+  value === "forgot_password" || value === "register";
 
 export const createAuthService = ({
   provider,
