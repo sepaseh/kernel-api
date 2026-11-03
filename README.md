@@ -30,6 +30,7 @@ npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
 npm run validate -- full
 ```
 
-The [canonical manifest](.agents/validation.json) owns all ten real source-phase
-checks. Governance or fake-port tests do not establish unpublished adapter,
-database, HTTP, runtime or deployment behavior.
+The [canonical manifest](.agents/validation.json) defines the required checks,
+including source boundaries, typechecking, lint, measured source and tooling
+tests, and audit-helper tests. Fake-port and governance tests do not establish
+unpublished adapter, database, HTTP, runtime or deployment behavior.

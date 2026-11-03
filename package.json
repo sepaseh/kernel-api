@@ -10,6 +10,7 @@
     "validate": "node scripts/check-governance.mjs",
     "check:snapshot": "node scripts/check-governance.mjs snapshot",
     "check:ci": "node scripts/check-governance.mjs ci-policy",
+    "check:actions": "node scripts/run-actionlint.mjs",
     "audit": "node scripts/run-audit.mjs",
     "check:boundaries": "node scripts/check-boundaries.mjs",
     "typecheck": "tsc --noEmit -p tsconfig.json",

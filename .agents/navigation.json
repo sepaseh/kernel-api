@@ -31,13 +31,11 @@
       "id": "git-policy",
       "when": "Prepare branches, commits, successive PRs, review settings or provider evidence.",
       "owners": [
-        ".github/rulesets/bootstrap.json",
         ".github/rulesets/main.json",
         ".github/workflows/ci.yml",
-        ".github/workflows/coderabbit-approval.yml",
-        ".github/workflows/review-events.yml",
-        "scripts/check-coderabbit-approval.mjs",
-        "scripts/ci-evidence.mjs"
+        ".github/workflows/codeql.yml",
+        "scripts/ci-evidence.mjs",
+        "scripts/run-actionlint.mjs"
       ],
       "contracts": [
         ".agents/rules/git.md",
@@ -47,13 +45,14 @@
         "docs/sonarqube.md"
       ],
       "tests": [
-        "scripts/check-coderabbit-approval.test.mjs",
         "scripts/ci-evidence.test.mjs",
-        "scripts/check-governance.test.mjs"
+        "scripts/check-governance.test.mjs",
+        "scripts/run-actionlint.test.mjs"
       ],
       "checks": [
         "snapshot",
         "ci-policy",
+        "actions-lint",
         "guidance",
         "format",
         "coverage-tests"

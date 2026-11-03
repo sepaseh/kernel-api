@@ -10,10 +10,11 @@ ordering. Publish real owned temporary database, authentication, filesystem,
 object-storage and HTTP tests with each corresponding adapter. Fake ports and
 governance tests cannot establish those behaviors.
 
-Cover incomplete and unsafe review pagination, stale heads, dismissed approvals,
-wrong reviewer identity, skipped or neutral provider checks, workflow privilege
-boundaries and exact publication scope. Test the actual enforcing tools, not copies of their
-implementation.
+Cover exact publication scope, native protection requirements, CodeQL triggers
+and query settings, minimal upload permissions, workflow privilege boundaries and
+coverage provenance. Use synthetic inputs to reject missing or stale source
+evidence and altered reports. Test the actual enforcing tools, not copies of
+their implementation.
 
 Current services/catalog tests cover policy, validation, operation ordering,
 complete vocabulary, interpolation placeholders, literal catalog data and
