@@ -72,7 +72,11 @@ export const createAuthPersistence = (database: Database): AuthPersistence => ({
   async resetPasswordWithOtp({ userId, newHash, otp }) {
     await database.transaction(async (transaction) => {
       const currentUser = await transaction.query.user.findFirst({
-        where: and(eq(user.id, userId), eq(user.mobile, otp.destination)),
+        where: and(
+          eq(user.id, userId),
+          eq(user.mobile, otp.destination),
+          eq(user.status, "active"),
+        ),
       });
       if (!currentUser || otp.purpose !== "forgot_password" || otp.subject)
         throw new ApplicationError("invalid", "passwordResetInvalid");

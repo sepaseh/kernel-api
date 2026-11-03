@@ -20,6 +20,7 @@ import { ApplicationError } from "../../application/errors.ts";
 import { internalEmail } from "../../application/identity.ts";
 import type { Actor } from "../../application/models.ts";
 import type { AuthProvider } from "../../application/ports/auth.ts";
+import { FileInsertNotCommittedError } from "../../application/ports/files.ts";
 import { createUsersService } from "../../application/users.ts";
 import { createOtpGateway } from "../../infrastructure/auth/otp.ts";
 import { loadConfig } from "../../infrastructure/config.ts";
@@ -744,8 +745,8 @@ test("calendar storage is sorted, idempotent and permanently removes only the se
   assert.deepEqual(await repository.list(), ["2026-02-01"]);
 });
 
-test("file metadata roundtrips exact values and rejects duplicate keys and missing creators", async (context) => {
-  const { database } = await fixture(context);
+test("file metadata classifies only a proven foreign-key abort for compensating cleanup", async (context) => {
+  const { client, database } = await fixture(context);
   await insertUser(database);
   const repository = createDrizzleFileRepository(database);
   const file = {
@@ -764,7 +765,9 @@ test("file metadata roundtrips exact values and rejects duplicate keys and missi
   assert.deepEqual(await repository.findById(file.id), file);
   await assert.rejects(
     repository.insert({ ...file, id: "duplicate" }),
-    isUniqueConstraintError,
+    (error) =>
+      !(error instanceof FileInsertNotCommittedError) &&
+      isUniqueConstraintError(error),
   );
   await assert.rejects(
     repository.insert({
@@ -773,10 +776,25 @@ test("file metadata roundtrips exact values and rejects duplicate keys and missi
       objectKey: "other/key",
       createdBy: "missing",
     }),
-    isForeignKeyConstraintError,
+    (error) =>
+      error instanceof FileInsertNotCommittedError &&
+      isForeignKeyConstraintError(error.cause),
   );
   assert.equal(await repository.findById("duplicate"), undefined);
   assert.equal(await repository.findById("orphan"), undefined);
+
+  // SQLite FAIL can preserve the inserted row even when a trigger rejects it.
+  await client.execute(
+    "CREATE TRIGGER synthetic_after_file_insert AFTER INSERT ON files BEGIN SELECT RAISE(FAIL, 'FOREIGN KEY constraint failed'); END",
+  );
+  const uncertain = { ...file, id: "triggered", objectKey: "other/key" };
+  await assert.rejects(
+    repository.insert(uncertain),
+    (error) =>
+      !(error instanceof FileInsertNotCommittedError) &&
+      isForeignKeyConstraintError(error),
+  );
+  assert.deepEqual(await repository.findById(uncertain.id), uncertain);
 });
 
 test("identity mapping deduplicates canonical permissions and keeps profile email separate", async (context) => {
@@ -939,8 +957,30 @@ test("overlapping profile patches derive untouched name parts atomically from cu
 });
 
 test("managed user patches stay consistent across stale parallel name and mobile reads", async (context) => {
-  const { database } = await fixture(context);
+  const root = await isolatedFileFixture(
+    context,
+    import.meta.url,
+    "kernel-user-patches-",
+  );
+  if (root === undefined) return;
+  const closers: Array<() => void | Promise<void>> = [];
+  registerFixtureCleanup(context, closers, () => {});
+  const config = loadConfig({
+    ...environment,
+    DATABASE_URL: `file:${path.join(root, "fixture.sqlite").replaceAll("\\", "/")}`,
+    NODE_ENV: "test",
+    OTP_FIXED_CODE: "123456",
+  });
+  const { client, database } = createDatabase(config);
+  closers.unshift(() => client.close());
+  const competing = createDatabase(config);
+  closers.unshift(() => competing.client.close());
+  await migrate(database, { migrationsFolder: migrations });
   await insertUser(database);
+  await database
+    .update(schema.user)
+    .set({ isSystemAdmin: true })
+    .where(eq(schema.user.id, "first"));
   await database.insert(schema.session).values({
     id: "synthetic-session",
     userId: "first",
@@ -949,10 +989,7 @@ test("managed user patches stay consistent across stale parallel name and mobile
     updatedAt: new Date(),
     expiresAt: new Date(Date.now() + 60_000),
   });
-  const otp = createOtpGateway(
-    loadConfig({ ...environment, NODE_ENV: "test", OTP_FIXED_CODE: "123456" }),
-    database,
-  );
+  const otp = createOtpGateway(config, database);
   await otp.issue(
     "09120000003",
     "change_mobile",
@@ -966,6 +1003,7 @@ test("managed user patches stay consistent across stale parallel name and mobile
     ]),
   );
   const real = createDrizzleUsersRepository(database);
+  const other = createDrizzleUsersRepository(competing.database);
   const unexpected = async (): Promise<never> => {
     throw new Error("Unexpected authentication operation");
   };
@@ -978,65 +1016,61 @@ test("managed user patches stay consistent across stale parallel name and mobile
     signUp: unexpected,
     verifyPassword: unexpected,
   };
-  const concurrentService = (delayMobile: boolean) => {
+  const concurrentPatches = (
+    first: Record<string, unknown>,
+    second: Record<string, unknown>,
+    secondMode: "profile" | "management" = "management",
+  ) => {
     let readers = 0;
     let releaseReaders = () => {};
-    let releaseFirstName = () => {};
     const bothRead = new Promise<void>((resolve) => {
       releaseReaders = resolve;
     });
-    const firstNameCommitted = new Promise<void>((resolve) => {
-      releaseFirstName = resolve;
+    const synchronized = (repository: typeof real) => ({
+      ...repository,
+      async find(id: string) {
+        const value = await repository.find(id);
+        readers++;
+        if (readers === 2) releaseReaders();
+        await bothRead;
+        return value;
+      },
     });
-    return createUsersService({
+    const firstUpdate = createUsersService({
+      provider,
+      otp,
+      repository: synchronized(real),
+    }).update(actor, "first", first);
+    const secondService = createUsersService({
       provider,
       otp,
       repository: {
-        ...real,
-        async find(id) {
-          const value = await real.find(id);
-          readers++;
-          if (readers === 2) releaseReaders();
-          await bothRead;
-          return value;
-        },
-        async update(id, update, actorId) {
-          const value = await real.update(id, update, actorId);
-          return value;
-        },
-        async getRoles(ids) {
-          const roles = await real.getRoles(ids);
-          if (delayMobile) releaseFirstName();
-          return roles;
-        },
+        ...synchronized(other),
         async transaction(work) {
-          if (delayMobile) await firstNameCommitted;
-          return real.transaction(work);
+          // Both requests have read the original row. Choose the write order
+          // explicitly so the test exercises stale reads without lock timing.
+          await firstUpdate;
+          return other.transaction(work);
         },
       },
     });
+    return Promise.all([
+      firstUpdate,
+      secondService.update(actor, "first", second, secondMode),
+    ]);
   };
-  const names = concurrentService(false);
-  await Promise.all([
-    names.update(actor, "first", { first_name: "Grace" }),
-    names.update(actor, "first", { last_name: "Hopper" }),
-  ]);
+  await concurrentPatches({ first_name: "Grace" }, { last_name: "Hopper" });
   const afterNames = await database.query.user.findFirst({
     where: eq(schema.user.id, "first"),
   });
   assert.equal(afterNames?.firstName, "Grace");
   assert.equal(afterNames?.lastName, "Hopper");
   assert.equal(afterNames?.name, "Grace Hopper");
-  const mobile = concurrentService(true);
-  await Promise.all([
-    mobile.update(actor, "first", { first_name: "Marie" }),
-    mobile.update(
-      actor,
-      "first",
-      { mobile: "09120000003", otp: "123456" },
-      "profile",
-    ),
-  ]);
+  await concurrentPatches(
+    { first_name: "Marie" },
+    { mobile: "09120000003", otp: "123456" },
+    "profile",
+  );
   const afterMobile = await database.query.user.findFirst({
     where: eq(schema.user.id, "first"),
   });

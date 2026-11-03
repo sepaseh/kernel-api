@@ -6,14 +6,17 @@ import type {
   PublicFileContent,
   UploadedFile,
 } from "./ports/files.ts";
+import { FileInsertNotCommittedError } from "./ports/files.ts";
 import type { ObjectStorage } from "./ports/object-storage.ts";
 
-const safeObjectName = (name: string) =>
-  name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
+const safeObjectName = (name: string) => {
+  const segment = name.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-");
+  return segment === "." || segment === ".." ? "upload" : segment;
+};
 
-const observe = (notify: () => void) => {
+const observe = (notify: () => unknown) => {
   try {
-    notify();
+    void Promise.resolve(notify()).catch(() => undefined);
   } catch {
     // Diagnostic observers must not change storage effects or mask domain failures.
   }
@@ -34,6 +37,12 @@ export const createFilesService = ({
   storage,
   uploadLimitBytes,
 }: FilesDependencies) => {
+  const validateSize = (size: number) => {
+    if (!size) throw new ApplicationError("invalid", "fileEmpty");
+    if (size > uploadLimitBytes)
+      throw new ApplicationError("too-large", "fileTooLarge");
+  };
+
   const storageOperation = async <T>(
     operation: "delete" | "get" | "put",
     run: () => Promise<T>,
@@ -84,20 +93,15 @@ export const createFilesService = ({
       ) {
         throw new ApplicationError("forbidden", "publicUploadDenied");
       }
-      if (!source.size) throw new ApplicationError("invalid", "fileEmpty");
-      if (source.size > uploadLimitBytes) {
-        throw new ApplicationError("too-large", "fileTooLarge");
-      }
+      validateSize(source.size);
       const id = newId();
       const objectKey = `${id}/${safeObjectName(source.name || "upload")}`;
       const contentType = source.type || "application/octet-stream";
       observe(() => events?.stage?.("read"));
       const data = await source.read();
       const size = data.byteLength;
-      if (!size) throw new ApplicationError("invalid", "fileEmpty");
-      if (size > uploadLimitBytes) {
-        throw new ApplicationError("too-large", "fileTooLarge");
-      }
+      validateSize(size);
+      const createdAt = now();
       observe(() => events?.stage?.("storage"));
       const stored = await storageOperation(
         "put",
@@ -110,7 +114,7 @@ export const createFilesService = ({
         await repository.insert({
           bucket: stored.bucket,
           contentType,
-          createdAt: now(),
+          createdAt,
           createdBy: actor.account.id,
           id,
           objectKey: stored.objectKey,
@@ -119,6 +123,8 @@ export const createFilesService = ({
           visibility,
         });
       } catch (error) {
+        if (!(error instanceof FileInsertNotCommittedError)) throw error;
+
         try {
           await storageOperation(
             "delete",
@@ -131,10 +137,13 @@ export const createFilesService = ({
             events?.cleanupFailed?.({ error: cleanupError, fileId: id }),
           );
         }
-        throw error;
+        throw error.cause;
       }
       observe(() => events?.stage?.("response"));
-      const url = storage.url(stored.bucket, stored.objectKey, visibility);
+      const url =
+        visibility === "public"
+          ? storage.url(stored.bucket, stored.objectKey, visibility)
+          : undefined;
       observe(() =>
         events?.uploaded?.({
           contentType,

@@ -774,7 +774,7 @@ test("successful password change revokes the user's sessions", async (context) =
   await persistence.deleteSession("missing");
 });
 
-test("successful OTP password reset consumes the code and revokes sessions", async (context) => {
+test("OTP password reset requires a live active account and preserves the code on rejection", async (context) => {
   const { auth, config, database } = await setup(context, {
     OTP_FIXED_CODE: "123456",
   });
@@ -791,11 +791,32 @@ test("successful OTP password reset consumes the code and revokes sessions", asy
   await otp.issue("09120000010", "forgot_password");
   const attempt = otp.prepare("09120000010", "forgot_password", "123456");
   const persistence = createAuthPersistence(database);
-  await persistence.resetPasswordWithOtp({
+  const reset = {
     userId: created.userId,
     newHash: "synthetic-new-hash",
     otp: attempt,
+  };
+  const credential = await persistence.findCredential(created.userId);
+  const sessions = await database.query.session.findMany();
+  await database
+    .update(user)
+    .set({ status: "inactive" })
+    .where(eq(user.id, created.userId));
+  await assert.rejects(persistence.resetPasswordWithOtp(reset), {
+    kind: "invalid",
+    key: "passwordResetInvalid",
   });
+  assert.deepEqual(
+    await persistence.findCredential(created.userId),
+    credential,
+  );
+  assert.deepEqual(await database.query.session.findMany(), sessions);
+
+  await database
+    .update(user)
+    .set({ status: "active" })
+    .where(eq(user.id, created.userId));
+  await persistence.resetPasswordWithOtp(reset);
   assert.equal((await database.query.session.findMany()).length, 0);
   assert.equal(
     (await persistence.findCredential(created.userId)).hash,

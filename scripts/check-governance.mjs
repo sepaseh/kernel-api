@@ -12,6 +12,7 @@ const manifestPath = ".agents/validation.json";
 const scriptNames = {
   snapshot: "check:snapshot",
   "ci-policy": "check:ci",
+  "actions-lint": "check:actions",
   audit: "audit",
   boundaries: "check:boundaries",
   typecheck: "typecheck",
@@ -24,6 +25,7 @@ const scriptNames = {
 export const requiredChecks = [
   "snapshot",
   "ci-policy",
+  "actions-lint",
   "audit",
   "format",
   "guidance",
@@ -121,6 +123,7 @@ export const foundationDependencies = {
   "typescript-eslint": "8.72.1",
 };
 const scriptCommand = (id, phase) => {
+  if (id === "actions-lint") return "node scripts/run-actionlint.mjs";
   if (phase !== "governance") {
     if (id === "audit") return "node scripts/run-audit.mjs";
     if (id === "boundaries") return "node scripts/check-boundaries.mjs";
@@ -144,10 +147,35 @@ export const packageScripts = (phase) => ({
     ]),
   ),
 });
+const ciOwner = (id) => {
+  if (id === "audit") return "audit";
+  if (["coverage-tests", "audit-helper-tests"].includes(id))
+    return "governance";
+  return "quality";
+};
+export const ciProfilesForPhase = (phase) =>
+  Object.fromEntries(
+    ["quality", "audit", "governance"].map((job) => [
+      `ci-${job}`,
+      checksForPhase(phase).filter((id) => ciOwner(id) === job),
+    ]),
+  );
+export const aggregateCheckCommand =
+  "node -e \"const needs = JSON.parse(process.env.CI_NEEDS); if (!['quality', 'audit', 'governance'].every(job => needs[job]?.result === 'success')) process.exit(1)\"";
+export const externalWorkflows = [
+  {
+    path: ".github/workflows/ci.yml",
+    mode: "ci",
+  },
+  {
+    path: ".github/workflows/codeql.yml",
+    mode: "security",
+  },
+];
 export const testFiles = [
   "scripts/check-governance.test.mjs",
   "scripts/ci-evidence.test.mjs",
-  "scripts/check-coderabbit-approval.test.mjs",
+  "scripts/run-actionlint.test.mjs",
 ];
 const sourceFiles = testFiles.map((file) => file.replace(".test.mjs", ".mjs"));
 const optInTestFiles = new Set([
@@ -162,6 +190,10 @@ export const actions = {
     "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
   sonar:
     "SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9",
+  codeqlInit:
+    "github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+  codeqlAnalyze:
+    "github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
 };
 const expression = (value) => "${{ " + value + " }}";
 const assert = (condition, message) => {
@@ -229,7 +261,7 @@ export const validateInventory = (policy) => {
     manifestPath,
     ".agents/settings.json",
     ".agents/navigation.json",
-    ".github/workflows/ci.yml",
+    ...externalWorkflows.map(({ path }) => path),
     ".coderabbit.yaml",
     "package.json",
     "package-lock.json",
@@ -438,6 +470,11 @@ export const validateManifest = (manifest, pkg) => {
       Array.isArray(manifest.checks),
     "The canonical manifest must describe the governance phase.",
   );
+  equal(
+    manifest.externalWorkflows,
+    externalWorkflows,
+    "The manifest must declare native CI and hosted CodeQL security verification.",
+  );
   const checks = checksForPhase(manifest.phase);
   equal(
     manifest.checks.map(({ id }) => id),
@@ -446,15 +483,15 @@ export const validateManifest = (manifest, pkg) => {
   );
   equal(
     manifest.profiles,
-    { full: checks },
-    "The full profile must execute every required governance check exactly once.",
+    { full: checks, ...ciProfilesForPhase(manifest.phase) },
+    "The full profile and disjoint CI profiles must execute every required check exactly once.",
   );
   for (const check of manifest.checks) {
     assert(check.kind === "required", "Governance checks cannot be advisory.");
     equal(
       check.ciJobs,
-      ["check"],
-      "Required checks must run in the unconditional check job.",
+      [ciOwner(check.id)],
+      "Required checks must belong to exactly one unconditional CI job.",
     );
     equal(
       check.scopes,
@@ -533,62 +570,108 @@ export const validateCiWorkflow = (workflow) => {
   equal(
     workflow.concurrency,
     {
-      group: "ci-" + expression("github.ref"),
-      "cancel-in-progress": expression("github.ref != 'refs/heads/main'"),
+      group:
+        "ci-" +
+        expression("github.event_name") +
+        "-" +
+        expression("github.ref"),
+      "cancel-in-progress": false,
     },
-    "Cancel obsolete PR runs while preserving main-branch validation.",
+    "Queue verification by event and ref without cancelling active evidence.",
   );
   equal(
     Object.keys(workflow.jobs ?? {}).sort((left, right) =>
       left.localeCompare(right),
     ),
-    ["analysis", "check"],
-    "Keep full validation and dependent analysis explicit.",
+    ["analysis", "audit", "check", "governance", "quality"],
+    "Keep static checks, dependency audit, governance tests, aggregate and analysis explicit.",
   );
+  const baseSteps = [
+    checkout(),
+    setupNode(),
+    {
+      run: "npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund",
+    },
+  ];
+  for (const [id, name] of [
+    ["quality", "Static checks"],
+    ["audit", "Dependency audit"],
+    ["governance", "Governance tests"],
+  ]) {
+    const { steps, ...job } = workflow.jobs[id];
+    const governance = id === "governance";
+    equal(
+      job,
+      {
+        name,
+        "runs-on": "ubuntu-latest",
+        "timeout-minutes": 20,
+        ...(governance
+          ? {
+              outputs: {
+                artifact: expression("steps.evidence.outputs.artifact"),
+                attempt: expression("steps.evidence.outputs.attempt"),
+              },
+            }
+          : {}),
+      },
+      "Each CI suite must run unconditionally in its owning job.",
+    );
+    const expected = [...baseSteps, { run: `npm run validate -- ci-${id}` }];
+    if (governance)
+      expected.push(
+        {
+          id: "evidence",
+          env: { CI_EVIDENCE_SUITE: "governance" },
+          run: "node scripts/ci-evidence.mjs --record",
+        },
+        {
+          uses: actions.upload,
+          with: {
+            name: expression("steps.evidence.outputs.artifact"),
+            path: "coverage/lcov.info\ncoverage/governance/ci-evidence.json\n",
+            "if-no-files-found": "error",
+            "retention-days": 3,
+            overwrite: false,
+            "include-hidden-files": false,
+          },
+        },
+      );
+    equal(
+      stepsWithoutNames(steps),
+      expected,
+      "CI suites must execute disjoint canonical profiles once; only governance produces measured coverage.",
+    );
+  }
   const { steps: checkSteps, ...check } = workflow.jobs.check;
   equal(
     check,
     {
+      permissions: {},
+      needs: ["quality", "audit", "governance"],
+      if: "always()",
       "runs-on": "ubuntu-latest",
-      "timeout-minutes": 20,
-      outputs: {
-        artifact: expression("steps.evidence.outputs.artifact"),
-        attempt: expression("steps.evidence.outputs.attempt"),
-      },
+      "timeout-minutes": 5,
     },
-    "Full validation must be unconditional, required, and run in its declared job.",
+    "The stable check context must always aggregate every required suite.",
   );
   equal(
     stepsWithoutNames(checkSteps),
     [
-      checkout(),
-      setupNode(),
       {
-        run: "npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund",
-      },
-      { run: "npm run validate -- full" },
-      { id: "evidence", run: "node scripts/ci-evidence.mjs --record" },
-      {
-        uses: actions.upload,
-        with: {
-          name: expression("steps.evidence.outputs.artifact"),
-          path: "coverage/lcov.info\ncoverage/ci-evidence.json\n",
-          "if-no-files-found": "error",
-          "retention-days": 3,
-          overwrite: false,
-          "include-hidden-files": false,
-        },
+        env: { CI_NEEDS: expression("toJSON(needs)") },
+        run: aggregateCheckCommand,
       },
     ],
-    "CI must install strictly, run full once, and bind measured coverage before upload.",
+    "The aggregate must require exact success without repeating validation.",
   );
   const { steps: analysisSteps, ...analysis } = workflow.jobs.analysis;
   equal(
     analysis,
     {
       name: "SonarQube Cloud analysis",
-      needs: "check",
-      if: "github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository",
+      needs: ["check", "governance"],
+      if: "needs.check.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
       "runs-on": "ubuntu-latest",
       "timeout-minutes": 15,
     },
@@ -609,15 +692,16 @@ export const validateCiWorkflow = (workflow) => {
       {
         uses: actions.download,
         with: {
-          name: expression("needs.check.outputs.artifact"),
+          name: expression("needs.governance.outputs.artifact"),
           path: "coverage",
           "digest-mismatch": "error",
         },
       },
       {
         env: {
+          CI_EVIDENCE_SUITE: "governance",
           CI_EVIDENCE_PRODUCER_ATTEMPT: expression(
-            "needs.check.outputs.attempt",
+            "needs.governance.outputs.attempt",
           ),
         },
         run: "node scripts/ci-evidence.mjs --verify-coverage",
@@ -634,11 +718,55 @@ export const validateCiWorkflow = (workflow) => {
           SONAR_TOKEN: expression("secrets.SONAR_TOKEN"),
         },
         with: {
-          args: "-Dsonar.projectKey=" + expression("vars.SONAR_PROJECT_KEY"),
+          args:
+            "-Dsonar.projectKey=" +
+            expression("vars.SONAR_PROJECT_KEY") +
+            " -Dsonar.scm.revision=" +
+            expression("github.event.pull_request.head.sha || github.sha"),
         },
       },
     ],
     "Sonar must verify the same run's measured coverage and execute a real scanner without rerunning tests.",
+  );
+};
+
+export const validateCodeqlWorkflow = (workflow) => {
+  equal(
+    workflow,
+    {
+      name: "CodeQL",
+      on: {
+        push: { branches: ["main"] },
+        pull_request: null,
+        schedule: [{ cron: "30 3 * * 1" }],
+        workflow_dispatch: null,
+      },
+      concurrency: {
+        group: expression("github.workflow") + "-" + expression("github.ref"),
+        "cancel-in-progress": expression("github.ref != 'refs/heads/main'"),
+      },
+      permissions: { contents: "read" },
+      jobs: {
+        analyze: {
+          name: "Analyze JavaScript, TypeScript and GitHub Actions",
+          "runs-on": "ubuntu-latest",
+          "timeout-minutes": 60,
+          permissions: { contents: "read", "security-events": "write" },
+          steps: [
+            { uses: actions.checkout, with: { "persist-credentials": false } },
+            {
+              uses: actions.codeqlInit,
+              with: {
+                languages: "javascript-typescript,actions",
+                queries: "security-extended",
+              },
+            },
+            { uses: actions.codeqlAnalyze },
+          ],
+        },
+      },
+    },
+    "CodeQL must analyze every PR base with pinned actions, security-extended JavaScript/TypeScript and Actions queries and minimal upload permissions.",
   );
 };
 
@@ -655,7 +783,7 @@ export const validateCodeRabbit = (configuration) => {
   );
 };
 
-export const validateRuleset = (ruleset, bootstrap = false) => {
+export const validateRuleset = (ruleset) => {
   assert(
     ruleset?.target === "branch" &&
       ruleset.enforcement === "active" &&
@@ -699,10 +827,10 @@ export const validateRuleset = (ruleset, bootstrap = false) => {
   );
   const expected = [
     ["check", 15368],
+    ["CodeQL", 57789],
     ["SonarQube Cloud analysis", 15368],
     ["SonarCloud Code Analysis", 12526],
     ["CodeRabbit", 347564],
-    ...(!bootstrap ? [["CodeRabbit approval", 15368]] : []),
   ];
   const checks = status.required_status_checks;
   assert(
@@ -714,7 +842,7 @@ export const validateRuleset = (ruleset, bootstrap = false) => {
             check.context === context && check.integration_id === provider,
         ),
       ),
-    "Required native and derived checks must retain their verified provider identities.",
+    "Required native checks must retain their verified provider identities.",
   );
 };
 
@@ -768,6 +896,11 @@ export const validateNavigation = (
 };
 
 function* markdownTargets(content) {
+  for (const match of content.matchAll(
+    /^ {0,3}\[[^\]\r\n]+\]:[ \t]*(?:\r?\n[ \t]*)?(?:<([^>\r\n]*)>|([^\s]+))/gm,
+  ))
+    yield match[1] ?? match[2];
+
   let cursor = 0;
   while (cursor < content.length) {
     const opening = content.indexOf("](", cursor);
@@ -877,7 +1010,7 @@ const validateActionStep = (step, trusted) => {
     );
 };
 
-const validateWorkflowTrust = (workflow) => {
+export const validateWorkflowTrust = (workflow) => {
   const targetEvent =
     workflow.on === "pull_request_target" ||
     (Array.isArray(workflow.on) &&
@@ -909,11 +1042,10 @@ const validateWorkflowTrust = (workflow) => {
       job.permissions !== "write-all",
       "Job permissions must be explicit and minimal.",
     );
+    const permissions = job.permissions ?? workflow.permissions;
+    const trusted = targetEvent || Object.values(permissions).includes("write");
     for (const step of job.steps ?? []) {
-      validateActionStep(
-        step,
-        targetEvent || workflow.permissions.checks === "write",
-      );
+      validateActionStep(step, trusted);
     }
   }
 };
@@ -978,35 +1110,30 @@ const validateSonarProperties = (text, phase, files) => {
 export const inspectPolicy = async (root) => {
   const { policy, files } = await readInventory(root);
   const workflowFiles = [...files].filter((file) =>
-    /^\.github\/workflows\/.+\.yml$/.test(file),
+    /^\.github\/workflows\/.+\.ya?ml$/.test(file),
   );
-  const [ci, rabbit, main, bootstrap, sonar, workflows] = await Promise.all([
+  const [ci, rabbit, main, sonar, workflows] = await Promise.all([
     readText(root, ".github/workflows/ci.yml"),
     readText(root, ".coderabbit.yaml"),
     readJson(root, ".github/rulesets/main.json"),
-    readJson(root, ".github/rulesets/bootstrap.json"),
     readText(root, "sonar-project.properties"),
     Promise.all(workflowFiles.map((file) => readText(root, file))),
   ]);
   validateCiWorkflow(parseYaml(ci));
   validateCodeRabbit(parseYaml(rabbit));
-  workflows.forEach((text) => validateWorkflowTrust(parseYaml(text)));
-  for (const file of [
-    ".github/rulesets/main.json",
-    ".github/rulesets/bootstrap.json",
-  ])
-    assert(
-      files.has(file),
-      "Both complete and initial-bootstrap protection plans must be published.",
-    );
+  workflows.forEach((text, index) => {
+    const workflow = parseYaml(text);
+    if (workflowFiles[index] === ".github/workflows/codeql.yml")
+      validateCodeqlWorkflow(workflow);
+    else validateWorkflowTrust(workflow);
+  });
+  assert(
+    files.has(".github/rulesets/main.json"),
+    "The native main-branch protection plan must be published.",
+  );
   validateRuleset(main);
-  validateRuleset(bootstrap, true);
   validateSonarProperties(sonar, policy.phase, files);
-  return {
-    workflows: [...files].filter((file) =>
-      /^\.github\/workflows\/.+\.yml$/.test(file),
-    ).length,
-  };
+  return { workflows: workflowFiles.length };
 };
 
 export const inspectFormatting = async (root) => {
@@ -1068,15 +1195,25 @@ const npm = (args, root, capture = false) => {
     stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
   });
 };
-export const runFull = async (
+/** @typedef {{ status: number | null, error?: Error }} CheckResult */
+
+/**
+ * @param {string} profile
+ * @param {string} root
+ * @param {(name: string) => CheckResult | Promise<CheckResult>} [execute]
+ */
+export const runProfile = async (
+  profile,
   root,
   execute = (name) => npm(["run", name], root),
 ) => {
   const manifest = await readJson(root, manifestPath);
   validateManifest(manifest, await readJson(root, "package.json"));
+  const selected = manifest.profiles[profile];
+  assert(selected, "A declared validation profile is required.");
   const runNext = async (index) => {
-    if (index === manifest.profiles.full.length) return index;
-    const id = manifest.profiles.full[index];
+    if (index === selected.length) return index;
+    const id = selected[index];
     const result = await execute(scriptNames[id]);
     assert(
       result?.status === 0 && !result.error,
@@ -1086,6 +1223,8 @@ export const runFull = async (
   };
   return runNext(0);
 };
+
+export const runFull = (root, execute) => runProfile("full", root, execute);
 
 const trackedFiles = async (root) => {
   try {
@@ -1161,6 +1300,7 @@ const nodeCoverage = async (root, tests, sources, report) => {
 
 const runSourceTool = (mode, root) => {
   const commands = {
+    "actions-lint": ["scripts/run-actionlint.mjs"],
     boundaries: ["scripts/check-boundaries.mjs"],
     typecheck: [
       "node_modules/typescript/bin/tsc",
@@ -1203,13 +1343,18 @@ const runCoverage = async (root, files, phase, auditOnly) => {
 export const runCheck = async (mode, root = repository) => {
   const { policy, files } = await readInventory(root);
   assert(
-    [...checksForPhase(policy.phase), "full"].includes(mode),
+    [
+      ...checksForPhase(policy.phase),
+      "full",
+      ...Object.keys(ciProfilesForPhase(policy.phase)),
+    ].includes(mode),
     "Usage: npm run validate -- full, or a declared governance check.",
   );
-  if (mode === "full") return runFull(root);
+  if (mode === "full" || Object.hasOwn(ciProfilesForPhase(policy.phase), mode))
+    return runProfile(mode, root);
   if (mode === "snapshot")
     return inspectSnapshot(root, { trackedFiles: await trackedFiles(root) });
-  if (["boundaries", "typecheck", "lint"].includes(mode))
+  if (["actions-lint", "boundaries", "typecheck", "lint"].includes(mode))
     return runSourceTool(mode, root);
   if (mode === "audit" && policy.phase !== "governance")
     return (await import("./run-audit.mjs")).runAudit({ root });

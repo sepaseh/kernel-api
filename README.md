@@ -49,6 +49,7 @@ npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
 npm run validate -- full
 ```
 
-The [canonical manifest](.agents/validation.json) owns all ten real source-phase
-checks. Local database and authentication evidence does not establish a deployed
-database, production OTP delivery, HTTP behavior, a server or deployment readiness.
+The [canonical manifest](.agents/validation.json) owns the required source-phase
+checks. Local database and authentication tests cover the published adapters.
+HTTP behavior, server operation, production OTP delivery and deployment
+readiness require separate evidence.
