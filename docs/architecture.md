@@ -4,10 +4,17 @@ The [inventory](../.github/bootstrap-policy.json) and
 [validation manifest](../.agents/validation.json) declare the exact published
 phase. `applicationReady` remains false.
 
-The localization-data phase includes pure feature contracts, core policies,
-eight feature ports, seven framework-free application services, their synthetic
-port tests, and all ten literal API catalogs plus registry and integrity tests.
-The earlier governance controls and pure foundation remain published.
+The configured-storage phase includes pure feature contracts, core policies,
+eight feature ports, seven framework-free application services and their
+synthetic-port tests. All ten literal API catalogs, their registry and integrity
+tests remain published, alongside the earlier governance controls and foundation.
+
+Concrete infrastructure now provides configuration parsing, real i18next
+translation, Pino logging and sanitization, fatal process handlers, local
+filesystem and S3-compatible MinIO storage, driver selection and URL validation.
+These dependencies stay in their infrastructure owners; application services
+remain framework free. `pino-pretty` is a development dependency used only for
+development output.
 
 Contracts have no catch-all barrel. Locale metadata, permissions, OTP concepts
 and profile bounds retain one local definition. Application vocabulary imports
@@ -17,16 +24,31 @@ The narrowly named Sonar duplication exception covers only their ten data files;
 the registry and locale metadata retain duplication analysis, and all source,
 rules and measured coverage remain analyzed.
 
+Configuration consumes a supplied environment object or `process.env` without
+loading environment files. Invalid drivers and numeric settings fail; selecting
+MinIO requires explicit credentials and endpoint settings. The public
+`.env.example` is synthetic configuration evidence, not a running environment.
+
 The API owns database access, migrations, authentication and storage. Services
-depend on feature ports; concrete infrastructure will implement them. Thin Hono
-routes will adapt HTTP, with manual composition and atomic transaction boundaries.
+depend on feature ports; the published storage adapters implement their port.
+Database and authentication adapters, thin Hono HTTP routes and manual server
+composition belong to later publications, with atomic transaction boundaries.
 Independent frontends communicate through HTTP.
 
-Current fake-port tests establish application policy and operation ordering,
-not real database transactions, authentication persistence, object storage or an
-HTTP listener. Those owners and real disposable-fixture tests must be published
-together in later PRs. Production OTP delivery, deployed integrations and
-production readiness remain outside this scope.
+Fake-port tests establish application policy and operation ordering. Engine tests
+exercise every catalog through real resolution and interpolation. Logging tests
+use real Pino; isolated subprocesses establish fatal logging, flushing and exit
+behavior. Filesystem tests verify exact bytes, exclusive creation, hard deletion
+and path rejection using owned disposable directories. Storage SDK tests verify
+signed requests against an owned loopback HTTP fixture with synthetic credentials,
+isolated empty AWS profiles and external-network protection.
+
+This protocol evidence is not a deployed MinIO integration. Real database
+transactions, authentication persistence, HTTP adapters, listener startup and
+shutdown require their own published owners and disposable-fixture tests.
+Production OTP delivery, deployed integrations and production readiness remain
+outside this scope. See [logging](backend-logging.md) and
+[object storage](object-storage.md) for the current infrastructure limits.
 
 Read [backend](../.agents/rules/backend.md),
 [data lifecycle](../.agents/rules/data-lifecycle.md),

@@ -135,6 +135,33 @@
         "src/infrastructure/localization/catalogs.test.ts"
       ],
       "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+    },
+    {
+      "id": "configuration-and-storage",
+      "when": "Change runtime configuration, translation, logging, fatal handlers or local/MinIO storage adapters.",
+      "owners": [
+        "src/infrastructure/config.ts",
+        "src/infrastructure/lifecycle.ts",
+        "src/infrastructure/localization/i18n.ts",
+        "src/infrastructure/logging",
+        "src/infrastructure/storage"
+      ],
+      "contracts": [
+        "src/application/ports/object-storage.ts",
+        "docs/backend-logging.md",
+        "docs/object-storage.md",
+        ".agents/rules/localization.md",
+        ".agents/rules/data-lifecycle.md"
+      ],
+      "tests": [
+        "src/infrastructure/config.test.ts",
+        "src/infrastructure/lifecycle.test.ts",
+        "src/infrastructure/localization/i18n.test.ts",
+        "src/infrastructure/logging/logger.test.ts",
+        "src/infrastructure/storage/local.test.ts",
+        "src/infrastructure/storage/minio.test.ts"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
     }
   ]
 }

@@ -194,6 +194,19 @@ test("system administrators can upload public files without a settings grant", a
   assert.equal(result.visibility, "public");
 });
 
+test("upload names that are dot segments use the default object name", async () => {
+  for (const name of [".", ".."]) {
+    const { records, service } = fixture();
+    const result = await service.upload({
+      actor,
+      source: { ...source, name },
+      visibility: "private",
+    });
+    assert.equal(records.get(result.id)?.originalName, name);
+    assert.equal(records.get(result.id)?.objectKey, "fixture-file/upload");
+  }
+});
+
 test("metadata failure attempts object cleanup and remains the thrown error if cleanup fails", async () => {
   const { deleted, repository, service, storage } = fixture();
   const metadataError = new Error("Synthetic metadata failure");
