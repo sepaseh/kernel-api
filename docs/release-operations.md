@@ -59,8 +59,14 @@ previous artifact AND compatible protected config AND matching recovery point.
 For a native rollback, use the same stop and disable procedure before restoring
 the previous environment and symlink together.
 If old code understands the current schema, restore the prior artifact and validate.
-Otherwise restore the matched SQLite/object backup before starting old code. Image
-rollback or symlink replacement does not reverse migrations. Record operator,
+Otherwise restore the matched SQLite/object backup before starting old code.
+For a native rollback, start the restored release while boot-time activation is
+still disabled and repeat the native cutover checks above. After verification
+passes, restore boot-time enablement with `systemctl enable kernel-api.service`
+only if the unit was enabled before the rollout. Use the state recorded before
+the cutover.
+
+Image rollback or symlink replacement does not reverse migrations. Record operator,
 incident/release ID, evidence, data-loss window and recovery duration. Retain logs
 and follow-up remediation; do not improvise unrelated forward fixes during rollback.
 
