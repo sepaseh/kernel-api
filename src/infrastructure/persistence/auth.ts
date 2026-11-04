@@ -1,7 +1,10 @@
 import { and, eq } from "drizzle-orm";
 
 import { ApplicationError } from "../../application/errors.ts";
-import type { AuthPersistence } from "../../application/ports/auth.ts";
+import {
+  type AuthPersistence,
+  passwordResetOtpSubject,
+} from "../../application/ports/auth.ts";
 import { consumeOtpAttempt } from "../auth/otp.ts";
 import type { Database } from "../db/client.ts";
 import { account, session, user } from "../db/schema.ts";
@@ -78,7 +81,11 @@ export const createAuthPersistence = (database: Database): AuthPersistence => ({
           eq(user.status, "active"),
         ),
       });
-      if (!currentUser || otp.purpose !== "forgot_password" || otp.subject)
+      if (
+        !currentUser ||
+        otp.purpose !== "forgot_password" ||
+        otp.subject !== passwordResetOtpSubject(userId)
+      )
         throw new ApplicationError("invalid", "passwordResetInvalid");
       await consumeOtpAttempt(transaction, otp);
       const result = await transaction

@@ -123,6 +123,9 @@ test("real Better Auth authenticates bootstrap administrator before and after mo
     password,
     username: "synthetic-admin",
   });
+  const administrators = await database.query.user.findMany();
+  assert.equal(administrators.length, 1);
+  assert.equal(administrators[0].isSystemAdmin, true);
   const before = await service.login({ identifier: "09120000003", password });
   await createDrizzleUsersRepository(database).update(
     before.userId,

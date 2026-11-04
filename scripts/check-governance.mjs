@@ -86,10 +86,11 @@ const sourceToolingFiles = [
 ];
 const governanceDependencies = { prettier: "3.9.10", yaml: "2.9.1" };
 export const reviewedOverrides = { "minimatch@10.2.6": "11.0.3" };
+const reviewedAuthCoreVersion = "1.7.14";
 export const overridesForPackage = (pkg) => ({
   ...reviewedOverrides,
   ...(pkg.dependencies?.["better-auth"]
-    ? { "@better-auth/core": "1.7.14" }
+    ? { "@better-auth/core": reviewedAuthCoreVersion }
     : {}),
 });
 const adminCommandPhases = new Set([
@@ -397,6 +398,12 @@ const validateLockfile = (pkg, lock, phase) => {
     ),
     "The lockfile must remain one independently installable project.",
   );
+  if (pkg.dependencies?.["better-auth"])
+    assert(
+      lock.packages?.["node_modules/@better-auth/core"]?.version ===
+        reviewedAuthCoreVersion,
+      "The lockfile must include the reviewed authentication core.",
+    );
   for (const [location, entry] of Object.entries(lock.packages ?? {})) {
     assert(
       entry.link !== true,
@@ -412,7 +419,7 @@ const validateLockfile = (pkg, lock, phase) => {
       location.endsWith("/@better-auth/core")
     )
       assert(
-        entry.version === "1.7.14",
+        entry.version === reviewedAuthCoreVersion,
         "The locked authentication core must match the reviewed provider version.",
       );
   }

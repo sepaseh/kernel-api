@@ -214,7 +214,7 @@ export const createDrizzleUsersRepository = (
       conditions.push(like(user.lastName, `%${query.lastName}%`));
     if (query.status) conditions.push(eq(user.status, query.status));
     const where = conditions.length ? and(...conditions) : undefined;
-    const [page, totals] = await Promise.all([
+    const [page, totals] = await database.batch([
       database
         .select()
         .from(user)

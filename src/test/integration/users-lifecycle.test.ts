@@ -320,7 +320,7 @@ test("foreign-key classification excludes busy, I/O and unrelated constraints", 
   assert.equal(isForeignKeyConstraintError(cyclic), false);
 });
 
-test("the populated user-role migration preserves records and technical relation policies", async (context) => {
+const migrationFolderThrough = async (context: TestContext, last: number) => {
   const directory = await mkdtemp(
     path.join(tmpdir(), "kernel-user-migration-"),
   );
@@ -337,7 +337,7 @@ test("the populated user-role migration preserves records and technical relation
   ) as { entries: { idx: number; tag: string }[] };
   const previous = {
     ...journal,
-    entries: journal.entries.filter(({ idx }) => idx < 4),
+    entries: journal.entries.filter(({ idx }) => idx <= last),
   };
   await writeFile(
     path.join(directory, "meta/_journal.json"),
@@ -348,6 +348,55 @@ test("the populated user-role migration preserves records and technical relation
       path.join(migrations, `${entry.tag}.sql`),
       path.join(directory, `${entry.tag}.sql`),
     );
+  return directory;
+};
+
+test("the initial user rebuild preserves populated child rows and restores foreign keys", async (context) => {
+  const client = createClient({ url: "file::memory:" });
+  context.after(() => client.close());
+  const database = drizzle(client, { schema });
+  await migrate(database, {
+    migrationsFolder: await migrationFolderThrough(context, 0),
+  });
+  await client.batch(
+    [
+      "INSERT INTO user (id, email, first_name, last_name, mobile, name, created_at, updated_at) VALUES ('legacy-user', 'legacy@example.test', 'Legacy', 'User', '09120000001', 'Legacy User', 1, 1)",
+      "INSERT INTO account (id, account_id, issuer, provider_id, user_id, password, created_at, updated_at) VALUES ('legacy-account', 'legacy-user', 'fixture', 'credential', 'legacy-user', 'synthetic-hash', 1, 1)",
+      "INSERT INTO session (id, token, user_id, created_at, expires_at, updated_at) VALUES ('legacy-session', 'synthetic-token', 'legacy-user', 1, 2, 1)",
+      "INSERT INTO roles (id, name) VALUES ('legacy-role', 'Legacy role')",
+      "INSERT INTO user_roles (role_id, user_id) VALUES ('legacy-role', 'legacy-user')",
+      "INSERT INTO files (id, bucket, content_type, created_at, created_by, object_key, original_name, size, visibility) VALUES ('legacy-file', 'fixture', 'text/plain', 1, 'legacy-user', 'legacy/file', 'fixture.txt', 1, 'private')",
+    ],
+    "write",
+  );
+  const children = [
+    "SELECT id, account_id, provider_id, user_id, password FROM account",
+    "SELECT * FROM session",
+    "SELECT * FROM user_roles",
+    "SELECT * FROM files",
+  ];
+  const snapshot = async () =>
+    Promise.all(
+      children.map(async (query) => (await client.execute(query)).rows),
+    );
+  const before = await snapshot();
+  assert.equal(
+    (await client.execute("PRAGMA foreign_keys")).rows[0]?.foreign_keys,
+    1,
+  );
+
+  await migrate(database, { migrationsFolder: migrations });
+
+  assert.deepEqual(await snapshot(), before);
+  assert.equal(
+    (await client.execute("PRAGMA foreign_keys")).rows[0]?.foreign_keys,
+    1,
+  );
+  assert.deepEqual((await client.execute("PRAGMA foreign_key_check")).rows, []);
+});
+
+test("the populated user-role migration preserves records and technical relation policies", async (context) => {
+  const directory = await migrationFolderThrough(context, 3);
   const value = await fixture(context, directory);
   await addReference(value, "assignment");
   await addReference(value, "file");

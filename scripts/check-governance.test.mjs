@@ -1193,7 +1193,16 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
     dependencies,
   };
   pkg.overrides = overridesForPackage(pkg);
-  const lock = lockForPackage(pkg);
+  const missingCore = lockForPackage(pkg);
+  assert.throws(
+    () => validatePackage(pkg, missingCore, "auth-bootstrap"),
+    /must include the reviewed authentication core/,
+  );
+  const lock = structuredClone(missingCore);
+  lock.packages["node_modules/@better-auth/core"] = {
+    version: "1.7.14",
+    integrity: syntheticIntegrity,
+  };
   validatePackage(pkg, lock, "auth-bootstrap");
   assert.equal(pkg.scripts["server:bootstrap"], "node src/bootstrap-admin.ts");
   assert.deepEqual(checksForPhase("auth-bootstrap"), sourceChecks);
@@ -1246,7 +1255,7 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
     /one declared runtime/,
   );
   const unsafe = structuredClone(lock);
-  unsafe.packages["node_modules/@better-auth/core"] = {
+  unsafe.packages["node_modules/better-auth/node_modules/@better-auth/core"] = {
     version: "1.8.0",
     integrity: syntheticIntegrity,
   };

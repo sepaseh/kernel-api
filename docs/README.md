@@ -20,6 +20,5 @@ The publication inventory owns the current source phase.
 - [Assistant instructions](../AGENTS.md)
 - [Contributing](../CONTRIBUTING.md)
 
-The inventory declares the published contracts, application services and
-catalogs. HTTP, database, authentication adapter and deployment guides
-belong to later source publications.
+The inventory declares the published contracts, services, catalogs and adapters.
+HTTP and deployment guides belong to later source publications.

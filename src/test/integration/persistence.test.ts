@@ -12,6 +12,7 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import type { InStatement } from "@libsql/client";
 import { eq, getTableName } from "drizzle-orm";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
@@ -1165,6 +1166,36 @@ test("user repository filters and updates map optional profiles and report real 
     size: 10,
   });
   assert.deepEqual(empty, { items: [], total: 0 });
+  assert.deepEqual(await repository.list({ offset: 2, size: 1 }), {
+    items: [],
+    total: 2,
+  });
+});
+
+test("user list returns a matching total even when separate requests would straddle a delete", async (context) => {
+  const { client, database } = await fixture(context);
+  await insertUser(database);
+  const execute = client.execute.bind(client);
+  let deletion = Promise.resolve();
+  context.mock.method(client, "execute", (statement: InStatement) => {
+    const sql = typeof statement === "string" ? statement : statement.sql;
+    if (/^select count\(\*\)/i.test(sql))
+      return deletion.then(() => execute(statement));
+
+    const rows = execute(statement);
+    if (/\blimit\b/i.test(sql))
+      deletion = rows.then(async () => {
+        await execute("DELETE FROM user WHERE id = 'first'");
+      });
+    return rows;
+  });
+
+  const page = await createDrizzleUsersRepository(database).list({
+    offset: 0,
+    size: 1,
+  });
+  assert.equal(page.items[0]?.id, "first");
+  assert.equal(page.total, 1);
 });
 
 test("user write transactions roll back all fields and owned credential/session effects on failure", async (context) => {
