@@ -1,3 +1,19 @@
+import { createServer } from "node:net";
+
+function reserveLoopbackPort() {
+  return new Promise((resolve, reject) => {
+    const listener = createServer((socket) => socket.destroy());
+    listener.once("error", reject);
+    listener.listen(0, "127.0.0.1", () => resolve(listener));
+  });
+}
+
+export async function reserveSmokePorts() {
+  await using https = await reserveLoopbackPort();
+  await using http = await reserveLoopbackPort();
+  return [https.address().port, http.address().port];
+}
+
 /** Owns only one disposable smoke builder, exact image tags and its fixtures. */
 export async function withSmokeResources(
   { builder, images, containers = [], signal, run, down, removeDirectory },
@@ -35,7 +51,7 @@ export async function withSmokeResources(
     (
       await run(args, {
         capture: true,
-        cleanup: true,
+        cleanup: armed,
       })
     )
       .split(/\r?\n/)
@@ -46,7 +62,7 @@ export async function withSmokeResources(
     const result = await run(["buildx", "inspect", builder], {
       capture: true,
       allowFailure: true,
-      cleanup: true,
+      cleanup: armed,
     });
     if (result.code === 0) return true;
     if (
@@ -160,14 +176,25 @@ export async function withSmokeResources(
 
 export function smokeInterruption(events = process) {
   const controller = new AbortController();
-  const interrupt = (signal) =>
-    controller.abort(new Error(`API Docker smoke interrupted by ${signal}.`));
+  const cleanupController = new AbortController();
+  const interrupt = (signal) => {
+    if (controller.signal.aborted) {
+      cleanupController.abort(
+        new Error(
+          `API Docker smoke cleanup interrupted by ${signal}. Owned Docker resources may remain.`,
+        ),
+      );
+    } else {
+      controller.abort(new Error(`API Docker smoke interrupted by ${signal}.`));
+    }
+  };
   const onInterrupt = () => interrupt("SIGINT");
   const onTerminate = () => interrupt("SIGTERM");
   events.on("SIGINT", onInterrupt);
   events.on("SIGTERM", onTerminate);
   return {
     signal: controller.signal,
+    cleanupSignal: cleanupController.signal,
     dispose() {
       events.off("SIGINT", onInterrupt);
       events.off("SIGTERM", onTerminate);

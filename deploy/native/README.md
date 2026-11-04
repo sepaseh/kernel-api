@@ -1,7 +1,8 @@
 # API native Linux deployment reference
 
-Use Linux with systemd, Nginx, Certbot and Node.js 24 matching `.nvmrc`. Build/package
-on the same OS/CPU as the runtime because dependencies may contain native binaries.
+Use Linux with systemd, [Nginx 1.25.1 or later with HTTP/2 support](https://nginx.org/en/docs/http/ngx_http_v2_module.html#http2),
+Certbot and Node.js 24 matching `.nvmrc`. Build and package on the same OS and CPU
+architecture as the runtime because dependencies may contain native binaries.
 A Windows-installed dependency tree is not a Linux release.
 
 These templates do not establish production readiness. Real OTP delivery and
@@ -20,7 +21,7 @@ npm ci --omit=dev
 
 Keep code read-only to the runtime user. Create system user/group kernel-api,
 root-owned `/srv/kernel-api/releases` and protected `/etc/kernel-api`, plus
-`/var/lib/kernel-api` and `/var/lib/kernel-api/uploads` owned by kernel-api with mode 0700. Create `/srv/kernel-api/current` as a symlink to the selected immutable release.
+`/var/lib/kernel-api` and `/var/lib/kernel-api/uploads` owned by kernel-api with mode 0700.
 Create a root-owned `/etc/kernel-api/api.env` with mode 0600 from your protected
 configuration source.
 Use real generated credentials, an immutable release ID, public HTTPS API origin,
@@ -45,30 +46,44 @@ Remove the temporary file if rendering fails or after installation. Install the 
 server in Nginx, create `/var/www/letsencrypt`, run `nginx -t` and reload. Then issue:
 
 ```sh
-sudo certbot certonly --webroot -w /var/www/letsencrypt -d api.example.com
-sudo certbot renew --dry-run
+sudo certbot certonly --webroot -w /var/www/letsencrypt -d api.example.com \
+  --deploy-hook 'nginx -t && systemctl reload nginx'
 ```
 
 Provide a public configuration containing the hostname, certificate paths and release ID,
 without credentials. Repeat the rendering command with `--template kernel` and a new
 exclusive temporary file; inspect output, install in the Nginx http context,
 run `nginx -t` and reload. Replace the bootstrap server rather than keeping duplicate
-API blocks. Renewal must reload Nginx after publishing updated certificates:
-`certbot renew --deploy-hook 'systemctl reload nginx'`. No certificate key is stored
-inside the repository or release. Only Nginx binds public ports; the unit forces the
-API to listen on `127.0.0.1:3000`, regardless of HOST or PORT in its environment file.
+API blocks. Certbot saves the deploy hook with the certificate, so scheduled
+renewal validates the Nginx configuration and reloads after issuing a replacement.
+After installing the HTTPS configuration, verify renewal and its saved hook with
+`sudo certbot renew --cert-name api.example.com --dry-run --run-deploy-hooks`.
+Keep certificate keys outside the repository and release. Only Nginx binds
+public ports. The unit forces the API to listen on `127.0.0.1:3000`, regardless
+of HOST or PORT in its environment file.
 Its ingress cap defaults to 6 MiB for a 5 MiB application upload cap.
 
 The complete template rejects unknown HTTP hosts and TLS names. When integrating
 several independently hosted apps into one Nginx instance, keep only one default
 rejection pair per listen address and merge the named app blocks deliberately.
 
-Before starting a fresh installation, validate protected production configuration
-and bootstrap only if there are no users. From an authorized root operator shell,
-use a transient service with the runtime identity and protected environment:
+Before starting a fresh installation, validate the candidate release's protected
+production configuration. From an authorized root operator shell, use a transient
+service with the runtime identity and protected environment. Replace `RELEASE_ID`
+with the selected release's ID:
 
 ```sh
-systemd-run --unit=kernel-api-validate --collect --wait --pipe --property=User=kernel-api --property=WorkingDirectory=/srv/kernel-api/current/api --property=EnvironmentFile=/etc/kernel-api/api.env /usr/bin/node scripts/validate-deployment-env.mjs api
+systemd-run --unit=kernel-api-validate --collect --wait --pipe \
+  --property=User=kernel-api \
+  --property=WorkingDirectory=/srv/kernel-api/releases/RELEASE_ID/api \
+  --property=EnvironmentFile=/etc/kernel-api/api.env \
+  /usr/bin/node scripts/validate-deployment-env.mjs api
+```
+
+After validation succeeds, create `/srv/kernel-api/current` as a symlink to the
+candidate. Bootstrap only if there are no users:
+
+```sh
 systemd-run --unit=kernel-api-bootstrap --collect --wait --pipe --property=User=kernel-api --property=WorkingDirectory=/srv/kernel-api/current/api --property=EnvironmentFile=/etc/kernel-api/api.env /usr/bin/node src/bootstrap-admin.ts < /secure/path/initial-admin.json
 ```
 

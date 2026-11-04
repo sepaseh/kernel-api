@@ -127,6 +127,7 @@ test("deployment rejects placeholder credentials, development switches and ephem
     { DATABASE_URL: "file:release/data.sqlite" },
     { LOCAL_STORAGE_PATH: "release/uploads" },
     { OTP_FIXED_CODE: "123456" },
+    { OTP_FIXED_CODE: "" },
     { SERVER_SEED_DEVELOPMENT_DATA: "true" },
     { STORAGE_DRIVER: "unknown" },
   ]) {
@@ -134,6 +135,26 @@ test("deployment rejects placeholder credentials, development switches and ephem
       validateDeploymentEnv("api", { ...validApi, ...changed }),
     );
   }
+});
+
+test("deployment validates logging values with the runtime rules", () => {
+  assert.doesNotThrow(() =>
+    validateDeploymentEnv("api", {
+      ...validApi,
+      LOG_LEVEL: "warn",
+      SERVER_ENVIRONMENT: "production-eu_1",
+    }),
+  );
+  for (const LOG_LEVEL of ["", "verbose", "WARN"])
+    assert.throws(
+      () => validateDeploymentEnv("api", { ...validApi, LOG_LEVEL }),
+      /LOG_LEVEL/,
+    );
+  for (const SERVER_ENVIRONMENT of ["", "production eu", "a".repeat(65)])
+    assert.throws(
+      () => validateDeploymentEnv("api", { ...validApi, SERVER_ENVIRONMENT }),
+      /Logging environment/,
+    );
 });
 
 test("durable state stays outside the release, including a symlinked state location", async (context) => {
@@ -202,6 +223,23 @@ test("external object storage needs explicit credentials and TLS", () => {
     MINIO_USE_SSL: "true",
   };
   assert.doesNotThrow(() => validateDeploymentEnv("api", config));
+  for (const MINIO_ENDPOINT of ["localhost", "192.0.2.10", "[2001:db8::10]"])
+    assert.doesNotThrow(() =>
+      validateDeploymentEnv("api", { ...config, MINIO_ENDPOINT }),
+    );
+  for (const MINIO_ENDPOINT of [
+    "https://storage.kernel.test",
+    "storage.kernel.test:9000",
+    "storage.kernel.test/path",
+    "user@storage.kernel.test",
+    "storage..kernel.test",
+    "storage.kernel.test.",
+    "127.1",
+  ])
+    assert.throws(
+      () => validateDeploymentEnv("api", { ...config, MINIO_ENDPOINT }),
+      /MINIO_ENDPOINT must be a bare/,
+    );
   for (const changed of [
     { MINIO_USE_SSL: "false" },
     { MINIO_SECRET_KEY: "minioadmin" },

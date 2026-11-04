@@ -44,8 +44,9 @@ storage initialization. See [HTTP transport](docs/http-transport.md) and
 Operational tooling adds owned release packaging, Docker/native deployment
 references, configuration/health checks and Drizzle generation compatibility
 tests. Synthetic recovery drills exercise matched database/object recovery and
-HTTP/log correlation. CodeQL configuration and manual release, staging, smoke
-and DAST workflows require separate provider/operator setup. See
+HTTP/log correlation. CodeQL configuration and manual release, staging and
+smoke workflows require separate provider setup. The manual DAST workflow
+stops after target validation while staging-only scanner egress is unavailable. See
 [deployment](docs/deployment.md), [release operations](docs/release-operations.md)
 and [backup/recovery](docs/backup-restore.md).
 

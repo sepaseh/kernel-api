@@ -5,12 +5,12 @@ import { randomBytes } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  reserveSmokePorts,
   smokeInterruption,
   withSmokeResources,
 } from "./docker-smoke-cleanup.mjs";
@@ -44,6 +44,8 @@ const run = (
   { input, allowFailure = false, capture = false, cleanup = false } = {},
 ) =>
   new Promise((resolve, reject) => {
+    const signal = cleanup ? interruption?.cleanupSignal : interruption?.signal;
+    signal?.throwIfAborted();
     const childEnvironment = { ...environment };
     if (
       cleanup ||
@@ -60,7 +62,7 @@ const run = (
         capture ? "pipe" : "inherit",
       ],
       windowsHide: true,
-      ...(!cleanup && interruption ? { signal: interruption.signal } : {}),
+      signal,
     });
     let output = "",
       diagnostic = "";
@@ -104,15 +106,6 @@ environment.BUILDX_BUILDER = builder;
 console.log(
   `API Docker smoke resources: project=${project}, builder=${builder}, images=${images.join(",")}, TEMP=${directory}`,
 );
-const freePort = () =>
-  new Promise((resolve, reject) => {
-    const server = net.createServer();
-    server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => {
-      const { port } = server.address();
-      server.close((error) => (error ? reject(error) : resolve(port)));
-    });
-  });
 let httpsPort, httpPort, origin, fixtureCertificate;
 const caller = "https://admin.kernel.test";
 const initial = {
@@ -227,8 +220,7 @@ try {
       removeDirectory: cleanupDirectory,
     },
     async () => {
-      httpsPort = await freePort();
-      httpPort = await freePort();
+      [httpsPort, httpPort] = await reserveSmokePorts();
       origin = `https://api.kernel.test:${httpsPort}`;
       await mkdir(tls);
       await writeFile(

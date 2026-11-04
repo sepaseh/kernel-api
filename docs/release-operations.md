@@ -13,12 +13,26 @@ cross-repository translation synchronization is assumed.
 For native Linux, run `npm run validate -- full` on the exact trusted source,
 then package with `deploy:package`, install
 runtime dependencies on the target OS/CPU, verify ownership/permissions and preserve
-an earlier release. Before switching `/srv/kernel-api/current`, rehearse migration
-against an isolated restoration, pause writes and stop the API while preventing
-supervisor restart. Confirm clean shutdown before taking a matched DB/object backup,
-including SQLite journal or WAL files as described in the recovery procedure.
-Atomically switch the current symlink to the complete approved release,
-validate its protected environment, then start. Verify health, release marker,
+an earlier release. Prepare a protected candidate environment with the intended
+release ID and state paths. Validate it from the candidate release directory with
+the runtime identity before switching `/srv/kernel-api/current`. Replace
+`RELEASE_ID` with the candidate's ID:
+
+```sh
+systemd-run --unit=kernel-api-validate --collect --wait --pipe \
+  --property=User=kernel-api \
+  --property=WorkingDirectory=/srv/kernel-api/releases/RELEASE_ID/api \
+  --property=EnvironmentFile=/etc/kernel-api/candidate-api.env \
+  /usr/bin/node scripts/validate-deployment-env.mjs api
+```
+
+If validation fails, correct the candidate while the current release and its
+protected environment stay in place. Rehearse migration against an isolated
+restoration, pause writes and stop the API while preventing supervisor restart.
+Confirm clean shutdown before taking a matched DB/object backup, including SQLite
+journal or WAL files as described in the recovery procedure. Install the validated
+environment at `/etc/kernel-api/api.env`, atomically switch the current symlink to
+the approved release, then start. Verify health, release marker,
 login/permissions and public/private file reads before reopening traffic. Inspect
 journald/container logs with the expected SERVER_RELEASE_ID.
 

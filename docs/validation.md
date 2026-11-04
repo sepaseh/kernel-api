@@ -79,10 +79,11 @@ security workflow separately from local checks; local policy tests validate its
 configuration and do not claim to run CodeQL. Inspect the actual current-head
 native `CodeQL` result before merge or any CodeRabbit request.
 
-The four operations workflows handle release metadata, staging verification,
-deployment smoke verification and staging DAST by manual dispatch. The
-[operations policy](../scripts/check-operations-policy.mjs) validates their
-permissions, triggers and targets in Static checks. Native CodeQL uses its own
+Manual operations workflows handle release metadata, staging verification and
+deployment smoke verification. The DAST workflow validates the target and stops
+before running a scan. The [operations policy](../scripts/check-operations-policy.mjs)
+checks permissions, triggers, concurrency and target controls in Static checks.
+Native CodeQL uses its own
 workflow policy and runs independently. Policy tests and local fixtures do not
 establish that a manual workflow ran or that a deployment is ready.
 

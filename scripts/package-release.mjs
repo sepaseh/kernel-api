@@ -7,6 +7,7 @@ import {
   readdir,
   readFile,
   realpath,
+  rm,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
@@ -17,6 +18,10 @@ const runtimeScripts = [
   "scripts/healthcheck.mjs",
   "scripts/validate-deployment-env.mjs",
 ];
+const runtimeEntrypoints = {
+  api: "src/index.ts",
+  bootstrap: "src/bootstrap-admin.ts",
+};
 const excludedDirectories = new Set([
   ".git",
   "node_modules",
@@ -177,7 +182,7 @@ export async function packageRelease({
       "package.json",
       "package-lock.json",
       ...runtimeScripts,
-      "src/index.ts",
+      ...Object.values(runtimeEntrypoints),
     ].map((file) => requiredFile(path.join(repository, file))),
     access(path.join(repository, "drizzle")),
   ]);
@@ -245,8 +250,8 @@ export async function packageRelease({
     platform: process.platform,
     arch: process.arch,
     entrypoints: {
-      api: "api/src/index.ts",
-      bootstrap: "api/src/bootstrap-admin.ts",
+      api: `api/${runtimeEntrypoints.api}`,
+      bootstrap: `api/${runtimeEntrypoints.bootstrap}`,
     },
     apiDependenciesInstalled: false,
   };
@@ -257,14 +262,47 @@ export async function packageRelease({
   );
   return { directory: output, release };
 }
+
+async function removePartialRelease(directory, created) {
+  const repository = path.resolve(directory, "../../..");
+  const parent = await realpath(path.dirname(directory));
+  if (!isInside(repository, parent))
+    throw new Error(
+      `Release output moved outside the repository: ${directory}`,
+    );
+
+  const target = path.join(parent, path.basename(directory));
+  const current = await lstat(target, { bigint: true });
+  if (
+    !current.isDirectory() ||
+    current.dev !== created.dev ||
+    current.ino !== created.ino
+  )
+    throw new Error(
+      `Release output no longer matches the created directory: ${directory}`,
+    );
+
+  await rm(target, { recursive: true });
+}
+
 if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
+  let partial;
   try {
     const result = await packageRelease({
       releaseId: parseReleaseArguments(process.argv.slice(2)),
+      async onOutputCreated(directory) {
+        const created = await lstat(directory, { bigint: true });
+        if (!created.isDirectory())
+          throw new Error(
+            `Release output is no longer a directory: ${directory}`,
+          );
+        partial = { directory, created };
+      },
     });
+    partial = undefined;
     console.log(
       `Packaged ${result.release.releaseId} for ${result.release.platform}/${result.release.arch}: ${result.directory}`,
     );
@@ -272,6 +310,13 @@ if (
     console.error(
       error instanceof Error ? error.message : "Release packaging failed.",
     );
+    if (partial) {
+      try {
+        await removePartialRelease(partial.directory, partial.created);
+      } catch (cleanupError) {
+        console.error("Could not remove the partial release.", cleanupError);
+      }
+    }
     process.exitCode = 1;
   }
 }

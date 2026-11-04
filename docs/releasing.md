@@ -17,13 +17,14 @@ complete a source copy. [Release operations](release-operations.md) owns artifac
 approval, compatibility, checksums, activation and rollback; [branch protection](branch-protection.md)
 describes remote policy that still requires explicit setup/verification.
 
-The workflow prefers the repository secret `RELEASE_PLEASE_TOKEN` and falls back to
-`GITHUB_TOKEN`. Configure a dedicated token with the required repository contents
-and pull-request write access when repository policy does not permit GitHub Actions
-to create pull requests; the fallback cannot create a release PR under that policy.
-An authorized maintainer must configure the secret and verify the repository policy
-and the actual workflow runs and required checks. Do not assume workflows were
-triggered or passed merely because a release PR exists. Do not expose token values.
+An authorized maintainer configures `RELEASE_PLEASE_TOKEN` with a
+repository-scoped GitHub App installation token or personal access token
+that has the release operation's contents and pull-request write access.
+The workflow fails before calling Release Please if the secret is missing.
+Using a dedicated token lets release PR updates trigger normal pull-request
+CI and CodeQL without the workflow approval required for PRs created or
+updated using `GITHUB_TOKEN`. Verify all required checks for the exact release
+PR head. Keep token values private.
 
 Release Please updates `CHANGELOG.md`. The Node release strategy updates the
 package and lockfile, but its generated changelog bullets do not match the required

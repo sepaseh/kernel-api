@@ -24,7 +24,7 @@ import {
   publicObjectUrl,
 } from "./url.ts";
 
-const endpointUrl = (config: ServerConfig["minio"]) => {
+export const minioEndpointUrl = (config: ServerConfig["minio"]) => {
   const raw = config.endPoint;
   const host =
     raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
@@ -34,8 +34,11 @@ const endpointUrl = (config: ServerConfig["minio"]) => {
     host
       .split(".")
       .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label));
+  if (!ip && (!domain || /^[\d.]+$/.test(host)))
+    throw new Error(
+      "Invalid MinIO endpoint configuration. MINIO_ENDPOINT must be a bare DNS hostname or IP address.",
+    );
   if (
-    (!ip && (!domain || /^[\d.]+$/.test(host))) ||
     !Number.isInteger(config.port) ||
     config.port < 1 ||
     config.port > 65535 ||
@@ -71,7 +74,7 @@ export class MinioObjectStorage implements ObjectStorage {
   constructor(config: ServerConfig["minio"]) {
     if (!config.accessKey.trim() || !config.secretKey.trim())
       throw new Error("Explicit MinIO credentials are required.");
-    const endpoint = endpointUrl(config);
+    const endpoint = minioEndpointUrl(config);
     this.#privateBucket = `${config.bucket}-private`;
     this.#publicBucket = `${config.bucket}-public`;
     assertStorageBucket(this.#privateBucket);
