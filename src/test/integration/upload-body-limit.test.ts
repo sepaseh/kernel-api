@@ -226,6 +226,90 @@ test("caps concurrent uploads across apps before reading their bodies and releas
   }
 });
 
+test("stalled multipart bodies time out and release their upload slots", async (t) => {
+  const { bytes, type } = await multipartAtSize(512);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const signals = new EventEmitter();
+  let accepted = 0;
+  let cancellations = 0;
+  const app = appForTest(
+    () => {
+      accepted++;
+    },
+    false,
+    "en",
+  );
+  const uploads: Promise<Response>[] = [];
+  const closeBodies: Array<() => void> = [];
+  try {
+    for (let index = 0; index < 4; index++) {
+      let canceled = false;
+      const reading = once(signals, "reading");
+      const body = new ReadableStream<Uint8Array>(
+        {
+          start(controller) {
+            controller.enqueue(bytes.subarray(0, 1));
+            closeBodies.push(() => {
+              if (!canceled) controller.close();
+            });
+          },
+          pull() {
+            signals.emit("reading");
+          },
+          cancel() {
+            canceled = true;
+            cancellations++;
+          },
+        },
+        { highWaterMark: 0 },
+      );
+      const upload = Promise.resolve(
+        app.fetch(
+          new Request("http://localhost/files", {
+            method: "POST",
+            headers: { "content-type": type },
+            body,
+            duplex: "half",
+          } as RequestInit & { duplex: "half" }),
+        ),
+      );
+      uploads.push(upload);
+      await Promise.race([
+        reading,
+        upload.then(() => assert.fail("Upload ended before reading its body")),
+      ]);
+    }
+
+    t.mock.timers.tick(59_999);
+    assert.equal(cancellations, 0);
+    const excess = streamRequest(bytes, type);
+    assert.equal((await app.fetch(excess.request)).status, 503);
+    assert.equal(excess.state().offset, 0);
+
+    t.mock.timers.tick(1);
+    assert.equal(cancellations, 4);
+    const example = JSON.parse(
+      await readFile(
+        new URL("../../../collection/files/upload/408.json", import.meta.url),
+        "utf8",
+      ),
+    );
+    for (const response of await Promise.all(uploads)) {
+      assert.equal(response.status, 408);
+      assert.deepEqual(await response.json(), example);
+    }
+    assert.equal(accepted, 0);
+    assert.equal(
+      (await app.fetch(streamRequest(bytes, type).request)).status,
+      201,
+    );
+    assert.equal(accepted, 1);
+  } finally {
+    for (const close of closeBodies) close();
+    await Promise.allSettled(uploads);
+  }
+});
+
 test("accepts exactly the multipart byte budget", async () => {
   const maximum = uploadLimit + 64 * 1024;
   let uploaded: Uint8Array | undefined;

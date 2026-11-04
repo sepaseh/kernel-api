@@ -17,6 +17,8 @@ export const pt = {
   fileEmpty: "O ficheiro está vazio.",
   fileNotFound: "Ficheiro não encontrado.",
   fileTooLarge: "O ficheiro excede o limite de carregamento.",
+  fileUploadTimedOut:
+    "O tempo limite do carregamento foi excedido. Tente novamente.",
   fileUploadsBusy:
     "Há demasiados carregamentos em curso. Tente novamente daqui a pouco.",
   finalAdminDelete: "O último administrador do sistema não pode ser eliminado.",

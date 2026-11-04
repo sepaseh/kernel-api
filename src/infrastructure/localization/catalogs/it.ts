@@ -17,6 +17,7 @@ export const it = {
   fileEmpty: "Il file è vuoto.",
   fileNotFound: "File non trovato.",
   fileTooLarge: "Il file supera il limite di caricamento.",
+  fileUploadTimedOut: "Il tempo per il caricamento è scaduto. Riprova.",
   fileUploadsBusy: "Sono in corso troppi caricamenti. Riprova tra poco.",
   finalAdminDelete:
     "L’ultimo amministratore di sistema non può essere eliminato.",

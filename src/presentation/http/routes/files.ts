@@ -7,6 +7,7 @@ import { ApiError, authenticate } from "../http.ts";
 // Allow bounded multipart framing and metadata in addition to the file itself.
 // The limit applies to bytes read, regardless of Content-Length or chunking.
 const multipartOverheadBytes = 64 * 1024;
+const multipartReadTimeoutMs = 60_000;
 const maxConcurrentUploads = 4;
 let activeUploads = 0;
 
@@ -26,9 +27,15 @@ export const readBoundedMultipart = async (
   );
   const chunks: Uint8Array[] = [];
   let size = 0;
+  let timedOut = false;
+  const deadline = setTimeout(() => {
+    timedOut = true;
+    void reader.cancel().catch(() => undefined);
+  }, multipartReadTimeoutMs);
   try {
     while (true) {
       const chunk = await reader.read();
+      if (timedOut) throw new ApiError(408, "fileUploadTimedOut");
       if (chunk.done) break;
       size += chunk.value.byteLength;
       if (size > maximum) {
@@ -38,6 +45,7 @@ export const readBoundedMultipart = async (
       chunks.push(chunk.value);
     }
   } finally {
+    clearTimeout(deadline);
     reader.releaseLock();
   }
 

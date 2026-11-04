@@ -25,6 +25,7 @@ let client: ReturnType<typeof createDatabase>["client"] | undefined;
 let server: ReturnType<typeof serve> | undefined;
 let stopping = false;
 let shutdownPromise: Promise<void> | undefined;
+let cancelStorageReadiness: (() => void) | undefined;
 const storageReadinessTimeoutMs = 30_000;
 
 const closeServer = async () => {
@@ -83,15 +84,25 @@ const start = async () => {
       const controller = new AbortController();
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        const deadline = new Promise<never>((_, reject) => {
+        const interruption = new Promise<void>((resolve, reject) => {
+          if (config.storageDriver === "minio") {
+            cancelStorageReadiness = () => {
+              resolve();
+              controller.abort();
+            };
+          }
           timer = setTimeout(() => {
             const error = new Error("Object storage readiness timed out.");
             reject(error);
             controller.abort(error);
           }, storageReadinessTimeoutMs);
         });
-        await Promise.race([deadline, storage.ensureReady(controller.signal)]);
+        await Promise.race([
+          interruption,
+          storage.ensureReady(controller.signal),
+        ]);
       } finally {
+        cancelStorageReadiness = undefined;
         clearTimeout(timer);
       }
     },
@@ -109,6 +120,7 @@ const startup = start();
 const shutdown = () => {
   if (stopping) return;
   stopping = true;
+  cancelStorageReadiness?.();
   const deadline = setTimeout(() => {
     logger.error(
       { event: "server.shutdown.failed", reason: "timeout" },

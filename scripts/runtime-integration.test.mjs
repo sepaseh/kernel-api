@@ -40,11 +40,11 @@ const recordDatabaseClose = `
     },
   });
 `;
-const recordListenerBind = `
+const recordListenAttempt = `
   import { Server } from 'node:net';
   const listen = Server.prototype.listen;
   Server.prototype.listen = function (...args) {
-    this.once('listening', () => process.stdout.write('fixture.listener.listening\\n'));
+    process.stdout.write('fixture.listener.listen-called\\n');
     return listen.apply(this, args);
   };
 `;
@@ -107,7 +107,7 @@ function start(
   const script = [
     acknowledgeSignals,
     observeDbClose ? recordDatabaseClose : "",
-    observeListen ? recordListenerBind : "",
+    observeListen ? recordListenAttempt : "",
     "await import('./src/index.ts');",
   ].join("\n");
   const child = spawn(
@@ -321,36 +321,21 @@ test("real Node adapter starts, authenticates and shuts down gracefully", async 
   );
 });
 
-test("startup responds 503 until storage is ready and handles shutdown during initialization", async (t) => {
+test("startup responds 503 and SIGTERM closes a stalled storage request and the database", async (t) => {
   const fixture = await createFixture(t);
-  let release;
-  let seen;
-  const requestSeen = new Promise((resolve) => {
-    seen = resolve;
-  });
-  const storage = http.createServer((request, response) => {
-    if (!release) {
-      release = () => {
-        response.statusCode = 200;
-        response.end();
-      };
-      seen();
-      return;
-    }
-    if (request.method === "GET") {
-      response.setHeader("Content-Type", "application/xml");
-      response.end(
-        '<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></VersioningConfiguration>',
-      );
-    } else {
-      response.statusCode = 204;
-      response.end();
-    }
+  const { promise: requestSeen, resolve: recordRequest } =
+    Promise.withResolvers();
+  const { promise: requestClosed, resolve: recordClose } =
+    Promise.withResolvers();
+  let storageRequests = 0;
+  const storage = http.createServer((_request, response) => {
+    storageRequests++;
+    response.once("close", () => recordClose(response.writableEnded));
+    recordRequest();
   });
   storage.listen(0, "127.0.0.1");
   await once(storage, "listening");
   fixture.closers.push(async () => {
-    release?.();
     storage.closeAllConnections();
     await close(storage);
   });
@@ -371,17 +356,22 @@ test("startup responds 503 until storage is ready and handles shutdown during in
     AWS_EC2_METADATA_DISABLED: "true",
     AWS_PROFILE: "synthetic-profile",
   });
-  const running = start(fixture);
+  const running = start(fixture, { observeDbClose: true });
   await waitForStorageRequest(running, requestSeen);
   const response = await fetch(`http://127.0.0.1:${fixture.port}/health`);
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("cache-control"), "no-store");
   await running.signal("SIGTERM");
-  release();
   const result = await running.result;
   assert.equal(result.code, 0, running.output());
+  assert.equal(await requestClosed, false, "Storage response was never sent");
+  assert.equal(storageRequests, 1);
   assert.match(running.output(), /server.stopped/);
-  assert.doesNotMatch(running.output(), /server.started/);
+  assert.doesNotMatch(running.output(), /server\.(?:started|shutdown\.failed)/);
+  assert.equal(
+    (running.output().match(/fixture\.database\.closed/g) ?? []).length,
+    1,
+  );
 });
 
 test("occupied port fails before database or object-storage state is created", async (t) => {
@@ -409,7 +399,7 @@ test("configuration failure is sanitized and never opens a listener", async (t) 
   const result = await running.result;
   assert.equal(result.code, 1, running.output());
   assert.match(running.output(), /server.startup.failed/);
-  assert.doesNotMatch(running.output(), /fixture\.listener\.listening/);
+  assert.doesNotMatch(running.output(), /fixture\.listener\.listen-called/);
   await assert.rejects(stat(path.join(fixture.dir, "runtime.sqlite")), {
     code: "ENOENT",
   });

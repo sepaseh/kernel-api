@@ -77,7 +77,10 @@ clients request a code and submit `otp` before a number change.
 File uploads are authenticated before reading multipart data. The transport
 counts actual streamed bytes rather than trusting `Content-Length`, and caps the
 whole multipart body at the configured file limit plus 64 KiB of framing and
-fields. The application independently validates the resulting file bytes.
+fields. Body reading has a 60-second deadline. An incomplete body at the
+deadline is canceled and receives a localized
+[`408` response](../collection/files/upload/408.json). The deadline covers
+receiving the body. The application independently validates the file bytes.
 The process handles up to four uploads at once, counting each from before
 multipart reading through the storage and metadata writes. An authenticated
 request arriving at capacity receives a localized, non-cacheable

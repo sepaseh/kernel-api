@@ -17,6 +17,8 @@ export const de = {
   fileEmpty: "Die Datei ist leer.",
   fileNotFound: "Datei nicht gefunden.",
   fileTooLarge: "Die Datei überschreitet das Upload-Limit.",
+  fileUploadTimedOut:
+    "Das Zeitlimit für den Upload wurde überschritten. Versuchen Sie es erneut.",
   fileUploadsBusy:
     "Es laufen zu viele Uploads gleichzeitig. Versuchen Sie es in Kürze erneut.",
   finalAdminDelete:

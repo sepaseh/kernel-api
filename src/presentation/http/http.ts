@@ -38,6 +38,7 @@ const statuses = {
   forbidden: 403,
   "not-found": 404,
   conflict: 409,
+  "request-timeout": 408,
   "too-large": 413,
   "unsupported-media": 415,
   "rate-limited": 429,

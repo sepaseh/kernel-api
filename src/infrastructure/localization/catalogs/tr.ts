@@ -18,6 +18,7 @@ export const tr = {
   fileEmpty: "Dosya boş.",
   fileNotFound: "Dosya bulunamadı.",
   fileTooLarge: "Dosya yükleme sınırını aşıyor.",
+  fileUploadTimedOut: "Dosya yükleme süresi doldu. Tekrar deneyin.",
   fileUploadsBusy:
     "Aynı anda çok fazla dosya yükleniyor. Biraz sonra tekrar deneyin.",
   finalAdminDelete: "Son sistem yöneticisi silinemez.",

@@ -13,6 +13,7 @@ export type ApiMessageKey =
   | "fieldRequired"
   | "fileEmpty"
   | "fileNotFound"
+  | "fileUploadTimedOut"
   | "fileTooLarge"
   | "fileUploadsBusy"
   | "finalAdminDelete"

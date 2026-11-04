@@ -14,9 +14,10 @@ binds the listener before initializing the database and awaiting storage
 readiness. Until initialization completes it serves non-cacheable 503 responses;
 uploads are available only through the ready composed app. A 30-second deadline
 covers the storage readiness sequence, including MinIO bucket and policy requests.
-Expiry aborts in-flight MinIO requests and runs the startup failure cleanup. Object
-transfers use their own existing request settings. An occupied port fails before
-database or storage initialization. See
+Expiry aborts in-flight MinIO requests and runs the startup failure cleanup. A
+shutdown signal during MinIO readiness cancels the request and closes the listener
+and database. Object transfers use their own request settings. An occupied port
+fails before database or storage initialization. See
 [architecture](architecture.md) and the [validation policy](validation.md).
 
 ## Local files

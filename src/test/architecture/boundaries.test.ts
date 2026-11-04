@@ -56,7 +56,7 @@ const inspectSource = (file: string, content: string) => {
         path.resolve(filename) === path.resolve(file) ? source : undefined;
       checker = ts.createProgram([file], options, host).getTypeChecker();
     }
-    return checker.getSymbolAtLocation(name) !== undefined;
+    return Boolean(checker.getSymbolAtLocation(name)?.declarations?.length);
   };
   const httpGlobals = new Set([
     "File",
@@ -66,6 +66,22 @@ const inspectSource = (file: string, content: string) => {
     "Response",
     "URLSearchParams",
   ]);
+  const isGlobalHttpMember = (receiver: ts.Node, member: string) =>
+    (member === "fetch" || httpGlobals.has(member)) &&
+    ts.isIdentifier(receiver) &&
+    receiver.text === "globalThis" &&
+    !resolvesLocally(receiver);
+  const usesGlobalHttpMember = (node: ts.Node) => {
+    if (ts.isQualifiedName(node))
+      return isGlobalHttpMember(node.left, node.right.text);
+    if (ts.isPropertyAccessExpression(node))
+      return isGlobalHttpMember(node.expression, node.name.text);
+    return (
+      ts.isElementAccessExpression(node) &&
+      ts.isStringLiteralLike(node.argumentExpression) &&
+      isGlobalHttpMember(node.expression, node.argumentExpression.text)
+    );
+  };
   const visit = (node: ts.Node) => {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
@@ -107,7 +123,10 @@ const inspectSource = (file: string, content: string) => {
       : ts.isNewExpression(node)
         ? node.expression
         : undefined;
-    if (name && ts.isIdentifier(name) && httpGlobals.has(name.text))
+    if (
+      (name && ts.isIdentifier(name) && httpGlobals.has(name.text)) ||
+      usesGlobalHttpMember(node)
+    )
       webUses.push(node);
     if (
       ts.isCallExpression(node) &&
@@ -163,6 +182,8 @@ const allowedApplicationImport = (
 ) => {
   if (!specifier.startsWith("."))
     return isBuiltin(specifier) && !/^(?:node:)?https?(?:2)?$/.test(specifier);
+  if (!specifier.endsWith(".ts")) return false;
+
   const target = path.resolve(path.dirname(file), specifier);
   if (inside(applicationMessageTypes, target))
     return target === applicationMessageTypes && isErasedTypeReference(node);
@@ -191,10 +212,14 @@ test("application message types are allowed only through erased type references"
   }
 });
 
-test("application rejects runtime vocabulary imports and infrastructure catalogs", () => {
+test("application rejects runtime vocabulary imports, alternate paths, and infrastructure catalogs", () => {
   const file = path.join(applicationRoot, "message-runtime-fixture.ts");
   for (const source of [
     'import { ApiMessageKey } from "./localization.ts";',
+    'import { ApiMessageKey } from "./localization.js";',
+    'import { ApiMessageKey } from "./localization";',
+    'import type { ApiMessageKey } from "./localization.js";',
+    'import type { ApiMessageKey } from "./localization";',
     'import { type ApiMessageKey, runtime } from "./localization.ts";',
     'import * as messages from "./localization.ts";',
     'import "./localization.ts";',
@@ -219,16 +244,26 @@ test("application rejects runtime vocabulary imports and infrastructure catalogs
   }
 });
 
-test("application HTTP checks detect global fetch without rejecting local names", () => {
+test("application HTTP checks detect global names without rejecting local fetch", () => {
   const file = path.join(applicationRoot, "fetch-fixture.ts");
   const content = [
     'fetch("fixture");',
+    'globalThis.fetch("fixture");',
+    'globalThis["fetch"]("fixture");',
+    'new globalThis.Request("fixture");',
+    "type HttpRequest = globalThis.Request;",
     'function local(fetch: (value: string) => string) { fetch("fixture"); }',
+    "function localGlobal(globalThis: { fetch(): void }) { globalThis.fetch(); }",
     'client.fetch("fixture");',
+    "globalThis.setTimeout(() => {});",
   ].join("\n");
   const { location, webUses } = inspectSource(file, content);
   assert.deepEqual(webUses.map(location), [
     `application${path.sep}fetch-fixture.ts:1`,
+    `application${path.sep}fetch-fixture.ts:2`,
+    `application${path.sep}fetch-fixture.ts:3`,
+    `application${path.sep}fetch-fixture.ts:4`,
+    `application${path.sep}fetch-fixture.ts:5`,
   ]);
 });
 
