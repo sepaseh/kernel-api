@@ -52,7 +52,7 @@ export type OtpAttempt = {
 
 // A missing or inactive account receives an unusable subject without exposing
 // account existence through the OTP issuance response.
-export const passwordResetOtpSubject = (userId?: string): string =>
+export const recoveryOtpSubject = (userId?: string): string =>
   JSON.stringify([userId ?? null]);
 
 export type OtpGateway = {

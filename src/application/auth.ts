@@ -11,7 +11,7 @@ import {
   type AuthProvider,
   AuthRejection,
   type OtpGateway,
-  passwordResetOtpSubject,
+  recoveryOtpSubject,
 } from "./ports/auth.ts";
 import { requiredString } from "./validation.ts";
 
@@ -92,7 +92,7 @@ export const createAuthService = ({
           mobile,
           "forgot_password",
           value,
-          passwordResetOtpSubject(existing.id),
+          recoveryOtpSubject(existing.id),
         ),
         userId: existing.id,
       });
@@ -161,7 +161,7 @@ export const createAuthService = ({
         return otp.issue(
           mobile,
           "forgot_password",
-          passwordResetOtpSubject(
+          recoveryOtpSubject(
             existing?.status === "active" ? existing.id : undefined,
           ),
         );

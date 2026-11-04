@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/libsql/migrator";
 
 import { createAuthService } from "../src/application/auth.ts";
-import { passwordResetOtpSubject } from "../src/application/ports/auth.ts";
+import { recoveryOtpSubject } from "../src/application/ports/auth.ts";
 import { profileNameMaxLength } from "../src/contracts/profile.ts";
 import { createInitialAdmin } from "../src/infrastructure/admin/bootstrap.ts";
 import { createAuth } from "../src/infrastructure/auth/better-auth.ts";
@@ -602,7 +602,7 @@ test("OTP throttling is scoped by purpose and subject and expires", async (conte
   await otp.issue(
     "09120000012",
     "forgot_password",
-    passwordResetOtpSubject("first"),
+    recoveryOtpSubject("first"),
   );
   await database
     .update(otpCodes)
@@ -625,7 +625,7 @@ test("failed password reset rolls back OTP consumption", async (context) => {
   });
   await database.delete(account).where(eq(account.userId, userId));
   const otp = createOtpGateway(config, database);
-  const subject = passwordResetOtpSubject(userId);
+  const subject = recoveryOtpSubject(userId);
   await otp.issue("09120000003", "forgot_password", subject);
   const attempt = otp.prepare(
     "09120000003",
@@ -675,7 +675,7 @@ test("password reset rejects an unbound legacy code without consuming it", async
     destination,
     "forgot_password",
     "123456",
-    passwordResetOtpSubject(userId),
+    recoveryOtpSubject(userId),
   );
   const persistence = createAuthPersistence(database);
   await assert.rejects(
@@ -704,7 +704,7 @@ test("password reset binds OTP destination to the current user mobile", async (c
     password: "synthetic-password",
   });
   const otp = createOtpGateway(config, database);
-  const subject = passwordResetOtpSubject(first.userId);
+  const subject = recoveryOtpSubject(first.userId);
   await otp.issue("09120000008", "forgot_password", subject);
   const attempt = otp.prepare(
     "09120000008",
@@ -755,7 +755,7 @@ test("an OTP issued before mobile reassignment cannot reset the new owner's pass
   await assert.rejects(service.forgotPassword(reset), { key: "otpInvalid" });
   assert.deepEqual(await persistence.findCredential(second.userId), credential);
   const original = await database.query.otpCodes.findFirst();
-  assert.equal(original?.subject, passwordResetOtpSubject(first.userId));
+  assert.equal(original?.subject, recoveryOtpSubject(first.userId));
   assert.equal(original?.consumedAt, null);
   await assert.rejects(
     service.requestOtp({ mobile, purpose: "forgot_password" }),
@@ -874,7 +874,7 @@ test("OTP password reset requires a live active account and preserves the code o
     password: "synthetic-password",
   });
   const otp = createOtpGateway(config, database);
-  const subject = passwordResetOtpSubject(created.userId);
+  const subject = recoveryOtpSubject(created.userId);
   await otp.issue("09120000010", "forgot_password", subject);
   const attempt = otp.prepare(
     "09120000010",
