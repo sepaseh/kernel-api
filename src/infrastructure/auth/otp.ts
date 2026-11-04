@@ -16,11 +16,13 @@ import { otpCodes } from "../db/schema.ts";
 type OtpExecutor = Pick<Database, "query" | "update">;
 
 const digestPattern = /^[0-9a-f]{64}$/;
+const bindsSubject = (purpose: OtpAttempt["purpose"]) =>
+  purpose === "change_mobile" || purpose === "forgot_password";
 
-// Legacy records remain usable until their stored expiry; a v2 record never
-// falls back to the legacy digest, and malformed hashes fail closed.
+// Subject-bound purposes require v3. A v2 record never falls back to the
+// legacy digest, and malformed hashes fail closed.
 const matchesOtpHash = (stored: string, attempt: OtpAttempt): boolean => {
-  if (attempt.purpose === "change_mobile") {
+  if (bindsSubject(attempt.purpose)) {
     if (
       !attempt.subject ||
       !stored.startsWith("v3:") ||
@@ -94,11 +96,11 @@ export const createOtpGateway = (
       .digest("hex");
   const hash = (
     destination: string,
-    purpose: string,
+    purpose: OtpAttempt["purpose"],
     value: string,
     subject?: string,
   ) => {
-    if (purpose === "change_mobile") {
+    if (bindsSubject(purpose)) {
       if (!subject) throw new ApplicationError("invalid", "otpInvalid");
       return `v3:${createHmac("sha256", config.authSecret)
         .update(JSON.stringify([destination, purpose, value, subject]))
@@ -124,7 +126,7 @@ export const createOtpGateway = (
           SELECT 1 FROM ${otpCodes}
           WHERE ${otpCodes.destination} = ${destination}
             AND ${otpCodes.purpose} = ${purpose}
-            AND (${purpose} = 'change_mobile' OR ${otpCodes.subject} IS ${subject || null})
+            AND (${bindsSubject(purpose) ? 1 : 0} = 1 OR ${otpCodes.subject} IS ${subject || null})
             AND ${otpCodes.createdAt} * 1000 + 120000 > ${now.getTime()}
         )
         RETURNING id

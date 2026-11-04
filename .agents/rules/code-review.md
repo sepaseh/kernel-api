@@ -17,14 +17,21 @@ file and line location, failure scenario, impact, reason the diff permits it,
 and a concise fix direction. Keep questions and suggestions separate from
 defects.
 
-Check affected behavior, security, collection alignment, state lifecycle,
+Do not turn tool-enforced style, hypothetical future risk or unrelated old code
+into a finding. Assess phase spacing in changed functions using
+[code quality](code-quality.md); keep non-blocking readability suggestions
+separate from concrete behavioral defects.
+
+Check affected behavior, security, local HTTP-contract alignment, state lifecycle,
 failure-path tests, accessibility, localization, visible UI evidence, and the
 documentation map. If no finding remains, say so and disclose checks not run.
 
-Read the linked acceptance criteria and relevant comments/check evidence. Verify
-the owning lifecycle/transaction and current response examples for API changes;
-a passing CI job or a hidden client action is not proof of authorization.
-Review phase breaks in every changed function under [code quality](code-quality.md),
-but do not report unrelated style preferences, padding outside the diff or vague
-future risks as defects. Keep non-blocking suggestions separate from concrete
-introduced failures, and submit remote review actions only when authorized.
+Local tests, hosted checks, provider analysis and substantive current-head approval
+are separate evidence. Follow [review preflight](pull-requests.md#coderabbit-request-preflight);
+skipped or conversational provider replies do not establish a completed review.
+Submit remote comments or reviews, resolve conversations and merge only with
+authorization for the corresponding action.
+
+For API changes, read linked acceptance criteria, owning transactions and current
+response examples. Check collection alignment and compatibility with independently
+released HTTP consumers. A hidden client action does not prove API authorization.

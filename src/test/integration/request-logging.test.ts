@@ -351,7 +351,7 @@ for (const flow of [
   test(`reports unexpected provider failures during ${flow} as generic 500 errors`, async (t) => {
     const actor = await login("09120000001", true);
     output.lines.length = 0;
-    if (flow === "password change") {
+    if (flow !== "registration") {
       const authContext = await dependencies.auth.$context;
       t.mock.method(authContext.password, "hash", async () => {
         throw new Error("synthetic-internal-provider-data");
@@ -479,9 +479,17 @@ test("logs storage write and read failures with the same request ID", async (t) 
 test("retains the metadata error and records a distinct cleanup failure", async (t) => {
   const account = await login("09120000001", true);
   output.lines.length = 0;
-  t.mock.method(dependencies.database, "insert", () => {
-    throw new Error("synthetic-metadata-error");
-  });
+  const put = storage.put.bind(storage);
+  t.mock.method(
+    storage,
+    "put",
+    async (input: Parameters<MemoryObjectStorage["put"]>[0]) => {
+      const stored = await put(input);
+      // The owner disappears after authentication, so SQLite aborts metadata.
+      await dependencies.database.delete(user).where(eq(user.id, account.id));
+      return stored;
+    },
+  );
   t.mock.method(storage, "delete", async () => {
     throw new Error("synthetic-cleanup-error");
   });
@@ -501,6 +509,6 @@ test("retains the metadata error and records a distinct cleanup failure", async 
   assert.equal(completed().length, 1);
   assert.doesNotMatch(
     output.lines.join(""),
-    /synthetic-metadata|synthetic-cleanup/,
+    /Failed query|FOREIGN KEY constraint failed|synthetic-cleanup/,
   );
 });

@@ -1,27 +1,30 @@
 ---
 name: commit
-description: Prepare or create a safe Kernel API commit when asked to commit, stage a coherent change, or suggest its commit message.
+description: Prepare a coherent Kernel commit or create it when explicitly requested, including scope, final-tree checks and staged-diff review.
 ---
 
 # Commit changes
 
-Read [Git](../../rules/git.md), [branches](../../rules/branches.md),
-[commits](../../rules/commits.md) and [safety](../../rules/safety.md). Use
-[validate-change](../validate-change/SKILL.md) for the canonical gate.
+Honor explicit authorization and preferences already provided in the conversation;
+a commit request includes staging its reviewed scope, without another confirmation.
+Read [Git workflow](../../rules/git.md), [commits](../../rules/commits.md) and
+[safety](../../rules/safety.md). Use [validate-change](../validate-change/SKILL.md)
+for checks; the canonical full profile is required before an authorized commit.
 
-1. Establish the current branch, working-tree/index state, relevant history and
-   requested scope. Handle missing HEAD in an unborn repository explicitly;
-   preserve unrelated tracked and untracked work.
-2. Identify one coherent commit. A message/preparation request does not authorize
-   staging or creating a commit; a staging request does not authorize history changes.
-3. Before an authorized commit, run the full canonical validation profile on the
-   final tree. Fix safe in-scope failures and rerun affected checks; never replace
-   that gate with a fast subset or remote CI. Disclose unresolved failures and stop
-   the commit when a required check fails or cannot run.
-4. Stage only explicit authorized paths, then inspect the staged diff for unrelated
-   changes, secrets and generated output. Recheck the final scope and any changes
-   made after validation before committing.
-5. Form the subject/body from the commit rule. Create the commit only if explicitly
-   requested; otherwise return the prepared scope/message locally.
-6. Report the resulting hash and subject when created. Do not infer authorization
-   to push, amend, rewrite history, add attribution or publish a pull request.
+1. Inspect branch state, status, working-tree and staged diffs, and relevant
+   history when available. Identify pre-existing/unrelated work and an unborn
+   repository before deciding what belongs in the commit.
+2. Define one coherent scope. Preserve unrelated changes, including an existing
+   index; do not silently unstage, discard or include them to simplify the task.
+3. For readiness-only work, select proportionate checks through validate-change.
+   Before an explicitly authorized commit, run `npm run validate -- full` on the
+   exact isolated proposed snapshot. Resolve failures within scope and reverify; do not commit with an
+   unresolved required failure or unavailable gate.
+4. Stage only when staging or the commit itself is explicitly authorized. Use
+   explicit paths and inspect the staged diff for accidental files, secrets,
+   generated output and unrelated edits.
+5. Derive the subject/body from the commit rule. For preparation or message-only
+   requests, return the scope and proposed message without staging or committing
+   unless those actions were also requested.
+6. Create the commit only when explicitly requested and report its hash/subject.
+   Do not infer authorization to amend, rewrite history, push or add attribution.

@@ -2,23 +2,26 @@
 
 ## Validate code changes
 
-Run the smallest check that covers the files you changed, then broaden before handoff when practical.
+Run the smallest declared check that covers the files you changed. Before an
+authorized commit or PR, run `npm run validate -- full` from the
+[validation manifest](../validation.json), including for documentation changes.
 
-- Typecheck: `npm run typecheck`
-- Lint: `npm run lint`
-- Static API build check: `npm run typecheck` (TypeScript validation without emitted artifacts)
-- Use `npm run knip` as an optional aid when reviewing unused exports and
-  dependencies; it does not replace the full validation profile.
+The foundation publication defines source-boundary, typecheck and lint commands
+alongside measured source/tooling tests. Select the relevant focused checks from
+the manifest and package; none replaces the complete full profile. A passing
+foundation gate does not validate unpublished HTTP, database, authentication or
+storage behavior.
 
-For docs-only tasks, run `npm run format:check` and validate links and referenced
-commands. Code-only checks such as lint, typecheck, and Knip are unnecessary
-unless configuration or source files also changed.
+For docs-only development, start with `npm run format:check` and validate links
+and referenced commands. Focused checks do not replace the full profile.
 
 ## Autofix workflow
 
-- Let ESLint handle import sorting and existing configured code rules.
-- Use `npm run lint:fix` when safe to auto-fix formatting/lint issues.
-- Never sort imports manually if ESLint can do it.
+- Let the installed ESLint handle import sorting and configured code rules with
+  `--fix` on the intended files, preserving unrelated work.
+- Do not assume a `lint:fix` script or Knip command exists; use only commands
+  declared by the published package and manifest.
+- Never sort imports manually if the published ESLint configuration can do it.
 - Do not introduce a formatter or new tooling unless the user asks.
 
 ## Readable code over comments
@@ -39,9 +42,12 @@ Write self-documenting code. Add comments only for:
 - Add a blank line only when the code changes responsibility or begins an
   independently meaningful phase. If a function needs many such phases,
   consider extracting a focused helper instead of adding more visual sections.
-- Apply this to every changed service, route handler, helper and test. In tests,
-  separate arrange, act and assert when they are distinct phases. Do not pad
-  consecutive steps of one transaction or workflow or add a blanket lint-padding rule.
+- Apply this to changed functions, helpers and tests; arrange/act/assert are useful
+  test phases. Review the semantic grouping directly:
+  a formatter passing does not prove that phase boundaries are readable.
+- Keep consecutive request steps together, such as setting the busy flag,
+  awaiting the request and applying its result. Avoid a new padding rule or
+  unrelated formatting sweep to enforce a prose convention.
 
 ## Ordering without behavior changes
 
@@ -78,5 +84,5 @@ files or reorder independent-looking work without checking dependencies.
 ## No unused code
 
 - Remove unused files, exports, dependencies, translations, and routes.
-- Verify cleanup using the available checks in the validation manifest. The optional
-  `npm run knip` does not replace the full profile.
+- Verify cleanup using the available checks in the validation manifest. Optional
+  tools declared by later application phases do not replace the full profile.
