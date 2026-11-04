@@ -4,12 +4,14 @@ Standalone TypeScript project for Kernel's backend API.
 
 ## Published scope
 
-The current **database-persistence** phase publishes pure feature contracts,
+The current **http-composition** phase publishes pure feature contracts,
 framework-free application services and feature ports, core policies, ten flat
 API catalogs, and infrastructure for configuration, translation, logging, fatal
 process failures and local or S3-compatible MinIO object storage. It also includes
 the libSQL/Drizzle schema, reviewed migrations, feature persistence,
 authentication/OTP adapters, initialization and initial administrator provisioning.
+Thin Hono routes, manual composition and a local Node listener connect these
+owners into a runnable local API.
 
 Application services cover account, authentication, calendar, files, roles,
 settings and users. Their tests use synthetic ports. Catalog tests preserve
@@ -32,9 +34,15 @@ Auth tests exercise stored identities, credentials, OTP persistence and
 administrator provisioning. See [database schema](docs/database-schema.md) and
 [authentication adapters](docs/auth-adapters.md).
 
-HTTP routes and server composition belong to subsequent focused PRs.
-`applicationReady` remains false; this scope establishes no running API,
-production OTP delivery or deployed integration.
+HTTP tests exercise authorization, origin and input checks, localized errors,
+uploads and request logging with synthetic services and real disposable database
+fixtures. Local runtime tests cover startup, cleanup and shutdown, non-cacheable
+503 responses before readiness, and occupied-port failure before database or
+storage initialization. See [HTTP transport](docs/http-transport.md) and
+[development](docs/development.md) for explicit local configuration and execution.
+
+`applicationReady` remains false. A runnable local API does not establish
+production OTP delivery, deployment readiness or a deployed integration.
 
 See the [documentation map](docs/README.md), [architecture](docs/architecture.md),
 [contribution guide](CONTRIBUTING.md) and [security policy](SECURITY.md).
@@ -50,6 +58,6 @@ npm run validate -- full
 ```
 
 The [canonical manifest](.agents/validation.json) owns the required source-phase
-checks. Local database and authentication tests cover the published adapters.
-HTTP behavior, server operation, production OTP delivery and deployment
-readiness require separate evidence.
+checks, including the published HTTP and local runtime suites. Their disposable
+fixtures establish local behavior. Deployed database and MinIO integrations,
+production OTP delivery and deployment readiness require separate evidence.

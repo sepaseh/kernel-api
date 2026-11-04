@@ -11,9 +11,9 @@ tooling coverage, and audit-helper tests. The manifest owns the complete
 commands and order. Each source phase requires its own validation evidence.
 
 Run the complete profile for every PR, including drafts and documentation-only
-changes, without changed-path or target-branch filters. Pure or fake-port tests do not
-stand in for unpublished HTTP, database, authentication adapter or storage tests.
-Add relevant real behavior evidence as each owner is published.
+changes, without changed-path or target-branch filters. Use pure and fake-port
+tests for service behavior, and real synthetic fixtures for database,
+authentication adapter, storage and HTTP behavior.
 
 CI displays each real suite separately and partitions the canonical full gate:
 
@@ -26,9 +26,10 @@ CI displays each real suite separately and partitions the canonical full gate:
 Each check belongs to one CI job and runs once. The required `check` context only
 aggregates these jobs: missing, failed, skipped or cancelled work fails the result.
 It does not install dependencies or rerun tests. Local `full` validation runs
-the complete canonical profile in its declared order. The coverage check runs the
-published foundation, service and catalog tests. HTTP, browser and application-build
-jobs belong to later source phases.
+the complete canonical profile in its declared order. The coverage check runs
+the published foundation, service, catalog, adapter, HTTP and local runtime
+suites. These use disposable fixtures. Browser checks belong to the API's
+consumers, and local execution uses the TypeScript entry point directly.
 
 The Sonar job waits for successful validation and consumes the governance job's
 measured report directly, bound to its suite, source, workflow run and producing

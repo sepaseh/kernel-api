@@ -7,7 +7,9 @@ The publication inventory owns the current source phase.
 - [Backend logging](backend-logging.md)
 - [Branch protection](branch-protection.md)
 - [Database schema and migrations](database-schema.md)
+- [Development](development.md)
 - [Feature development](feature-development.md)
+- [HTTP transport](http-transport.md)
 - [Input validation](input-validation.md)
 - [Localization](localization.md)
 - [Object storage](object-storage.md)
@@ -20,5 +22,5 @@ The publication inventory owns the current source phase.
 - [Assistant instructions](../AGENTS.md)
 - [Contributing](../CONTRIBUTING.md)
 
-The inventory declares the published contracts, services, catalogs and adapters.
-HTTP and deployment guides belong to later source publications.
+The inventory declares the published contracts, services, catalogs, adapters and
+local runtime. Deployment guides belong to later source publications.

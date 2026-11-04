@@ -43,11 +43,21 @@ gateway tests and owned fixture-cleanup tests listed in the task map. Use fresh
 owned databases and synthetic configuration; never inspect an existing database
 or environment as a comprehension fixture.
 
+The `http-contract` task owns Hono routes under `src/presentation/http`, manual
+composition in `src/composition.ts` and `src/dependencies.ts`, and the local
+listener in `src/index.ts`. Read [HTTP transport](http-transport.md),
+[development](development.md) and [input validation](input-validation.md).
+Trace input, authorization, application policy, the adapter transaction and the
+serialized response through the owning tests. HTTP integration suites exercise
+transport, uploads, logging and deletion conflicts; runtime and seed scripts use
+disposable databases/storage to exercise startup, readiness, cleanup and shutdown.
+For an API-backed screen, provide the feature DTOs, route behavior and error
+evidence; visual/component decisions belong to the consuming frontend.
+
 Read actual owners and tests before making claims. Map entries, successful
 configuration parsing and installed applications do not establish that an
 assistant loaded instructions or that remote review ran.
 
-HTTP, server composition, collection and deployment task owners will be added
-with their corresponding source phases. Do not register unpublished paths as
-live owners or interpret ambient local source as part of a checked partial
-publication.
+Collection and deployment task owners will be added with their corresponding
+source phases. Do not register unpublished paths as live owners or interpret
+ambient local source as part of a checked partial publication.

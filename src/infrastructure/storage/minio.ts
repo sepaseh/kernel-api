@@ -93,17 +93,19 @@ export class MinioObjectStorage implements ObjectStorage {
     });
   }
 
-  async ensureReady() {
-    await this.#ensureBucket(this.#privateBucket);
-    await this.#ensureBucket(this.#publicBucket);
+  async ensureReady(abortSignal?: AbortSignal) {
+    await this.#ensureBucket(this.#privateBucket, abortSignal);
+    await this.#ensureBucket(this.#publicBucket, abortSignal);
     await this.#client.send(
       new DeleteBucketPolicyCommand({ Bucket: this.#privateBucket }),
+      { abortSignal },
     );
     await this.#client.send(
       new PutBucketPolicyCommand({
         Bucket: this.#publicBucket,
         Policy: publicReadPolicy(this.#publicBucket),
       }),
+      { abortSignal },
     );
   }
 
@@ -163,23 +165,28 @@ export class MinioObjectStorage implements ObjectStorage {
     assertObjectKey(objectKey);
   }
 
-  async #ensureBucket(bucket: string) {
+  async #ensureBucket(bucket: string, abortSignal?: AbortSignal) {
     try {
-      await this.#client.send(new HeadBucketCommand({ Bucket: bucket }));
+      await this.#client.send(new HeadBucketCommand({ Bucket: bucket }), {
+        abortSignal,
+      });
     } catch (error) {
       if (
         !(error instanceof S3ServiceException) ||
         error.$metadata.httpStatusCode !== 404
       )
         throw error;
-      await this.#client.send(new CreateBucketCommand({ Bucket: bucket }));
+      await this.#client.send(new CreateBucketCommand({ Bucket: bucket }), {
+        abortSignal,
+      });
     }
-    await this.#assertUnversioned(bucket);
+    await this.#assertUnversioned(bucket, abortSignal);
   }
 
-  async #assertUnversioned(bucket: string) {
+  async #assertUnversioned(bucket: string, abortSignal?: AbortSignal) {
     const versioning = await this.#client.send(
       new GetBucketVersioningCommand({ Bucket: bucket }),
+      { abortSignal },
     );
     if (versioning.Status !== undefined)
       throw new Error(

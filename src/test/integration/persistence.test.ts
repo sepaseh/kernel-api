@@ -12,7 +12,6 @@ import path from "node:path";
 import { test, type TestContext } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import type { InStatement } from "@libsql/client";
 import { eq, getTableName } from "drizzle-orm";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
@@ -1172,28 +1171,18 @@ test("user repository filters and updates map optional profiles and report real 
   });
 });
 
-test("user list returns a matching total even when separate requests would straddle a delete", async (context) => {
+test("user list reads the page and total in one batch", async (context) => {
   const { client, database } = await fixture(context);
   await insertUser(database);
-  const execute = client.execute.bind(client);
-  let deletion = Promise.resolve();
-  context.mock.method(client, "execute", (statement: InStatement) => {
-    const sql = typeof statement === "string" ? statement : statement.sql;
-    if (/^select count\(\*\)/i.test(sql))
-      return deletion.then(() => execute(statement));
-
-    const rows = execute(statement);
-    if (/\blimit\b/i.test(sql))
-      deletion = rows.then(async () => {
-        await execute("DELETE FROM user WHERE id = 'first'");
-      });
-    return rows;
-  });
+  const batch = context.mock.method(client, "batch");
 
   const page = await createDrizzleUsersRepository(database).list({
     offset: 0,
     size: 1,
   });
+  assert.equal(batch.mock.callCount(), 1);
+  const [statements] = batch.mock.calls[0].arguments;
+  assert.equal(statements.length, 2);
   assert.equal(page.items[0]?.id, "first");
   assert.equal(page.total, 1);
 });

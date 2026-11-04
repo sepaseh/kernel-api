@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "phase": "database-persistence",
+  "phase": "http-composition",
   "applicationReady": false,
   "checks": [
     {
@@ -8,77 +8,77 @@
       "command": "npm run check:snapshot",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "actions-lint",
       "command": "npm run check:actions",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
       "ciJobs": ["audit"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "guidance",
       "command": "npm run check:guidance",
       "kind": "required",
       "ciJobs": ["quality"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "coverage-tests",
       "command": "npm run test:coverage",
       "kind": "required",
       "ciJobs": ["governance"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     },
     {
       "id": "audit-helper-tests",
       "command": "npm run test:audit",
       "kind": "required",
       "ciJobs": ["governance"],
-      "scopes": ["database-persistence"]
+      "scopes": ["http-composition"]
     }
   ],
   "profiles": {

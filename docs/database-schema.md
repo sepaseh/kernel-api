@@ -50,10 +50,10 @@ independent of their mobile number. A mobile change preserves the stored email,
 including legacy mobile-derived or custom values; migrations do not rewrite it.
 The authentication layer must look up the user by mobile and use the stored
 identity when signing in. A new account can therefore reuse a released mobile
-without taking over a legacy internal email. Auth adapters are tested against synthetic
-databases; end-to-end HTTP authentication requires separate verification before
-rollout. Verify deployment rollback compatibility with existing authentication
-identities and data before reverting to an older version.
+without taking over a legacy internal email. Auth adapter and [HTTP transport](http-transport.md)
+suites test local authentication with disposable databases. Verify deployment
+rollback compatibility with existing authentication identities and data before
+reverting to an older version.
 
 If the account disappears before a profile, username or verified-email write,
 the adapter reports the authentication-required error instead of succeeding or
@@ -131,15 +131,15 @@ Cause classification terminates on cycles; only structured SQLite constraint
 codes or compatible anchored diagnostics establish a unique conflict. Query or
 user payload text cannot mask unrelated database failures.
 
-Run `npm run validate -- full` for the complete current-phase gate. Actual LCOV
-comes from this checkout's tests; do not treat these local SQLite results as
-remote database, production rollout, HTTP, OTP delivery or complete authentication
-runtime evidence. Database initialization, optional development seeding and
-initial administrator provisioning are published in this phase. The HTTP/server
-entry point and repository Drizzle generation configuration/commands belong to
-later publications; they are not available as part of this snapshot. Do not run
-migrations on existing data without explicit authorization and a verified
-matching backup.
+Run `npm run validate -- full` for the complete current-phase gate. The SQLite
+suites establish local persistence behavior, and the HTTP and runtime suites
+exercise the local composition. Remote database behavior, production rollout
+and OTP delivery require separate evidence. The local server applies the
+reviewed migrations and initializes settings. The published tooling also
+includes optional development seeding and initial administrator provisioning.
+Drizzle generation commands belong to a later tooling publication. Obtain
+explicit authorization and a verified matching backup before migrating existing
+data.
 
 See [architecture](architecture.md), [validation](validation.md) and
 [Contributing](../CONTRIBUTING.md).

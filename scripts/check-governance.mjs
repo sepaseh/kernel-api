@@ -104,15 +104,31 @@ const adminCommandPhases = new Set([
   "collection-management",
   "local-runtime",
 ]);
-const ownedCommands = (phase) =>
-  adminCommandPhases.has(phase)
+const runtimeCommandPhases = new Set([
+  "http-composition",
+  "runtime-operations",
+  "collection-core",
+  "collection-account-auth",
+  "collection-management",
+  "local-runtime",
+]);
+const ownedCommands = (phase) => ({
+  ...(adminCommandPhases.has(phase)
     ? {
         "server:bootstrap": {
           command: "node src/bootstrap-admin.ts",
           owner: "src/bootstrap-admin.ts",
         },
       }
-    : {};
+    : {}),
+  ...(runtimeCommandPhases.has(phase)
+    ? {
+        dev: { command: "node src/index.ts", owner: "src/index.ts" },
+        start: { command: "node src/index.ts", owner: "src/index.ts" },
+        server: { command: "npm run dev", owner: "src/index.ts" },
+      }
+    : {}),
+});
 export const foundationDependencies = {
   "@eslint/js": "10.0.1",
   "@types/node": "24.19.2",

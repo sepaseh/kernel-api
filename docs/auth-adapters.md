@@ -2,9 +2,10 @@
 
 The authentication adapters provide Better Auth, credential and OTP persistence,
 database initialization and initial administrator provisioning. These owners are
-published in the database-persistence phase. HTTP routes and the local Node
-server composition belong to a later publication; adapter tests do not establish
-HTTP behavior or deployment readiness.
+published from the database-persistence phase onward. The current
+http-composition phase connects them to [HTTP routes](http-transport.md)
+through the local Node server. Adapter and HTTP suites exercise their
+respective layers with synthetic configuration and disposable databases.
 
 Better Auth uses the database-owned user, account and session records. The
 stored internal email identifies the credential and does not change with a mobile

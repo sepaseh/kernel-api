@@ -19,7 +19,10 @@
     "check:guidance": "node scripts/check-governance.mjs guidance",
     "test:coverage": "node scripts/check-governance.mjs coverage-tests",
     "test:audit": "node scripts/check-governance.mjs audit-helper-tests",
-    "server:bootstrap": "node src/bootstrap-admin.ts"
+    "server:bootstrap": "node src/bootstrap-admin.ts",
+    "dev": "node src/index.ts",
+    "start": "node src/index.ts",
+    "server": "npm run dev"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
@@ -44,6 +47,8 @@
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
     "better-auth": "1.7.14",
-    "@better-auth/drizzle-adapter": "1.7.14"
+    "@better-auth/drizzle-adapter": "1.7.14",
+    "hono": "4.13.14",
+    "@hono/node-server": "2.1.5"
   }
 }
