@@ -226,12 +226,12 @@ test("caps concurrent uploads across apps before reading their bodies and releas
   }
 });
 
-test("stalled multipart bodies time out and release their upload slots", async (t) => {
+test("stalled multipart bodies time out at their own deadlines and release upload slots", async (t) => {
   const { bytes, type } = await multipartAtSize(512);
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const signals = new EventEmitter();
   let accepted = 0;
-  let cancellations = 0;
+  const cancellations: number[] = [];
   const app = appForTest(
     () => {
       accepted++;
@@ -243,6 +243,7 @@ test("stalled multipart bodies time out and release their upload slots", async (
   const closeBodies: Array<() => void> = [];
   try {
     for (let index = 0; index < 4; index++) {
+      if (index === 1) t.mock.timers.tick(30_000);
       let canceled = false;
       const reading = once(signals, "reading");
       const body = new ReadableStream<Uint8Array>(
@@ -258,7 +259,7 @@ test("stalled multipart bodies time out and release their upload slots", async (
           },
           cancel() {
             canceled = true;
-            cancellations++;
+            cancellations.push(index);
           },
         },
         { highWaterMark: 0 },
@@ -280,14 +281,25 @@ test("stalled multipart bodies time out and release their upload slots", async (
       ]);
     }
 
-    t.mock.timers.tick(59_999);
-    assert.equal(cancellations, 0);
+    t.mock.timers.tick(29_999);
+    assert.deepEqual(cancellations, []);
     const excess = streamRequest(bytes, type);
     assert.equal((await app.fetch(excess.request)).status, 503);
     assert.equal(excess.state().offset, 0);
 
     t.mock.timers.tick(1);
-    assert.equal(cancellations, 4);
+    assert.deepEqual(cancellations, [0]);
+    assert.equal((await uploads[0]).status, 408);
+    assert.equal(accepted, 0);
+    assert.equal(
+      (await app.fetch(streamRequest(bytes, type).request)).status,
+      201,
+    );
+
+    t.mock.timers.tick(29_999);
+    assert.deepEqual(cancellations, [0]);
+    t.mock.timers.tick(1);
+    assert.deepEqual(cancellations.toSorted(), [0, 1, 2, 3]);
     const example = JSON.parse(
       await readFile(
         new URL("../../../collection/files/upload/408.json", import.meta.url),
@@ -298,11 +310,6 @@ test("stalled multipart bodies time out and release their upload slots", async (
       assert.equal(response.status, 408);
       assert.deepEqual(await response.json(), example);
     }
-    assert.equal(accepted, 0);
-    assert.equal(
-      (await app.fetch(streamRequest(bytes, type).request)).status,
-      201,
-    );
     assert.equal(accepted, 1);
   } finally {
     for (const close of closeBodies) close();

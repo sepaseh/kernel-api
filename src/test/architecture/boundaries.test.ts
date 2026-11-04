@@ -34,6 +34,18 @@ const sourceFiles = async (directory: string): Promise<string[]> => {
   return files.flat().sort();
 };
 
+const unwrapExpression = (node: ts.Node): ts.Node => {
+  while (
+    ts.isParenthesizedExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isTypeAssertionExpression(node) ||
+    ts.isSatisfiesExpression(node) ||
+    ts.isNonNullExpression(node)
+  )
+    node = node.expression;
+  return node;
+};
+
 const inspectSource = (file: string, content: string) => {
   const source = ts.createSourceFile(
     file,
@@ -66,20 +78,86 @@ const inspectSource = (file: string, content: string) => {
     "Response",
     "URLSearchParams",
   ]);
-  const isGlobalHttpMember = (receiver: ts.Node, member: string) =>
-    (member === "fetch" || httpGlobals.has(member)) &&
-    ts.isIdentifier(receiver) &&
-    receiver.text === "globalThis" &&
-    !resolvesLocally(receiver);
+  const isHttpMemberName = (name: string) =>
+    name === "fetch" || httpGlobals.has(name);
+  const isGlobalThis = (receiver: ts.Node) => {
+    const name = unwrapExpression(receiver);
+    return (
+      ts.isIdentifier(name) &&
+      name.text === "globalThis" &&
+      !resolvesLocally(name)
+    );
+  };
+  const isLiteralHttpName = (node: ts.Node) => {
+    const literal = unwrapExpression(node);
+    return ts.isStringLiteralLike(literal) && isHttpMemberName(literal.text);
+  };
   const usesGlobalHttpMember = (node: ts.Node) => {
     if (ts.isQualifiedName(node))
-      return isGlobalHttpMember(node.left, node.right.text);
+      return isHttpMemberName(node.right.text) && isGlobalThis(node.left);
     if (ts.isPropertyAccessExpression(node))
-      return isGlobalHttpMember(node.expression, node.name.text);
+      return isHttpMemberName(node.name.text) && isGlobalThis(node.expression);
     return (
       ts.isElementAccessExpression(node) &&
-      ts.isStringLiteralLike(node.argumentExpression) &&
-      isGlobalHttpMember(node.expression, node.argumentExpression.text)
+      isLiteralHttpName(node.argumentExpression) &&
+      isGlobalThis(node.expression)
+    );
+  };
+  const isHttpBindingKey = (node: ts.Node) => {
+    if (ts.isComputedPropertyName(node))
+      return isLiteralHttpName(node.expression);
+    return ts.isIdentifier(node)
+      ? isHttpMemberName(node.text)
+      : isLiteralHttpName(node);
+  };
+  const destructuresGlobalHttpMember = (node: ts.Node) => {
+    if (
+      (ts.isVariableDeclaration(node) || ts.isParameter(node)) &&
+      ts.isObjectBindingPattern(node.name) &&
+      node.initializer &&
+      isGlobalThis(node.initializer)
+    )
+      return node.name.elements.some(
+        (element) =>
+          !element.dotDotDotToken &&
+          isHttpBindingKey(element.propertyName ?? element.name),
+      );
+    if (
+      !ts.isBinaryExpression(node) ||
+      node.operatorToken.kind !== ts.SyntaxKind.EqualsToken
+    )
+      return false;
+
+    const target = unwrapExpression(node.left);
+    return (
+      ts.isObjectLiteralExpression(target) &&
+      isGlobalThis(node.right) &&
+      target.properties.some(
+        (property) =>
+          (ts.isPropertyAssignment(property) ||
+            ts.isShorthandPropertyAssignment(property)) &&
+          isHttpBindingKey(property.name),
+      )
+    );
+  };
+  const usesBareHttpGlobal = (node: ts.Node) => {
+    if (ts.isCallExpression(node))
+      return (
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === "fetch" &&
+        !resolvesLocally(node.expression)
+      );
+
+    const name = ts.isTypeReferenceNode(node)
+      ? node.typeName
+      : ts.isNewExpression(node)
+        ? node.expression
+        : undefined;
+    return (
+      name !== undefined &&
+      ts.isIdentifier(name) &&
+      httpGlobals.has(name.text) &&
+      !resolvesLocally(name)
     );
   };
   const visit = (node: ts.Node) => {
@@ -118,21 +196,10 @@ const inspectSource = (file: string, content: string) => {
       imports.push({ node, specifier: node.moduleReference.expression.text });
     }
 
-    const name = ts.isTypeReferenceNode(node)
-      ? node.typeName
-      : ts.isNewExpression(node)
-        ? node.expression
-        : undefined;
     if (
-      (name && ts.isIdentifier(name) && httpGlobals.has(name.text)) ||
-      usesGlobalHttpMember(node)
-    )
-      webUses.push(node);
-    if (
-      ts.isCallExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === "fetch" &&
-      !resolvesLocally(node.expression)
+      usesBareHttpGlobal(node) ||
+      usesGlobalHttpMember(node) ||
+      destructuresGlobalHttpMember(node)
     )
       webUses.push(node);
     ts.forEachChild(node, visit);
@@ -264,6 +331,40 @@ test("application HTTP checks detect global names without rejecting local fetch"
     `application${path.sep}fetch-fixture.ts:3`,
     `application${path.sep}fetch-fixture.ts:4`,
     `application${path.sep}fetch-fixture.ts:5`,
+  ]);
+});
+
+test("application HTTP checks distinguish bare globals from local types and constructors", () => {
+  const file = path.join(applicationRoot, "http-name-fixture.ts");
+  const content = [
+    "type TransportResponse = Response;",
+    'new Request("fixture");',
+    "function localType() { type Response = string; let value: Response; }",
+    "function localConstructor() { class Request {}; new Request(); }",
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}http-name-fixture.ts:1`,
+    `application${path.sep}http-name-fixture.ts:2`,
+  ]);
+});
+
+test("application HTTP checks detect destructuring from the real globalThis", () => {
+  const file = path.join(applicationRoot, "http-binding-fixture.ts");
+  const content = [
+    "const { fetch: transport } = globalThis;",
+    '({ ["Request" as const]: transportRequest } = (globalThis));',
+    "function withDefault({ Response } = globalThis) {}",
+    "const { setTimeout: fetch } = globalThis;",
+    "const { Headers } = other;",
+    "function local(globalThis: Fixture) { const { fetch } = globalThis; }",
+    "function assignLocal(globalThis: Fixture) { ({ Request } = globalThis); }",
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}http-binding-fixture.ts:1`,
+    `application${path.sep}http-binding-fixture.ts:2`,
+    `application${path.sep}http-binding-fixture.ts:3`,
   ]);
 });
 
