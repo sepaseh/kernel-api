@@ -28,13 +28,26 @@ systemd-run --unit=kernel-api-validate --collect --wait --pipe \
 
 If validation fails, correct the candidate while the current release and its
 protected environment stay in place. Rehearse migration against an isolated
-restoration, pause writes and stop the API while preventing supervisor restart.
+restoration and pause writes. Record whether `kernel-api.service` is enabled,
+pause any other automation that can start it, and run
+`systemctl disable --now kernel-api.service` from the authorized root operator
+shell. Verify that the unit is disabled and inactive before changing the
+environment or the symlink. This prevents its normal boot-time start during
+the interval when the environment and symlink can disagree.
+
 Confirm clean shutdown before taking a matched DB/object backup, including SQLite
-journal or WAL files as described in the recovery procedure. Install the validated
-environment at `/etc/kernel-api/api.env`, atomically switch the current symlink to
-the approved release, then start. Verify health, release marker,
-login/permissions and public/private file reads before reopening traffic. Inspect
-journald/container logs with the expected SERVER_RELEASE_ID.
+journal or WAL files as described in the recovery procedure. Keep a protected
+copy of the previous `/etc/kernel-api/api.env` for rollback. Install the validated
+environment at that path and atomically switch the current symlink to the approved
+release. If interrupted, confirm that the environment and symlink select the same
+release before starting the service.
+
+Use `systemctl start kernel-api.service` to start the candidate while boot-time
+activation is disabled. Verify health, release marker, login/permissions and
+public/private file reads, and inspect the logs for the expected SERVER_RELEASE_ID.
+After verification passes, restore the prior boot-time enablement with
+`systemctl enable kernel-api.service` if it was enabled before the cutover.
+Resume other start automation and reopen traffic after verification.
 
 Docker uses immutable image tags and a stable Compose project/volume. Changing
 RELEASE_ID selects a new artifact; never repurpose a published tag or remove real
@@ -43,6 +56,8 @@ volumes. Validate new config and certificate paths before `up -d --wait`.
 Halt rollout for health failures, session regressions, authorization/data integrity
 issues, missing objects, wrong release marker or unexpected external calls. Keep the
 previous artifact AND compatible protected config AND matching recovery point.
+For a native rollback, use the same stop and disable procedure before restoring
+the previous environment and symlink together.
 If old code understands the current schema, restore the prior artifact and validate.
 Otherwise restore the matched SQLite/object backup before starting old code. Image
 rollback or symlink replacement does not reverse migrations. Record operator,

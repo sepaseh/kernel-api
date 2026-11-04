@@ -113,6 +113,8 @@ test("Docker and native API gateways reject unknown HTTP hosts and TLS names", a
     assert.match(tls, /listen \[::\]:443 ssl default_server;/);
     assert.match(tls, /ssl_reject_handshake on;/);
     assert.match(tls, /return 444;/);
+    assert.doesNotMatch(http, /^\s*location\s/m);
+    assert.doesNotMatch(tls, /^\s*location\s/m);
   }
 });
 

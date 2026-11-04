@@ -18,8 +18,10 @@ approval, compatibility, checksums, activation and rollback; [branch protection]
 describes remote policy that still requires explicit setup/verification.
 
 An authorized maintainer configures `RELEASE_PLEASE_TOKEN` with a
-repository-scoped GitHub App installation token or personal access token
-that has the release operation's contents and pull-request write access.
+fine-grained personal access token limited to this repository, with contents
+and pull-request write access for the release operation. Set an expiration
+consistent with the repository owner's policy and replace the secret before
+the token expires.
 The workflow fails before calling Release Please if the secret is missing.
 Using a dedicated token lets release PR updates trigger normal pull-request
 CI and CodeQL without the workflow approval required for PRs created or

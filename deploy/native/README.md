@@ -1,8 +1,9 @@
 # API native Linux deployment reference
 
 Use Linux with systemd, [Nginx 1.25.1 or later with HTTP/2 support](https://nginx.org/en/docs/http/ngx_http_v2_module.html#http2),
-Certbot and Node.js 24 matching `.nvmrc`. Build and package on the same OS and CPU
-architecture as the runtime because dependencies may contain native binaries.
+Certbot and Node.js 24 matching `.nvmrc` at `/usr/bin/node`. Build and package on
+the same OS and CPU architecture as the runtime because dependencies may contain
+native binaries.
 A Windows-installed dependency tree is not a Linux release.
 
 These templates do not establish production readiness. Real OTP delivery and
@@ -43,7 +44,8 @@ npm run --silent deploy:render -- --template bootstrap < /path/to/public-hosts.e
 ```
 
 Remove the temporary file if rendering fails or after installation. Install the resulting HTTP-only ACME challenge
-server in Nginx, create `/var/www/letsencrypt`, run `nginx -t` and reload. Then issue:
+server in Nginx, create the challenge webroot with
+`sudo install -d -m 0755 /var/www/letsencrypt`, run `nginx -t` and reload. Then issue:
 
 ```sh
 sudo certbot certonly --webroot -w /var/www/letsencrypt -d api.example.com \

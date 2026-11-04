@@ -83,3 +83,6 @@ cleanup to run. A second signal requests cancellation of Docker cleanup, and the
 smoke reports failure once its Docker command exits. After interrupted cleanup or
 a forced process or host kill, verify ownership and remove only the recorded
 resources before rerunning.
+
+If Docker reports that a selected host port is already in use, let the failed
+run finish cleaning up before starting a fresh smoke run with new ports.
