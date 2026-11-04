@@ -24,12 +24,15 @@ its 10,000-window capacity, new identities are rejected until space becomes
 available. Deliberate saturation can still deny service, so independent ingress
 or shared-store throttling is essential.
 
-Login is limited to 20 attempts per identity in a 15-minute window. Registration,
-OTP issuance, password recovery and email-verification confirmation are each
-limited to 10 attempts per scope and identity in the same window. Mobile-change
+Login is limited to 20 attempts per identifier and immediate transport peer
+address in a 15-minute window. Clients behind one NAT or reverse proxy share a
+source. The listener ignores forwarded client headers, and in-process requests
+without a transport peer share a fallback source. Registration, OTP issuance,
+password recovery and email-verification confirmation are each limited to 10
+attempts per scope and identity in the same window. Mobile-change
 code requests and confirmations are limited to 10 attempts per scope and
 actor/target pair. A PATCH containing `mobile` consumes an attempt even when the
-number is unchanged. These are process-local limits, not distributed or IP-based.
+number is unchanged. These are process-local limits.
 
 The attempt limiter returns `429` with `Retry-After` in seconds. OTP issuance
 also has a separate 120-second resend cooldown; that `429` can have a different
@@ -75,6 +78,10 @@ File uploads are authenticated before reading multipart data. The transport
 counts actual streamed bytes rather than trusting `Content-Length`, and caps the
 whole multipart body at the configured file limit plus 64 KiB of framing and
 fields. The application independently validates the resulting file bytes.
+The process handles up to four uploads at once, counting each from before
+multipart reading through the storage and metadata writes. An authenticated
+request arriving at capacity receives a localized, non-cacheable
+[`503` response](../collection/files/upload/503.json) before the body is read.
 Tests exercise synthetic service ports and the local Node adapter with disposable
 fixtures, not a deployed storage integration. Coordinate rollout and rollback
 with independently deployed HTTP clients; a local server test does not establish

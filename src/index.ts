@@ -25,6 +25,7 @@ let client: ReturnType<typeof createDatabase>["client"] | undefined;
 let server: ReturnType<typeof serve> | undefined;
 let stopping = false;
 let shutdownPromise: Promise<void> | undefined;
+const storageReadinessTimeoutMs = 30_000;
 
 const closeServer = async () => {
   if (!server?.listening) return;
@@ -54,9 +55,9 @@ const start = async () => {
   const config = loadConfig();
   const state: { app?: ReturnType<typeof createApp> } = {};
   server = serve({
-    fetch: (request) =>
+    fetch: (request, bindings) =>
       state.app
-        ? state.app.fetch(request)
+        ? state.app.fetch(request, bindings)
         : new Response(null, {
             headers: { "Cache-Control": "no-store" },
             status: 503,
@@ -74,8 +75,26 @@ const start = async () => {
   const storage = createObjectStorage(config);
   await initializeDatabase(config, database, auth);
   if (stopping) return;
-  await withStorageLogging(logger, config.storageDriver, "ensureReady", () =>
-    storage.ensureReady(),
+  await withStorageLogging(
+    logger,
+    config.storageDriver,
+    "ensureReady",
+    async () => {
+      const controller = new AbortController();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const deadline = new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            const error = new Error("Object storage readiness timed out.");
+            reject(error);
+            controller.abort(error);
+          }, storageReadinessTimeoutMs);
+        });
+        await Promise.race([deadline, storage.ensureReady(controller.signal)]);
+      } finally {
+        clearTimeout(timer);
+      }
+    },
   );
   if (stopping) return;
 

@@ -17,6 +17,7 @@ export const ar = {
   fileEmpty: "الملف فارغ.",
   fileNotFound: "الملف غير موجود.",
   fileTooLarge: "يتجاوز الملف الحد المسموح للرفع.",
+  fileUploadsBusy: "هناك عمليات رفع كثيرة قيد التنفيذ. حاول مرة أخرى بعد قليل.",
   finalAdminDelete: "لا يمكن حذف آخر مسؤول للنظام.",
   internalError: "حدث خطأ داخلي في الخادم.",
   invalidCredentials: "بيانات تسجيل الدخول غير صالحة.",

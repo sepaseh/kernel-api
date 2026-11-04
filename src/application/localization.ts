@@ -14,6 +14,7 @@ export type ApiMessageKey =
   | "fileEmpty"
   | "fileNotFound"
   | "fileTooLarge"
+  | "fileUploadsBusy"
   | "finalAdminDelete"
   | "internalError"
   | "invalidCredentials"

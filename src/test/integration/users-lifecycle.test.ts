@@ -360,7 +360,7 @@ test("the initial user rebuild preserves the user and child rows and restores fo
   });
   await client.batch(
     [
-      "INSERT INTO user (id, email, first_name, last_name, mobile, name, created_at, updated_at) VALUES ('legacy-user', 'legacy@example.test', 'Legacy', 'User', '09120000001', 'Legacy User', 1, 1)",
+      "INSERT INTO user (id, email, email_verified, first_name, last_name, mobile, name, created_at, updated_at) VALUES ('legacy-user', 'legacy@example.test', 1, 'Legacy', 'User', '09120000001', 'Legacy User', 1, 1)",
       "INSERT INTO account (id, account_id, issuer, provider_id, user_id, password, created_at, updated_at) VALUES ('legacy-account', 'legacy-user', 'fixture', 'credential', 'legacy-user', 'synthetic-hash', 1, 1)",
       "INSERT INTO session (id, token, user_id, created_at, expires_at, updated_at) VALUES ('legacy-session', 'synthetic-token', 'legacy-user', 1, 2, 1)",
       "INSERT INTO roles (id, name) VALUES ('legacy-role', 'Legacy role')",
@@ -400,6 +400,11 @@ test("the initial user rebuild preserves the user and child rows and restores fo
     (await client.execute(`SELECT ${stableUserColumns}, auth_email FROM user`))
       .rows,
     legacyUsers,
+  );
+  assert.equal(
+    (await client.execute("SELECT email FROM user WHERE id = 'legacy-user'"))
+      .rows[0]?.email,
+    "legacy@example.test",
   );
   assert.equal(
     (await client.execute("PRAGMA foreign_keys")).rows[0]?.foreign_keys,

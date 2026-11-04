@@ -18,6 +18,8 @@ export const tr = {
   fileEmpty: "Dosya boş.",
   fileNotFound: "Dosya bulunamadı.",
   fileTooLarge: "Dosya yükleme sınırını aşıyor.",
+  fileUploadsBusy:
+    "Aynı anda çok fazla dosya yükleniyor. Biraz sonra tekrar deneyin.",
   finalAdminDelete: "Son sistem yöneticisi silinemez.",
   internalError: "Sunucu iç hatası.",
   invalidCredentials: "Geçersiz giriş bilgileri.",

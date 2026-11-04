@@ -15,6 +15,9 @@ import {
 } from "../../infrastructure/logging/logger.ts";
 import type { HttpDependencies } from "./dependencies.ts";
 export type AppEnvironment = {
+  Bindings?: {
+    incoming?: { socket: { remoteAddress?: string } };
+  };
   Variables: {
     dependencies: HttpDependencies;
     logger: AppLogger;
@@ -109,9 +112,11 @@ export const parseJson = async (context: Context<AppEnvironment>) => {
       }
       chunks.push(item.value);
     }
-    const value: unknown = JSON.parse(
-      Buffer.concat(chunks, total).toString("utf8"),
-    );
+    const text = new TextDecoder("utf-8", {
+      fatal: true,
+      ignoreBOM: true,
+    }).decode(Buffer.concat(chunks, total));
+    const value: unknown = JSON.parse(text);
     if (!value || typeof value !== "object" || Array.isArray(value)) {
       throw new ApiError(400, "jsonObjectRequired");
     }

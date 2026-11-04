@@ -17,6 +17,8 @@ export const de = {
   fileEmpty: "Die Datei ist leer.",
   fileNotFound: "Datei nicht gefunden.",
   fileTooLarge: "Die Datei überschreitet das Upload-Limit.",
+  fileUploadsBusy:
+    "Es laufen zu viele Uploads gleichzeitig. Versuchen Sie es in Kürze erneut.",
   finalAdminDelete:
     "Der letzte Systemadministrator kann nicht gelöscht werden.",
   internalError: "Interner Serverfehler.",

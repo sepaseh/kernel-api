@@ -12,8 +12,11 @@ synthetic inputs; configuration does not load environment files.
 Creating an adapter does not call `ensureReady`. The published Node entry point
 binds the listener before initializing the database and awaiting storage
 readiness. Until initialization completes it serves non-cacheable 503 responses;
-uploads are available only through the ready composed app. An occupied port
-fails before database or storage initialization. See
+uploads are available only through the ready composed app. A 30-second deadline
+covers the storage readiness sequence, including MinIO bucket and policy requests.
+Expiry aborts in-flight MinIO requests and runs the startup failure cleanup. Object
+transfers use their own existing request settings. An occupied port fails before
+database or storage initialization. See
 [architecture](architecture.md) and the [validation policy](validation.md).
 
 ## Local files

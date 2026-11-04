@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
+import { EventEmitter, once } from "node:events";
 import fs from "node:fs";
 import fsPromises, { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import http, { createServer } from "node:http";
@@ -223,6 +224,7 @@ const fixture = async (context: TestContext) => {
   const failures: string[] = [];
   const state: {
     fault?: string;
+    stalledVersioning?: { reading: () => void; closed: () => void };
     truncate?: boolean;
     dropPutResponse?: boolean;
     redirectRegion?: string;
@@ -310,6 +312,15 @@ const fixture = async (context: TestContext) => {
       }
       if (operation === "versioning") {
         response.setHeader("content-type", "application/xml");
+        if (state.stalledVersioning) {
+          const { reading, closed } = state.stalledVersioning;
+          responseBodyObservers.set(endpoint, (body) =>
+            body.once("data", reading),
+          );
+          response.once("close", closed);
+          response.write("<VersioningConfiguration>");
+          return;
+        }
         response.end(
           `<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">${existing.versioning === undefined ? "" : `<Status>${existing.versioning}</Status>`}</VersioningConfiguration>`,
         );
@@ -754,6 +765,29 @@ test("readiness propagates real S3 permission failures without creating or grant
         false,
       );
   }
+});
+
+test("canceling readiness closes a stalled MinIO response body and stops later operations", async (context) => {
+  const { storage, records, state } = await fixture(context);
+  const controller = new AbortController();
+  const events = new EventEmitter();
+  const reading = once(events, "reading");
+  const closed = once(events, "closed");
+  state.stalledVersioning = {
+    reading: () => events.emit("reading"),
+    closed: () => events.emit("closed"),
+  };
+
+  const rejected = assert.rejects(storage.ensureReady(controller.signal));
+  await reading;
+  controller.abort();
+  await rejected;
+  await closed;
+
+  assert.deepEqual(
+    records.map(({ operation }) => operation),
+    ["head", "create", "versioning"],
+  );
 });
 
 test("versioning fails closed at startup and again before writes or deletion", async (context) => {

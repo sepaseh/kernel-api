@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { EventEmitter, once } from "node:events";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
@@ -17,7 +18,7 @@ import { createFileRoutes } from "../../presentation/http/routes/files.ts";
 const uploadLimit = 128;
 
 const appForTest = (
-  onUpload: (bytes: Uint8Array) => void,
+  onUpload: (bytes: Uint8Array) => void | Promise<void>,
   rejectAuth = false,
   language: "en" | "fa" = "fa",
 ) => {
@@ -50,7 +51,7 @@ const appForTest = (
           source: { read(): Promise<Uint8Array> };
         }) => {
           const bytes = await source.read();
-          onUpload(bytes);
+          await onUpload(bytes);
           return {
             id: "file",
             contentType: "text/plain",
@@ -166,6 +167,64 @@ const multipartAtSize = async (size: number) => {
   assert.equal(bytes.length, size);
   return { bytes, type: encoded.headers.get("content-type")! };
 };
+
+test("caps concurrent uploads across apps before reading their bodies and releases a failed slot", async () => {
+  const { bytes, type } = await multipartAtSize(512);
+  const signals = new EventEmitter();
+  let entered = 0;
+  const busyApp = appForTest(async () => {
+    const index = entered++;
+    const release = once(signals, `release-${index}`);
+    signals.emit(`entered-${index}`);
+    await release;
+    if (index === 0) throw new Error("synthetic storage failure");
+  });
+  let accepted = 0;
+  const otherApp = appForTest(
+    () => {
+      accepted++;
+    },
+    false,
+    "en",
+  );
+  const uploads: Promise<Response>[] = [];
+  try {
+    for (let index = 0; index < 4; index++) {
+      const started = once(signals, `entered-${index}`);
+      const upload = Promise.resolve(
+        busyApp.fetch(streamRequest(bytes, type).request),
+      );
+      uploads.push(upload);
+      await Promise.race([
+        started,
+        upload.then(() => assert.fail("Upload ended before reaching storage")),
+      ]);
+    }
+    const excess = streamRequest(bytes, type);
+    const response = await otherApp.fetch(excess.request);
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(excess.state().offset, 0);
+    assert.equal(accepted, 0);
+    const example = await readFile(
+      new URL("../../../collection/files/upload/503.json", import.meta.url),
+      "utf8",
+    );
+    assert.deepEqual(await response.json(), JSON.parse(example));
+
+    signals.emit("release-0");
+    assert.equal((await uploads[0]).status, 500);
+    assert.equal(
+      (await otherApp.fetch(streamRequest(bytes, type).request)).status,
+      201,
+    );
+    assert.equal(accepted, 1);
+  } finally {
+    for (let index = 0; index < uploads.length; index++)
+      signals.emit(`release-${index}`);
+    await Promise.allSettled(uploads);
+  }
+});
 
 test("accepts exactly the multipart byte budget", async () => {
   const maximum = uploadLimit + 64 * 1024;

@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { registerFixtureCleanup } from "../src/test/support/fixture-cleanup.ts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const runner = `
+const acknowledgeSignals = `
   const acknowledge = () => process.send('fixture.signal.received', () => process.disconnect());
   process.once('SIGTERM', acknowledge);
   process.once('SIGINT', acknowledge);
@@ -20,9 +20,34 @@ const runner = `
     if (value === 'stop') process.emit('SIGTERM');
     if (value === 'interrupt') process.emit('SIGINT');
   });
-  await import('./src/index.ts');
 `;
-const observeDbCloseRunner = `import { mock } from 'node:test'; const real = await import('@libsql/client'); mock.module('@libsql/client', { exports: { ...real, createClient: (...args) => { const client = real.createClient(...args); const close = client.close.bind(client); client.close = () => { const result = close(); process.stdout.write('fixture.database.closed\\n'); return result; }; return client; } } }); await import('./src/index.ts')`;
+const recordDatabaseClose = `
+  import { mock } from 'node:test';
+  const real = await import('@libsql/client');
+  mock.module('@libsql/client', {
+    exports: {
+      ...real,
+      createClient: (...args) => {
+        const client = real.createClient(...args);
+        const close = client.close.bind(client);
+        client.close = () => {
+          const result = close();
+          process.stdout.write('fixture.database.closed\\n');
+          return result;
+        };
+        return client;
+      },
+    },
+  });
+`;
+const recordListenerBind = `
+  import { Server } from 'node:net';
+  const listen = Server.prototype.listen;
+  Server.prototype.listen = function (...args) {
+    this.once('listening', () => process.stdout.write('fixture.listener.listening\\n'));
+    return listen.apply(this, args);
+  };
+`;
 const reserve = async () => {
   const server = net.createServer();
   server.listen(0, "127.0.0.1");
@@ -74,9 +99,17 @@ async function createFixture(t) {
   };
   return { dir, port, env, closers };
 }
-function start(fixture, { observeDbClose = false } = {}) {
+function start(
+  fixture,
+  { observeDbClose = false, observeListen = false } = {},
+) {
   const flags = observeDbClose ? ["--experimental-test-module-mocks"] : [];
-  const script = observeDbClose ? observeDbCloseRunner : runner;
+  const script = [
+    acknowledgeSignals,
+    observeDbClose ? recordDatabaseClose : "",
+    observeListen ? recordListenerBind : "",
+    "await import('./src/index.ts');",
+  ].join("\n");
   const child = spawn(
     process.execPath,
     [...flags, "--input-type=module", "-e", script],
@@ -159,7 +192,7 @@ const waitForStorageRequest = (running, requestSeen) =>
 
 test("real Node adapter starts, authenticates and shuts down gracefully", async (t) => {
   const fixture = await createFixture(t);
-  const running = start(fixture);
+  const running = start(fixture, { observeDbClose: true });
   await waitForReady(fixture, running);
   const base = `http://127.0.0.1:${fixture.port}`;
   const login = await fetch(`${base}/auth/login`, {
@@ -282,6 +315,10 @@ test("real Node adapter starts, authenticates and shuts down gracefully", async 
   const result = await running.result;
   assert.equal(result.code, 0, running.output());
   assert.match(running.output(), /server.stopped/);
+  assert.equal(
+    (running.output().match(/fixture\.database\.closed/g) ?? []).length,
+    1,
+  );
 });
 
 test("startup responds 503 until storage is ready and handles shutdown during initialization", async (t) => {
@@ -368,14 +405,11 @@ test("occupied port fails before database or object-storage state is created", a
 test("configuration failure is sanitized and never opens a listener", async (t) => {
   const fixture = await createFixture(t);
   delete fixture.env.BETTER_AUTH_SECRET;
-  const running = start(fixture);
-  await assert.rejects(
-    waitForStorageRequest(running, new Promise(() => {})),
-    /Server exited before storage initialization/,
-  );
+  const running = start(fixture, { observeListen: true });
   const result = await running.result;
   assert.equal(result.code, 1, running.output());
   assert.match(running.output(), /server.startup.failed/);
+  assert.doesNotMatch(running.output(), /fixture\.listener\.listening/);
   await assert.rejects(stat(path.join(fixture.dir, "runtime.sqlite")), {
     code: "ENOENT",
   });

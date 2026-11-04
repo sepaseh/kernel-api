@@ -18,6 +18,8 @@ export const fa = {
   fileEmpty: "فایل خالی است.",
   fileNotFound: "فایل پیدا نشد.",
   fileTooLarge: "حجم فایل از محدودیت مجاز بیشتر است.",
+  fileUploadsBusy:
+    "تعداد بارگذاری‌های هم‌زمان بیش از حد مجاز است. کمی بعد دوباره تلاش کنید.",
   finalAdminDelete: "آخرین مدیر سیستم قابل حذف نیست.",
   internalError: "خطای داخلی سرور رخ داد.",
   invalidCredentials: "اطلاعات ورود معتبر نیست.",

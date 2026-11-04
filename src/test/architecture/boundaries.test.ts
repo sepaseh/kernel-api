@@ -42,7 +42,22 @@ const inspectSource = (file: string, content: string) => {
     true,
   );
   const imports: Array<{ node: ts.Node; specifier: string }> = [];
-  const webTypes: ts.Node[] = [];
+  const webUses: ts.Node[] = [];
+  let checker: ts.TypeChecker | undefined;
+  const resolvesLocally = (name: ts.Identifier) => {
+    if (!checker) {
+      const options: ts.CompilerOptions = {
+        noLib: true,
+        noResolve: true,
+        types: [],
+      };
+      const host = ts.createCompilerHost(options);
+      host.getSourceFile = (filename) =>
+        path.resolve(filename) === path.resolve(file) ? source : undefined;
+      checker = ts.createProgram([file], options, host).getTypeChecker();
+    }
+    return checker.getSymbolAtLocation(name) !== undefined;
+  };
   const httpGlobals = new Set([
     "File",
     "FormData",
@@ -92,15 +107,21 @@ const inspectSource = (file: string, content: string) => {
       : ts.isNewExpression(node)
         ? node.expression
         : undefined;
-    if (name && ts.isIdentifier(name) && httpGlobals.has(name.text)) {
-      webTypes.push(node);
-    }
+    if (name && ts.isIdentifier(name) && httpGlobals.has(name.text))
+      webUses.push(node);
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "fetch" &&
+      !resolvesLocally(node.expression)
+    )
+      webUses.push(node);
     ts.forEachChild(node, visit);
   };
   visit(source);
   const location = (node: ts.Node) =>
     `${path.relative(sourceRoot, file)}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1}`;
-  return { imports, location, webTypes };
+  return { imports, location, webUses };
 };
 
 const inspect = async (file: string) =>
@@ -198,19 +219,32 @@ test("application rejects runtime vocabulary imports and infrastructure catalogs
   }
 });
 
+test("application HTTP checks detect global fetch without rejecting local names", () => {
+  const file = path.join(applicationRoot, "fetch-fixture.ts");
+  const content = [
+    'fetch("fixture");',
+    'function local(fetch: (value: string) => string) { fetch("fixture"); }',
+    'client.fetch("fixture");',
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}fetch-fixture.ts:1`,
+  ]);
+});
+
 test("application imports remain framework-free and inward-facing", async () => {
   const files = await sourceFiles(applicationRoot);
   assert.ok(files.length, "The application boundary must contain source files");
   const violations: string[] = [];
   for (const file of files) {
-    const { imports, location, webTypes } = await inspect(file);
+    const { imports, location, webUses } = await inspect(file);
     for (const { node, specifier } of imports) {
       const allowed = allowedApplicationImport(file, node, specifier);
       if (!allowed) violations.push(`${location(node)} imports ${specifier}`);
     }
-    for (const node of webTypes) {
+    for (const node of webUses) {
       violations.push(
-        `${location(node)} uses an HTTP/browser type or constructor`,
+        `${location(node)} uses an HTTP/browser type, constructor or global function`,
       );
     }
   }
@@ -237,7 +271,7 @@ test("presentation consumes services without persistence or auth SDK imports", a
           ].some((root) => inside(root, resolved))
         : specifier === "hono" ||
           specifier.startsWith("hono/") ||
-          isBuiltin(specifier);
+          (isBuiltin(specifier) && !/^(?:node:)?sqlite$/.test(specifier));
       if (!allowed) violations.push(`${location(node)} imports ${specifier}`);
     }
   }

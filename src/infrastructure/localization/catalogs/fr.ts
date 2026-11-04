@@ -17,6 +17,8 @@ export const fr = {
   fileEmpty: "Le fichier est vide.",
   fileNotFound: "Fichier introuvable.",
   fileTooLarge: "Le fichier dépasse la limite de téléversement.",
+  fileUploadsBusy:
+    "Trop de téléversements sont en cours. Réessayez dans un instant.",
   finalAdminDelete:
     "Le dernier administrateur système ne peut pas être supprimé.",
   internalError: "Erreur interne du serveur.",
