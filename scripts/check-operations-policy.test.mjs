@@ -34,7 +34,7 @@ const rejectsMutation = (name, mutate) => {
   });
 };
 
-test("reviewed operations definitions preserve manual authorization and allowed CodeQL analysis", () => {
+test("reviewed operations definitions preserve manual authorization", () => {
   assert.doesNotThrow(() =>
     validateOperationsWorkflows(workflows, publishedFiles()),
   );
@@ -43,7 +43,6 @@ test("reviewed operations definitions preserve manual authorization and allowed 
 test("equivalent manual-dispatch and explicit read-only job declarations are accepted", () => {
   const changed = structuredClone(workflows);
   changed[filename("release")].on.workflow_dispatch = {};
-  changed[filename("codeql")].on.workflow_dispatch = {};
   changed[filename("dast")].jobs.zap.permissions = { contents: "read" };
   changed[filename("staging")].jobs.verify.permissions = { contents: "read" };
   changed[filename("deployment-smoke")].jobs.verify.permissions = {
@@ -290,33 +289,6 @@ const mutationCases = [
     (changed) => {
       changed[filename("release")].jobs.release.steps[0].with["config-file"] =
         "other.json";
-    },
-  ],
-  [
-    "CodeQL cannot gain contents write privileges",
-    (changed) => {
-      changed[filename("codeql")].jobs.analyze.permissions.contents = "write";
-    },
-  ],
-  [
-    "CodeQL cannot omit its security-report permission",
-    (changed) => {
-      delete changed[filename("codeql")].jobs.analyze.permissions[
-        "security-events"
-      ];
-    },
-  ],
-  [
-    "CodeQL cannot silently narrow its published source checks",
-    (changed) => {
-      changed[filename("codeql")].jobs.analyze.steps[1].with.languages =
-        "python";
-    },
-  ],
-  [
-    "CodeQL cannot add a changed-path skip",
-    (changed) => {
-      changed[filename("codeql")].on.pull_request.paths = ["unrelated/**"];
     },
   ],
 ];

@@ -1,6 +1,8 @@
 # Documentation map
 
-The publication inventory owns the current source phase.
+The [publication inventory](../.github/bootstrap-policy.json) declares the
+runtime-operations phase. It includes the local API, release and deployment
+tooling, and their disposable-fixture tests. `applicationReady` remains false.
 
 - [Architecture](architecture.md)
 - [Authentication adapters](auth-adapters.md)
@@ -22,11 +24,10 @@ The publication inventory owns the current source phase.
 - [Authentication review](security/authentication-review.md)
 - [Threat model](security/threat-model.md)
 - [Sequences](sequences.md)
-- [Sonarqube](sonarqube.md)
+- [SonarQube Cloud and CodeRabbit preflight](sonarqube.md)
 - [Source navigation](source-navigation.md)
 - [Test reliability](test-reliability.md)
 - [Testing](testing.md)
 - [Validation](validation.md)
-
 - [Assistant instructions](../AGENTS.md)
 - [Contributing](../CONTRIBUTING.md)

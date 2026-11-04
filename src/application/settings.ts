@@ -8,7 +8,7 @@ import type {
   SettingsLogo,
   SettingsRepository,
 } from "./ports/settings.ts";
-import { requiredString } from "./validation.ts";
+import { optionalString, requiredString } from "./validation.ts";
 
 const paletteKeys = [
   "color_bg_base",
@@ -89,19 +89,13 @@ export const createSettingsService = (
       const lightTheme = parsePalette(input.light_theme, "light_theme");
       // Ordinary branding saves must not overwrite a concurrent language change.
       const result = await repository.save({
-        darkLogoId:
-          typeof input.dark_logo_id === "string" && input.dark_logo_id
-            ? input.dark_logo_id
-            : undefined,
+        darkLogoId: optionalString(input.dark_logo_id, "dark_logo_id"),
         darkTheme,
         ...(actor.account.isSystemAdmin &&
           suppliedLanguage !== undefined && {
             languageCode: suppliedLanguage,
           }),
-        lightLogoId:
-          typeof input.light_logo_id === "string" && input.light_logo_id
-            ? input.light_logo_id
-            : undefined,
+        lightLogoId: optionalString(input.light_logo_id, "light_logo_id"),
         lightTheme,
       });
       if (result === "missing")

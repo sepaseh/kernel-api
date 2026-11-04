@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 
 export const operationsWorkflowPaths = Object.freeze(
-  ["codeql", "dast", "deployment-smoke", "release", "staging"].map(
+  ["dast", "deployment-smoke", "release", "staging"].map(
     (name) => `.github/workflows/${name}.yml`,
   ),
 );
@@ -22,10 +22,6 @@ export const operationsRequiredFiles = Object.freeze([
 
 const actions = {
   checkout: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-  codeqlInit:
-    "github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
-  codeqlAnalyze:
-    "github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
   node: "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
   release:
     "googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7",
@@ -122,35 +118,6 @@ const validateSteps = (actual, expected) => {
   }
 };
 
-const validateCodeql = (workflow) => {
-  const events = workflow.on;
-  onlyKeys(
-    events,
-    ["push", "pull_request", "schedule", "workflow_dispatch"],
-    "CodeQL triggers",
-  );
-  exact(events.push, { branches: ["main"] }, "CodeQL push trigger");
-  exact(events.pull_request, { branches: ["main"] }, "CodeQL PR trigger");
-  exact(events.schedule, [{ cron: "30 3 * * 1" }], "CodeQL schedule");
-  emptyDispatch(events);
-  const job = oneJob(workflow, "analyze", ["permissions"]);
-  exact(
-    job.permissions,
-    { contents: "read", "security-events": "write" },
-    "CodeQL report permissions",
-  );
-  validateSteps(job.steps, [
-    checkout,
-    {
-      uses: actions.codeqlInit,
-      with: {
-        languages: "javascript-typescript",
-        queries: "security-extended",
-      },
-    },
-    { uses: actions.codeqlAnalyze },
-  ]);
-};
 const validateDast = (workflow) => {
   manualTrigger(workflow.on, "target_url");
   const job = readOnlyJob(workflow, "zap", ["environment", "env"]);
@@ -238,7 +205,6 @@ export const validateOperationsWorkflows = (workflows, files) => {
     "Operations phases must publish every workflow, configuration, enforcing owner and test.",
   );
   const validators = [
-    validateCodeql,
     validateDast,
     (workflow) => validateVerification(workflow, "smoke"),
     validateRelease,

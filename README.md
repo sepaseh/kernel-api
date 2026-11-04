@@ -65,8 +65,8 @@ npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
 npm run validate -- full
 ```
 
-The [canonical manifest](.agents/validation.json) owns all ten real source-phase
+The [canonical manifest](.agents/validation.json) owns the required source-phase
 checks, including the published HTTP and local runtime suites. Their disposable
-fixtures do not establish a deployed database or MinIO service, production OTP
-delivery or deployment readiness. Native and Docker smoke commands are opt-in;
-the full profile does not execute them or prove their success.
+fixtures establish local behavior. Deployed database and MinIO integrations,
+production OTP delivery and deployment readiness require separate evidence.
+Native and Docker smoke commands are opt-in and run separately from the full profile.
