@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
@@ -113,7 +113,7 @@ const freePort = () =>
       server.close((error) => (error ? reject(error) : resolve(port)));
     });
   });
-let httpsPort, httpPort, origin;
+let httpsPort, httpPort, origin, fixtureCertificate;
 const caller = "https://admin.kernel.test";
 const initial = {
   first_name: "Docker",
@@ -142,7 +142,13 @@ const compose = (args, options) =>
   );
 const request = (
   address,
-  { method = "GET", headers = {}, body, servername } = {},
+  {
+    method = "GET",
+    headers = {},
+    body,
+    servername,
+    ca = fixtureCertificate,
+  } = {},
 ) =>
   new Promise((resolve, reject) => {
     const target = new URL(address);
@@ -150,14 +156,18 @@ const request = (
       return reject(
         new Error("Only the generated local fixture hostname is allowed."),
       );
-    const transport = target.protocol === "https:" ? https : http;
+    const secure = target.protocol === "https:";
+    const transport = secure ? https : http;
     const req = transport.request(
       target,
       {
         method,
         headers,
-        rejectUnauthorized: false,
-        ...(servername ? { servername } : {}),
+        ...(secure && {
+          ca,
+          rejectUnauthorized: true,
+          servername: servername ?? target.hostname,
+        }),
         signal: interruption.signal,
         lookup: (_name, options, done) =>
           options.all
@@ -272,6 +282,7 @@ try {
           "-addext",
           "subjectAltName=DNS:api.kernel.test",
         ]);
+        fixtureCertificate = await readFile(path.join(tls, "fullchain.pem"));
         started = true;
         await compose(["up", "-d", "--wait"]);
         await compose([
@@ -295,13 +306,18 @@ try {
           }`,
         ]);
         assert.equal((await request(origin + "/health")).status, 200);
+        await assert.rejects(request(origin + "/health", { ca: [] }), {
+          code: "DEPTH_ZERO_SELF_SIGNED_CERT",
+        });
         await assert.rejects(
           request(origin + "/health", {
             headers: { Host: "unknown.kernel.test" },
           }),
+          { code: "ECONNRESET" },
         );
         await assert.rejects(
           request(origin + "/health", { servername: "unknown.kernel.test" }),
+          { code: "EPROTO", message: /SSL alert number 112\b/ },
         );
         const marker = await request(origin + "/_kernel/release");
         assert.equal(JSON.parse(marker.text).release, release);

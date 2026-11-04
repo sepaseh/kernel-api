@@ -61,6 +61,9 @@ in the API env. Changing driver does not migrate existing metadata or objects.
 the local engine endpoint, creates random credentials/certificates, uses a unique
 Compose project and disposable volume, and verifies bootstrap, sessions, foreign
 Origin rejection, public/private files and persistence after container replacement.
+HTTPS requests trust the certificate generated for that run and verify the
+server name. The smoke test separately checks certificate trust, unknown HTTP
+Host and unknown TLS server name.
 Every run uses a unique `docker-container` Buildx builder with `default-load=true`;
 its selector is scoped to the test process and never changes the selected global
 builder. Success, failure and handled SIGINT/SIGTERM cancellation remove the exact
