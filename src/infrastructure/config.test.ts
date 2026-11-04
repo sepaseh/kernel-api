@@ -152,6 +152,10 @@ test("database location resolution preserves memory, absolute file and remote UR
     resolveDatabaseUrl("file:synthetic/database.sqlite"),
     pathToFileURL(path.join(repositoryRoot, "synthetic/database.sqlite")).href,
   );
+  assert.equal(
+    resolveDatabaseUrl("file:synthetic/my db.sqlite"),
+    pathToFileURL(path.join(repositoryRoot, "synthetic/my db.sqlite")).href,
+  );
 });
 
 test("local database file URLs reject queries and fragments", () => {

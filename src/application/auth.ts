@@ -11,6 +11,7 @@ import {
   type AuthProvider,
   AuthRejection,
   type OtpGateway,
+  recoveryOtpSubject,
 } from "./ports/auth.ts";
 import { requiredString } from "./validation.ts";
 
@@ -87,7 +88,12 @@ export const createAuthService = ({
         throw new ApplicationError("invalid", "passwordResetInvalid");
       await persistence.resetPasswordWithOtp({
         newHash: await provider.hashPassword(password),
-        otp: otp.prepare(mobile, "forgot_password", value),
+        otp: otp.prepare(
+          mobile,
+          "forgot_password",
+          value,
+          recoveryOtpSubject(existing.id),
+        ),
         userId: existing.id,
       });
     },
@@ -150,6 +156,16 @@ export const createAuthService = ({
       const mobile = requiredString(input.mobile, "mobile");
       if (!isMobile(mobile) || !isOtpPurpose(input.purpose))
         throw new ApplicationError("invalid", "invalidMobileOrPurpose");
+      if (input.purpose === "forgot_password") {
+        const existing = await persistence.findUserByMobile(mobile);
+        return otp.issue(
+          mobile,
+          "forgot_password",
+          recoveryOtpSubject(
+            existing?.status === "active" ? existing.id : undefined,
+          ),
+        );
+      }
       return otp.issue(mobile, input.purpose);
     },
   };

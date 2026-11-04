@@ -326,16 +326,20 @@ test("routes Better Auth diagnostics through the active request logger without r
     ),
   );
   authLogger.log("warn", "synthetic-startup-message");
+  const records = output.records();
   assert.deepEqual(
-    output
-      .records()
+    records.map((record) => record.level),
+    [50, 50, 40],
+  );
+  assert.deepEqual(
+    records
       .slice(0, 2)
       .map((record) => record.requestId)
       .sort(),
     ["first", "second"],
   );
-  assert.equal(output.records()[2].requestId, undefined);
-  for (const record of output.records().slice(0, 2)) {
+  assert.equal(records[2].requestId, undefined);
+  for (const record of records.slice(0, 2)) {
     const loggedError = record.err as Record<string, unknown>;
     assert.equal(loggedError.type, "Error");
     assert.equal(loggedError.code, "ECONNREFUSED");

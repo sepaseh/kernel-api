@@ -23,11 +23,31 @@ evidence. Select the relevant source, type, lint and test checks from the
 [canonical manifest](../.agents/validation.json), then run the full profile
 before an authorized commit or PR.
 
+The `services-and-catalogs` task covers the seven application services, their
+feature ports/contracts and the ten literal API catalogs. Inspect each service's
+synthetic-port suite and the catalog integrity tests; those establish application
+policy and data boundaries, not adapter behavior.
+
+The `configuration-and-storage` task owns explicit configuration parsing, real
+translation, structured logging, fatal process handlers and local/MinIO storage.
+Use the engine, subprocess, filesystem and signed loopback SDK tests for evidence.
+Read [logging](backend-logging.md) and [object storage](object-storage.md).
+
+The `database-auth` task covers `drizzle/`, `src/infrastructure/db`,
+`src/infrastructure/persistence`, `src/infrastructure/auth`, the administrator
+bootstrap owner and its command. Start with [database schema](database-schema.md),
+[authentication adapters](auth-adapters.md) and the
+[data-lifecycle rule](../.agents/rules/data-lifecycle.md). Follow the persistence
+and management/lifecycle integration suites, the real auth integration scripts,
+gateway tests and owned fixture-cleanup tests listed in the task map. Use fresh
+owned databases and synthetic configuration; never inspect an existing database
+or environment as a comprehension fixture.
+
 Read actual owners and tests before making claims. Map entries, successful
 configuration parsing and installed applications do not establish that an
 assistant loaded instructions or that remote review ran.
 
-Application service, remaining wire contract, runtime localization, adapter,
-HTTP and deployment task owners will be added with their corresponding source
-phases. Do not register unpublished paths as live owners or interpret ambient
-local source as part of a checked partial publication.
+HTTP, server composition, collection and deployment task owners will be added
+with their corresponding source phases. Do not register unpublished paths as
+live owners or interpret ambient local source as part of a checked partial
+publication.
