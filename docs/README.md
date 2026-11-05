@@ -1,7 +1,7 @@
 # Documentation map
 
 The [publication inventory](../.github/bootstrap-policy.json) declares the
-runtime-operations phase. It includes the local API, release and deployment
+collection-account-auth phase. It includes the local API, release and deployment
 tooling, and their disposable-fixture tests. `applicationReady` remains false.
 
 - [Architecture](architecture.md)
@@ -31,3 +31,4 @@ tooling, and their disposable-fixture tests. `applicationReady` remains false.
 - [Validation](validation.md)
 - [Assistant instructions](../AGENTS.md)
 - [Contributing](../CONTRIBUTING.md)
+- [Bruno collection setup](../collection/README.md)

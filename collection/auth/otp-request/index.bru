@@ -1,0 +1,56 @@
+meta {
+  name: OTP Request
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/auth/otp-request
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "mobile": "09123456789",
+    "purpose": "login"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Requests a one-time password (OTP) for a supported authentication flow.
+
+  ## Authentication
+
+  Public endpoint.
+
+  ## Behavior
+
+  - Issues a verification code for the specified mobile number and purpose.
+  - Supported purposes:
+    - `login`
+    - `register`
+    - `forgot_password`
+    - `verify_email`
+  - Although accepted here, `verify_email` with a mobile number does not verify email. Use the authenticated account email-verification endpoints for that flow.
+  - The `login` purpose is accepted, but passwordless OTP login is not implemented by this API.
+  - The mobile number must be in the supported format.
+  - Repeated OTP requests have a 120-second resend cooldown for the destination/purpose/subject.
+  - A successful issuance returns `remaining_seconds`; requests during the cooldown return 429 without a countdown.
+  - A bounded single-process per-identity attempt limiter also applies; it is not an IP-based distributed limiter.
+  - Local development uses a configured code; a production delivery provider is not implemented.
+  - The response does not reveal whether the mobile number belongs to an existing account.
+
+  ## Response
+
+  - `200 OK` — OTP request accepted.
+  - `400 Bad Request` — Request validation failed or the purpose is invalid.
+  - `429 Too Many Requests` — OTP request rate limit exceeded.
+}

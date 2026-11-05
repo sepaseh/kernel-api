@@ -206,7 +206,8 @@
         "docs/development.md",
         "src/contracts",
         ".agents/rules/backend.md",
-        "docs/collection-guide.md"
+        "docs/collection-guide.md",
+        "collection/README.md"
       ],
       "tests": [
         "scripts/http-upload-loopback.test.mjs",
@@ -276,6 +277,23 @@
         "lint",
         "coverage-tests"
       ]
+    },
+    {
+      "id": "collection-contracts",
+      "when": "Change published Bruno requests, response examples or their HTTP contract evidence.",
+      "owners": ["collection"],
+      "contracts": [
+        "docs/collection-guide.md",
+        "collection/README.md",
+        "docs/http-transport.md",
+        "src/contracts",
+        ".agents/rules/collection-quality.md"
+      ],
+      "tests": [
+        "scripts/collection.test.mjs",
+        "scripts/collection-account-auth.test.mjs"
+      ],
+      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
     }
   ]
 }

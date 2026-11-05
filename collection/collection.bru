@@ -1,0 +1,19 @@
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Origin: {{origin}}
+}
+
+tests {
+  test("Initialized API responses have a bounded request identifier", function () {
+    if (res.getStatus() === 503 && res.getBody() === "") return;
+    expect(res.getHeader("x-request-id")).to.match(/^[\w=-]{1,128}$/);
+  });
+}
