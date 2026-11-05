@@ -169,7 +169,18 @@ export async function* attemptLimitResponses(context, cases) {
       logger: createLogger({ level: "silent", pretty: false }, { write() {} }),
       config: { allowedOrigins: [] },
       services: {
-        settings: { getLanguageCode: async () => "en" },
+        account: {
+          getAccount: async ({ account, permissions }) => ({
+            first_name: account.firstName,
+            id: account.id,
+            is_system_admin: account.isSystemAdmin,
+            last_name: account.lastName,
+            mobile: account.mobile,
+            permissions,
+            status: account.status,
+          }),
+          verifyEmail: async () => {},
+        },
         auth: {
           fromRequest: () => ({
             authenticate: async () => ({
@@ -177,6 +188,30 @@ export async function* attemptLimitResponses(context, cases) {
               permissions: ["users.update"],
               session: { id: "synthetic-session" },
             }),
+            forgotPassword: async () => {},
+            login: async () => ({ token: "synthetic-token", userId: "actor" }),
+            register: async () => ({
+              token: "synthetic-token",
+              userId: "actor",
+            }),
+            responseCookies: () => [],
+          }),
+        },
+        settings: { getLanguageCode: async () => "en" },
+        users: {
+          requestMobileVerification: async () => ({
+            expires_in: 300,
+            remaining_seconds: 0,
+          }),
+          update: async (actor, id, input) => ({
+            first_name: "Synthetic",
+            id,
+            is_system_admin:
+              id === actor.account.id && actor.account.isSystemAdmin,
+            last_name: "User",
+            mobile: input.mobile,
+            roles: [],
+            status: "active",
           }),
         },
       },
@@ -196,9 +231,9 @@ export async function* attemptLimitResponses(context, cases) {
         }),
       });
     const accepted = await send();
-    assert.notEqual(
+    assert.equal(
       accepted.status,
-      429,
+      operation === "auth/register" ? 201 : 200,
       `${operation} allows ${maximum} attempts`,
     );
     const response = await send();

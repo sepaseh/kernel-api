@@ -762,8 +762,10 @@ test("persists role and user management operations", async () => {
 
   const details = await request(`/users/${created.id}`, authenticated());
   const detailsBody = (await details.json()) as {
+    is_system_admin: boolean;
     roles: Array<{ id: string }>;
   };
+  assert.equal(detailsBody.is_system_admin, false);
   assert.deepEqual(
     detailsBody.roles.map(({ id }) => id),
     [role.id],
@@ -773,8 +775,13 @@ test("persists role and user management operations", async () => {
     "/users?first_name=سار&mobile=09120000000",
     authenticated(),
   );
-  const listBody = (await list.json()) as { total: number };
+  const listBody = (await list.json()) as {
+    items: Array<{ id: string; is_system_admin: boolean }>;
+    total: number;
+  };
   assert.equal(listBody.total, 1);
+  assert.equal(listBody.items[0]?.id, created.id);
+  assert.equal(listBody.items[0]?.is_system_admin, false);
 
   const paginated = await request("/users?size=1&offset=1", authenticated());
   const paginatedBody = (await paginated.json()) as {
@@ -870,8 +877,12 @@ test("persists role and user management operations", async () => {
   });
   assert.equal(nameOnly.status, 200);
   for (const target of [
-    { id: administrator.id, mobile: administrator.mobile },
-    { id: other.id, mobile: "09120000007" },
+    {
+      id: administrator.id,
+      isSystemAdmin: true,
+      mobile: administrator.mobile,
+    },
+    { id: other.id, isSystemAdmin: false, mobile: "09120000007" },
   ]) {
     const unchangedMobile = await request(`/users/${target.id}`, {
       method: "PATCH",
@@ -879,6 +890,10 @@ test("persists role and user management operations", async () => {
       body: JSON.stringify({ first_name: "Updated", mobile: target.mobile }),
     });
     assert.equal(unchangedMobile.status, 200);
+    const unchangedMobileBody = (await unchangedMobile.json()) as {
+      is_system_admin: boolean;
+    };
+    assert.equal(unchangedMobileBody.is_system_admin, target.isSystemAdmin);
     const saved = await database.query.user.findFirst({
       where: eq(user.id, target.id),
     });
