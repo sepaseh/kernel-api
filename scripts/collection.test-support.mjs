@@ -116,6 +116,10 @@ export async function readBrunoBlock(relativePath, blockName) {
     path.join(collectionRoot, relativePath),
     "utf8",
   );
+  return parseBrunoBlock(source, blockName);
+}
+
+export function parseBrunoBlock(source, blockName) {
   const scanner = ts.createScanner(
     ts.ScriptTarget.Latest,
     true,
@@ -130,29 +134,32 @@ export async function readBrunoBlock(relativePath, blockName) {
     token = scanner.scan()
   ) {
     if (depth === 0 && scanner.getTokenText() === parts[0]) {
-      for (const part of parts.slice(1)) {
-        scanner.scan();
-        assert.equal(scanner.getTokenText(), part);
+      const start = scanner.lookAhead(() => {
+        for (const part of parts.slice(1)) {
+          scanner.scan();
+          if (scanner.getTokenText() !== part) return undefined;
+        }
+        if (scanner.scan() === ts.SyntaxKind.OpenBraceToken)
+          return scanner.getTokenPos();
+        return undefined;
+      });
+      if (start !== undefined) {
+        const parsed = ts.createSourceFile(
+          "bruno-script.js",
+          source.slice(start),
+          ts.ScriptTarget.Latest,
+          true,
+          ts.ScriptKind.JS,
+        );
+        const block = parsed.statements[0];
+        assert.ok(ts.isBlock(block), `Missing ${blockName} block`);
+        return block.getText(parsed).slice(1, -1);
       }
-      assert.equal(scanner.scan(), ts.SyntaxKind.OpenBraceToken);
-      const parsed = ts.createSourceFile(
-        "bruno-script.js",
-        source.slice(scanner.getTokenPos()),
-        ts.ScriptTarget.Latest,
-        true,
-        ts.ScriptKind.JS,
-      );
-      const block = parsed.statements[0];
-      assert.ok(
-        ts.isBlock(block),
-        `Missing ${blockName} block in ${relativePath}`,
-      );
-      return block.getText(parsed).slice(1, -1);
     }
     if (token === ts.SyntaxKind.OpenBraceToken) depth++;
     if (token === ts.SyntaxKind.CloseBraceToken) depth--;
   }
-  throw new Error(`Missing active ${blockName} block in ${relativePath}`);
+  throw new Error(`Missing active ${blockName} block`);
 }
 
 export async function* attemptLimitResponses(context, cases) {

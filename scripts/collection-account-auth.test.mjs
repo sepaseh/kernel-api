@@ -107,6 +107,7 @@ test("change-password clears the token only after a successful response", async 
 
 test("saved account and authentication bodies match their operation contracts", async () => {
   const accountFields = [
+    "email",
     "first_name",
     "id",
     "is_system_admin",
@@ -114,6 +115,7 @@ test("saved account and authentication bodies match their operation contracts", 
     "mobile",
     "permissions",
     "status",
+    "username",
   ];
   const otpFields = ["expires_in", "remaining_seconds"];
   const successCases = [
@@ -129,8 +131,7 @@ test("saved account and authentication bodies match their operation contracts", 
   ];
   for (const [file, fields] of successCases) {
     const body = await readCollectionJson(file);
-    for (const field of fields)
-      assert.ok(Object.hasOwn(body, field), `${file} requires ${field}`);
+    assert.deepEqual(Object.keys(body).sort(), [...fields].sort(), file);
   }
   const errorCases = [
     ["account/me/401.json", en.authenticationRequired],

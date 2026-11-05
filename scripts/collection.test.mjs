@@ -10,11 +10,36 @@ import { createHttpApp } from "../src/presentation/http/app.ts";
 import {
   collectionRoot as root,
   collectionRoutes,
+  parseBrunoBlock,
   readBrunoBlock,
   requireCollectionGroups,
 } from "./collection.test-support.mjs";
 
 before(() => requireCollectionGroups("account", "auth"));
+
+test("Bruno block lookup skips other headers and commented blocks", () => {
+  const source = `
+/* script:post-response { throw new Error("commented"); } */
+script:pre-request {
+  const nested = { message: "pre-request" };
+  script:post-response { throw new Error("nested"); }
+}
+script:post-response {
+  result.push("post-response");
+}
+`;
+  const result = [];
+  runInNewContext(parseBrunoBlock(source, "script:post-response"), { result });
+  assert.deepEqual(result, ["post-response"]);
+  assert.throws(
+    () =>
+      parseBrunoBlock(
+        "/* script:post-response {} */\nscript:pre-request {}",
+        "script:post-response",
+      ),
+    /Missing active script:post-response block/,
+  );
+});
 
 test("the active collection script exempts only the bodyless readiness response", async () => {
   const script = await readBrunoBlock("collection.bru", "tests");
