@@ -1,0 +1,45 @@
+meta {
+  name: Upload File
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/files
+  body: multipartForm
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+body:multipart-form {
+  file: @file()
+  visibility: public
+}
+
+docs {
+  ## Purpose
+
+  Uploads a file. Select a synthetic local file in Bruno before sending.
+
+  ## Authentication
+
+  A public upload requires a system administrator or `settings.update`; private uploads require authentication.
+
+  ## Response
+
+  - `201 Created` — File stored successfully.
+  - `400 Bad Request` — File or visibility is invalid.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — Public upload is not allowed.
+  - `408 Request Timeout` — The request body is still incomplete after the 60-second read deadline.
+  - `413 Content Too Large` — The file exceeds its limit or the complete multipart body exceeds that limit plus 64 KiB of framing and metadata.
+  - `415 Unsupported Media Type` — Content-Type is not multipart/form-data.
+  - `503 Service Unavailable` — Four uploads are already in progress in this process. An authenticated request is rejected before body reading, with `Cache-Control: no-store`.
+}

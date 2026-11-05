@@ -4,7 +4,7 @@ Standalone TypeScript project for Kernel's backend API.
 
 ## Published scope
 
-The current **collection-management** phase publishes pure feature contracts,
+The current **collection-core** phase publishes pure feature contracts,
 framework-free application services and feature ports, core policies, ten flat
 API catalogs, and infrastructure for configuration, translation, logging, fatal
 process failures and local or S3-compatible MinIO object storage. It also includes
@@ -72,6 +72,6 @@ fixtures establish local behavior. Deployed database and MinIO integrations,
 production OTP delivery and deployment readiness require separate evidence.
 Native and Docker smoke commands are opt-in and run separately from the full profile.
 
-The published Bruno groups cover account, authentication, calendar, languages,
-roles and settings. Their saved examples and feature suites are declared in the
-inventory. User and file requests follow separately; their HTTP routes already exist.
+Published Bruno groups cover account, authentication, calendar, files, languages,
+roles and settings. User request examples follow separately; their HTTP routes
+already exist. The inventory owns current group and suite availability.

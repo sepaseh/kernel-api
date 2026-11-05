@@ -1,7 +1,7 @@
 # Documentation map
 
 The [publication inventory](../.github/bootstrap-policy.json) declares the
-collection-management phase. It includes the local API, release and deployment
+collection-core phase. It includes the local API, release and deployment
 tooling, and their disposable-fixture tests. `applicationReady` remains false.
 
 - [Architecture](architecture.md)

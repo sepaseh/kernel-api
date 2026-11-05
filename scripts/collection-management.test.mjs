@@ -51,6 +51,16 @@ test("language and settings examples follow published local contracts", async ()
   const updated = await read("settings/update/200.json");
   assert.deepEqual(updated.dark_theme, body.dark_theme);
   assert.deepEqual(updated.light_theme, body.light_theme);
+  for (const theme of [body.dark_theme, body.light_theme])
+    assert.deepEqual(Object.keys(theme).sort(), [
+      "color_bg_base",
+      "color_bg_container",
+      "color_border",
+      "color_link",
+      "color_primary",
+      "color_text_base",
+      "color_text_description",
+    ]);
   assert.equal(updated.language.code, body.language_code);
   assert.equal(updated.dark_logo, undefined);
   assert.equal(updated.light_logo, undefined);
@@ -68,7 +78,11 @@ test("role update examples match the services", async () => {
     roleRequest.match(/body:json \{\s*\n([\s\S]*?)\n\}/)[1],
   );
   const roles = createRolesService({
-    find: async () => roleExample,
+    find: async () => ({
+      id: roleExample.id,
+      name: "Previous role",
+      permissions: ["users.read"],
+    }),
     update: async (id, changes) => ({ id, ...changes }),
   });
   assert.deepEqual(await roles.update(roleExample.id, roleBody), roleExample);

@@ -17,13 +17,14 @@ import {
 
 before(() => requireCollectionGroups("account", "auth"));
 
-test("Bruno block lookup skips other headers and commented blocks", () => {
+test("Bruno block lookup skips other, malformed and commented headers", () => {
   const source = `
 /* script:post-response { throw new Error("commented"); } */
 script:pre-request {
   const nested = { message: "pre-request" };
   script:post-response { throw new Error("nested"); }
 }
+script:post-response disabled
 script:post-response {
   result.push("post-response");
 }

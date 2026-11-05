@@ -4,7 +4,7 @@ The [inventory](../.github/bootstrap-policy.json) and
 [validation manifest](../.agents/validation.json) declare the exact published
 phase. `applicationReady` remains false.
 
-The collection-management phase includes pure feature contracts, core policies,
+The collection-core phase includes pure feature contracts, core policies,
 eight feature ports, seven framework-free application services and their
 synthetic-port tests. All ten literal API catalogs, their registry and integrity
 tests remain published, alongside the earlier governance controls and foundation.
@@ -93,6 +93,6 @@ Read [backend](../.agents/rules/backend.md),
 [localization](../.agents/rules/localization.md) and
 [validation](validation.md) for the owning constraints.
 
-The published Bruno groups cover account, authentication, calendar, languages,
-roles and settings. Their saved examples and feature suites are declared in the
-inventory. User and file requests follow separately; their HTTP routes already exist.
+Published Bruno groups cover account, authentication, calendar, files, languages,
+roles and settings. User request examples follow separately; their HTTP routes
+already exist. The inventory owns current group and suite availability.
