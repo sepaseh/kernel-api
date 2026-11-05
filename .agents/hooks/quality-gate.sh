@@ -26,14 +26,14 @@ PATHS_FILE=$(mktemp) || {
   exit 2
 }
 trap 'rm -f -- "$PATHS_FILE"' EXIT
-git diff --name-only -z --diff-filter=ACMRTD HEAD > "$PATHS_FILE" || {
+git diff --no-renames --name-only -z --diff-filter=ACMRTD HEAD > "$PATHS_FILE" || {
   echo "Quality hook cannot inspect tracked changes." >&2
   exit 2
 }
 HAS_SOURCE_CHANGE=false
 while IFS= read -r -d '' FILE_PATH; do
   case "$FILE_PATH" in
-    *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) HAS_SOURCE_CHANGE=true ;;
+    *.ts|*.tsx|*.mts|*.cts|*.js|*.jsx|*.mjs|*.cjs) HAS_SOURCE_CHANGE=true ;;
   esac
 done < "$PATHS_FILE"
 git ls-files --others --exclude-standard -z > "$PATHS_FILE" || {
@@ -42,7 +42,7 @@ git ls-files --others --exclude-standard -z > "$PATHS_FILE" || {
 }
 while IFS= read -r -d '' FILE_PATH; do
   case "$FILE_PATH" in
-    *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) HAS_SOURCE_CHANGE=true ;;
+    *.ts|*.tsx|*.mts|*.cts|*.js|*.jsx|*.mjs|*.cjs) HAS_SOURCE_CHANGE=true ;;
   esac
 done < "$PATHS_FILE"
 if [ "$HAS_SOURCE_CHANGE" != true ]; then

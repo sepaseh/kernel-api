@@ -109,10 +109,76 @@ test("portable safety hook blocks dangerous git, secret edits and exposure", () 
   ])
     assert.equal(run(payload).status, 2, JSON.stringify(payload));
 });
+test("safety hook recognizes Git options and exact protected push destinations", () => {
+  for (const command of [
+    "git -C . reset --hard HEAD~1",
+    "git -C repo -c color.ui=never push -uf origin feature",
+    "git clean --force -d",
+    "git clean -xfd",
+    "git push -uf origin feature",
+    "git -C . push --force-with-lease=refs/heads/feature origin feature",
+    "git -C . branch --delete feature",
+    "git push origin main",
+    'git push "origin" main',
+    "git push 'upstream' master",
+    "git push upstream refs/heads/master",
+    "git push origin HEAD:main",
+    "git push origin feature:refs/heads/master",
+    "git push origin +HEAD:main",
+    "git push origin feature;git push origin main",
+  ]) {
+    assert.equal(run({ command }).status, 2, command);
+  }
+  for (const command of [
+    "git push origin domain",
+    'git push "origin" feature',
+    "git push 'upstream' feature/master",
+    "git push origin feature/master",
+    "git push origin main:feature",
+    "git push origin HEAD:refs/heads/feature/main",
+    "git -C . status",
+    "git clean --dry-run -d",
+    "git push --force-if-includes origin feature",
+    "git status; echo --force",
+    "git push origin feature; echo main",
+  ]) {
+    assert.equal(run({ command }).status, 0, command);
+  }
+});
+
+test("safety hook blocks redirected environment output", () => {
+  for (const command of [
+    "env > /tmp/ai-env.txt; cat /tmp/ai-env.txt",
+    "env>/tmp/ai-env.txt",
+    "env 2>/tmp/ai-env.txt",
+    "(env)",
+    "env; true",
+  ]) {
+    assert.equal(run({ command }).status, 2, command);
+  }
+  assert.equal(
+    run({ command: "env TEST_MODE=fixture node check.mjs" }).status,
+    0,
+  );
+});
+
 test("portable safety hook accepts safe checks and fails closed for malformed input", () => {
   assert.equal(run({ command: "npm run typecheck" }).status, 0);
   assert.equal(run({ tool_input: { command: "npm run lint" } }).status, 0);
   assert.equal(run("not-json").status, 2);
+});
+
+test("safety hook fails closed when a JSON field cannot be converted to text", () => {
+  for (const field of ["command", "content", "file_path"]) {
+    for (const value of [{ toString: null }, { toString: {} }]) {
+      const result = run({ [field]: value });
+      assert.equal(result.status, 2, `${field}: ${JSON.stringify(value)}`);
+      assert.doesNotMatch(result.stderr, /TypeError|at file:/);
+    }
+    for (const value of [null, 42, [], {}, "ordinary text"]) {
+      assert.equal(run({ [field]: value }).status, 0);
+    }
+  }
 });
 
 test("safety hook rejects non-object payloads and explicitly invalid tool input", () => {
@@ -134,6 +200,8 @@ test("safety hook detects production hosts without blocking ordinary prose", () 
     { content: "endpoint: https://api.mainnet.example.com/data" },
     { command: "curl https://api.etherscan.io/api" },
     { command: "curl api.etherscan.io" },
+    { command: "(curl api.etherscan.io)" },
+    { command: "(wget production.example.com)" },
     { command: "curl production.example.com/v1" },
     { command: "wget --quiet api.mainnet.example.com:443/data" },
     { command: "curl https://safe.example@production.example.com" },
@@ -148,6 +216,8 @@ test("safety hook detects production hosts without blocking ordinary prose", () 
     { command: "curl https://safe.example.com/path?stage=production&ok=1" },
     { content: "See https://safe.example.com/api.etherscan.io" },
     { command: "curl https://safe.example.com/api.etherscan.io" },
+    { command: "(curl safe.example.com/api.etherscan.io)" },
+    { command: "(curl safe.example.com?next=production.example.com)" },
     { content: "Deploy using production.example.com after review." },
     { command: "curl https://production.example@safe.example.com" },
   ]) {
@@ -242,6 +312,30 @@ test("post-edit hook invokes ESLint only for the requested owned file", async (c
   assert.equal(args.length, 3);
   assert.match(args[2], /requested\.ts$/);
   assert.equal(await readFile(other, "utf8"), "const other = 1;\n");
+  for (const extension of ["mts", "cts"]) {
+    const file = `requested.${extension}`;
+    await writeFile(path.join(root, file), "export {};\n");
+    const result = spawnSync(
+      bash,
+      [
+        "--noprofile",
+        "--norc",
+        path.join(root, ".agents/hooks/post-edit-format.sh"),
+      ],
+      {
+        input: JSON.stringify({ file_path: file }),
+        cwd: tmpdir(),
+        encoding: "utf8",
+        windowsHide: true,
+        env: childEnvironment({ HOOK_TEST_LOG: log.replaceAll("\\", "/") }),
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const extensionArgs = (await readFile(log, "utf8")).trim().split(/\r?\n/);
+    assert.deepEqual(extensionArgs.slice(0, 2), ["--fix", "--"]);
+    assert.equal(extensionArgs.length, 3);
+    assert.ok(extensionArgs[2].endsWith(file), extensionArgs[2]);
+  }
   if (process.platform === "win32") {
     await writeFile(log, "");
     const native = spawnSync(
@@ -357,10 +451,17 @@ case "$1" in
   rev-parse) printf '%s\\n' "$HOOK_TEST_ROOT" ;;
   diff)
     [[ " $* " == *" --name-only "* && " $* " == *" -z "* && " $* " == *" --diff-filter=ACMRTD "* ]] || exit 2
-    if [ "$HOOK_TEST_MODE" = type ]; then printf '%s\\0' 'پوشه with spaces/source.ts'; fi ;;
+    case "$HOOK_TEST_MODE" in
+      type|lintfail) printf '%s\\0' 'پوشه with spaces/source.ts' ;;
+      mts|cts) printf '%s\\0' "source.$HOOK_TEST_MODE" ;;
+    esac ;;
   ls-files)
     [[ " $* " == *" -z "* ]] || exit 2
-    if [ "$HOOK_TEST_MODE" = untracked ]; then printf '%s\\0' 'نام with spaces.js'; fi ;;
+    case "$HOOK_TEST_MODE" in
+      untracked) printf '%s\\0' 'نام with spaces.js' ;;
+      untracked-mts) printf '%s\\0' 'untracked.mts' ;;
+      untracked-cts) printf '%s\\0' 'untracked.cts' ;;
+    esac ;;
   *) exit 2 ;;
 esac
 }
@@ -369,10 +470,22 @@ esac
   );
   await writeFile(
     path.join(bin, "npm"),
-    'npm() { printf "%s\\n" "$*" >> "$HOOK_TEST_LOG"; }\n',
+    `npm() {
+  printf "%s\\n" "$*" >> "$HOOK_TEST_LOG"
+  if [ "$HOOK_TEST_MODE" = lintfail ] && [ "$*" = "run lint" ]; then return 7; fi
+}\n`,
     { mode: 0o755 },
   );
-  for (const mode of ["type", "untracked", "none"]) {
+  for (const mode of [
+    "type",
+    "untracked",
+    "mts",
+    "cts",
+    "untracked-mts",
+    "untracked-cts",
+    "lintfail",
+    "none",
+  ]) {
     await writeFile(log, "");
     const result = spawnSync(
       bash,
@@ -400,13 +513,85 @@ esac
         }),
       },
     );
-    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.status, mode === "lintfail" ? 2 : 0, result.stderr);
     const commands = await readFile(log, "utf8");
     assert.equal(
       commands.replaceAll("\r", ""),
-      mode === "none" ? "" : "run lint\nrun typecheck\n",
+      mode === "none"
+        ? ""
+        : mode === "lintfail"
+          ? "run lint\n"
+          : "run lint\nrun typecheck\n",
     );
   }
+});
+
+test("quality hook checks a staged rename from source to a non-source filename", async (context) => {
+  if (!bash) return context.skip("No usable Bash found.");
+  const root = await ownedHookFixture(context, "quality-gate.sh");
+  const log = path.join(root, "rename-commands.txt");
+  const environment = childEnvironment({
+    AI_PROJECT_DIR: root,
+    GIT_CONFIG_NOSYSTEM: "1",
+    GIT_CONFIG_GLOBAL: path.join(root, "no-user-git-config"),
+    HOOK_TEST_LOG: log.replaceAll("\\", "/"),
+  });
+  const git = (...args) => {
+    const result = spawnSync("git", args, {
+      cwd: root,
+      encoding: "utf8",
+      windowsHide: true,
+      env: environment,
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout;
+  };
+  git("init", "--quiet");
+  git("config", "core.autocrlf", "false");
+  git("config", "diff.renames", "true");
+  await writeFile(path.join(root, "source.ts"), "export const fixture = 1;\n");
+  git("add", "--", "source.ts");
+  git(
+    "-c",
+    "user.name=Hook Fixture",
+    "-c",
+    "user.email=hook-fixture@example.invalid",
+    "-c",
+    "core.hooksPath=empty-hooks",
+    "commit",
+    "--quiet",
+    "--no-gpg-sign",
+    "-m",
+    "Synthetic source fixture",
+  );
+  await copyFile(path.join(root, "source.ts"), path.join(root, "archived.txt"));
+  await rm(path.join(root, "source.ts"));
+  git("add", "--", "source.ts", "archived.txt");
+  assert.match(
+    git("diff", "--cached", "--name-status"),
+    /^R100\tsource\.ts\tarchived\.txt\r?\n$/,
+  );
+  await writeFile(log, "");
+  const result = spawnSync(
+    bash,
+    [
+      "--noprofile",
+      "--norc",
+      "-c",
+      'npm() { printf "%s\\n" "$*" >> "$HOOK_TEST_LOG"; }; export -f npm; exec "$@"',
+      "hook-test",
+      bash,
+      "--noprofile",
+      "--norc",
+      path.join(root, ".agents/hooks/quality-gate.sh"),
+    ],
+    { cwd: root, encoding: "utf8", windowsHide: true, env: environment },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    (await readFile(log, "utf8")).replaceAll("\r", ""),
+    "run lint\nrun typecheck\n",
+  );
 });
 
 test("post-edit and quality hooks report invalid input or repository", async (context) => {

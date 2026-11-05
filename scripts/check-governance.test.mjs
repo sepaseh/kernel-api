@@ -12,7 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { format } from "prettier";
 import { stringify } from "yaml";
@@ -1438,6 +1438,87 @@ test("guidance activation requires the complete asset group and selects portable
     (file) => file !== ".agents/evaluation/run-template.json",
   );
   assert.throws(() => validateInventory(publication), /exact ten/);
+});
+
+test("disabled publications load their isolated entrypoint without guidance assets and reject forbidden registrations", async (context) => {
+  const { root, put, json } = await fixture(context);
+  const entrypoint = path.join(root, "scripts/check-governance.mjs");
+  await put(
+    "scripts/check-governance.mjs",
+    await readSource("scripts/check-governance.mjs"),
+  );
+  await json("node_modules/yaml/package.json", {
+    name: "yaml",
+    type: "module",
+    exports: "./index.mjs",
+  });
+  await put(
+    "node_modules/yaml/index.mjs",
+    'export const parseDocument = () => { throw new Error("Unexpected YAML parsing in guidance inspection."); };\n',
+  );
+  await assert.rejects(
+    readFile(path.join(root, "scripts/check-guidance-assets.mjs")),
+    { code: "ENOENT" },
+  );
+  const isolated = await import(pathToFileURL(entrypoint).href);
+
+  for (const guidanceAssets of [undefined, false]) {
+    const publication = {
+      ...policy(),
+      ...(guidanceAssets === undefined ? {} : { guidanceAssets }),
+    };
+    assert.ok(isolated.validateInventory(publication) instanceof Set);
+    for (const invalid of [null, 0, "false", {}, []])
+      assert.throws(
+        () =>
+          isolated.validateInventory({
+            ...publication,
+            guidanceAssets: invalid,
+          }),
+        /optional boolean/,
+      );
+    for (const asset of [
+      ...guidanceAssetPaths,
+      ".agents/hooks/unpublished.sh",
+      ".agents/evaluation/unpublished.json",
+    ])
+      assert.throws(
+        () =>
+          isolated.validateInventory({
+            ...publication,
+            allowedFiles: [...publication.allowedFiles, asset],
+          }),
+        /explicit flag/,
+      );
+
+    await json(".github/bootstrap-policy.json", publication);
+    await json(".agents/settings.json", settings());
+    const result = spawnSync(process.execPath, [entrypoint, "guidance"], {
+      cwd: root,
+      env: {},
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /requested validation check passed/);
+    await json(".agents/settings.json", {
+      ...settings(),
+      optionalHooks: ["README.md"],
+    });
+    await assert.rejects(
+      isolated.inspectGuidance(root),
+      /Disabled guidance assets must not register hooks/,
+    );
+    await json(".agents/settings.json", {
+      ...settings(),
+      evaluation: "README.md",
+    });
+    await assert.rejects(
+      isolated.inspectGuidance(root),
+      /Disabled guidance assets must not register evaluation/,
+    );
+  }
 });
 
 test("guidance inspection ignores unpublished drafts and reads evaluation JSON only after activation", async (context) => {

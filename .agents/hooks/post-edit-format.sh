@@ -27,7 +27,7 @@ FILE_PATH=$(printf '%s' "${INPUT:-}" | node -e '
 
 [ -n "$FILE_PATH" ] || exit 0
 case "$FILE_PATH" in
-  *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs) ;;
+  *.ts|*.tsx|*.mts|*.cts|*.js|*.jsx|*.mjs|*.cjs) ;;
   *) exit 0 ;;
 esac
 
