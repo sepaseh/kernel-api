@@ -44,6 +44,7 @@ const setup = async (context) => {
   const persistence = createAuthPersistence(database);
   return {
     auth,
+    client,
     database,
     provider,
     service: createAuthService({ provider, persistence, otp }),
@@ -122,6 +123,9 @@ test("real Better Auth authenticates bootstrap administrator before and after mo
     password,
     username: "synthetic-admin",
   });
+  const administrators = await database.query.user.findMany();
+  assert.equal(administrators.length, 1);
+  assert.equal(administrators[0].isSystemAdmin, true);
   const before = await service.login({ identifier: "09120000003", password });
   await createDrizzleUsersRepository(database).update(
     before.userId,
@@ -160,7 +164,7 @@ test("Better Auth accepts a bootstrapped hyphenated username and rejects invalid
 });
 
 test("real Better Auth supports managed creation after reuse of a legacy mobile", async (context) => {
-  const { database, provider, service } = await setup(context);
+  const { client, database, provider, service } = await setup(context);
   const password = "synthetic-password";
   const legacy = await provider.signUp({
     authEmail: "09120000005@kernel.local",
@@ -176,6 +180,9 @@ test("real Better Auth supports managed creation after reuse of a legacy mobile"
     { mobile: "09120000006" },
     legacy.userId,
   );
+  await client.execute(
+    "CREATE TRIGGER synthetic_reject_managed_session BEFORE INSERT ON session BEGIN SELECT RAISE(ABORT, 'managed creation must not write a session'); END",
+  );
   const managed = await createUsersService({ provider, repository }).create({
     first_name: "Managed",
     last_name: "User",
@@ -183,6 +190,20 @@ test("real Better Auth supports managed creation after reuse of a legacy mobile"
     password,
   });
   assert.notEqual(managed.id, legacy.userId);
+  assert.deepEqual(
+    await database.query.account.findMany({
+      columns: { accountId: true, providerId: true, userId: true },
+      where: (row, { eq }) => eq(row.userId, managed.id),
+    }),
+    [{ accountId: managed.id, providerId: "credential", userId: managed.id }],
+  );
+  assert.deepEqual(
+    await database.query.session.findMany({
+      where: (row, { eq }) => eq(row.userId, managed.id),
+    }),
+    [],
+  );
+  await client.execute("DROP TRIGGER synthetic_reject_managed_session");
   assert.equal(
     (await service.login({ identifier: "09120000005", password })).userId,
     managed.id,
@@ -191,6 +212,63 @@ test("real Better Auth supports managed creation after reuse of a legacy mobile"
     (await service.login({ identifier: "09120000006", password })).userId,
     legacy.userId,
   );
+});
+
+test("managed credential creation preserves existing records on duplicate and credential write failures", async (context) => {
+  const { client, database, provider } = await setup(context);
+  const repository = createDrizzleUsersRepository(database);
+  const input = {
+    authEmail: "managed@kernel.local",
+    firstName: "Managed",
+    lastName: "User",
+    mobile: "09120000010",
+    passwordHash: await provider.hashPassword("synthetic-password"),
+  };
+  await repository.createWithCredential(input);
+  const snapshot = () =>
+    Promise.all([
+      database.query.user.findMany(),
+      database.query.account.findMany(),
+      database.query.session.findMany(),
+    ]);
+  const before = await snapshot();
+
+  await assert.rejects(
+    repository.createWithCredential({
+      ...input,
+      authEmail: "duplicate-mobile@kernel.local",
+    }),
+    { kind: "invalid", key: "userDataInvalid" },
+  );
+  assert.deepEqual(await snapshot(), before);
+
+  await client.execute(
+    "CREATE TRIGGER synthetic_reject_managed_credential BEFORE INSERT ON account BEGIN SELECT RAISE(ABORT, 'synthetic managed credential failure'); END",
+  );
+  const retryInput = {
+    ...input,
+    authEmail: "retry-managed@kernel.local",
+    mobile: "09120000011",
+  };
+  await assert.rejects(repository.createWithCredential(retryInput), (error) => {
+    for (let cause = error, depth = 0; cause && depth < 5; depth++) {
+      if (
+        String(cause.message).includes("synthetic managed credential failure")
+      )
+        return true;
+      cause = cause.cause;
+    }
+    return false;
+  });
+  assert.deepEqual(await snapshot(), before);
+  await client.execute("DROP TRIGGER synthetic_reject_managed_credential");
+
+  const retried = await repository.createWithCredential(retryInput);
+  const [users, accounts, sessions] = await snapshot();
+  assert.equal(users.length, 2);
+  assert.equal(accounts.length, 2);
+  assert.ok(accounts.some((row) => row.userId === retried.id));
+  assert.deepEqual(sessions, []);
 });
 
 test("real Better Auth preserves an arbitrary legacy email on a mobile change", async (context) => {

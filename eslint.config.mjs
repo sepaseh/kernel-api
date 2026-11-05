@@ -3,6 +3,31 @@ import simpleImportSort from "eslint-plugin-simple-import-sort";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import { processAccessViolations } from "./scripts/check-boundaries.mjs";
+
+const environmentOwnership = {
+  meta: {
+    type: "problem",
+    schema: [],
+    messages: {
+      ownership: "{{reason}}",
+    },
+  },
+  create: (context) => ({
+    Program: () => {
+      for (const { line, reason } of processAccessViolations(
+        context.sourceCode.text,
+        context.filename,
+      ))
+        context.report({
+          loc: { line, column: 0 },
+          messageId: "ownership",
+          data: { reason },
+        });
+    },
+  }),
+};
+
 export default [
   {
     ignores: [
@@ -19,7 +44,7 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ["**/*.{ts,mjs}"],
+    files: ["**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
     languageOptions: {
       globals: globals.node,
       parserOptions: { tsconfigRootDir: import.meta.dirname },
@@ -34,6 +59,15 @@ export default [
       "no-dupe-keys": "error",
       "simple-import-sort/imports": "error",
       "simple-import-sort/exports": "error",
+    },
+  },
+  {
+    files: ["src/{contracts,application}/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
+    plugins: {
+      foundation: { rules: { "environment-ownership": environmentOwnership } },
+    },
+    rules: {
+      "foundation/environment-ownership": "error",
     },
   },
 ];

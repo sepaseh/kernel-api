@@ -81,7 +81,7 @@ describe("workflow target validation", () => {
     );
   });
 
-  it("requires the protected staging environment before the DAST scan", () => {
+  it("validates the protected staging target before blocking DAST", () => {
     const workflow = parse(
       readFileSync(
         new URL("../.github/workflows/dast.yml", import.meta.url),
@@ -97,11 +97,14 @@ describe("workflow target validation", () => {
     const validator = job.steps.findIndex(
       (step) => step.run === "node scripts/validate-workflow-targets.mjs dast",
     );
-    const scanner = job.steps.findIndex((step) =>
-      step.uses?.startsWith("zaproxy/action-full-scan@"),
+    const gate = job.steps.findIndex(
+      (step) => step.name === "Require staging-only scanner egress",
     );
     assert.ok(validator >= 0);
-    assert.ok(scanner > validator);
+    assert.ok(gate > validator);
     assert.equal(job.steps[validator].if, undefined);
+    assert.equal(job.steps[gate].if, undefined);
+    assert.match(job.steps[gate].run, /\bexit 1\b/);
+    assert.equal(gate, job.steps.length - 1);
   });
 });

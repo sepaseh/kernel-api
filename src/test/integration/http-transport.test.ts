@@ -282,6 +282,35 @@ test("cookie login preserves cookies and rejects cross-origin state changes", as
   assert.equal(rejected.status, 403);
 });
 
+test("login attempts are scoped by the transport peer, regardless of forwarded headers", async () => {
+  const { app } = fixture();
+  const login = (peer: string, claimedSource: string) =>
+    app.request(
+      "/auth/login",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-forwarded-for": claimedSource,
+        },
+        body: JSON.stringify({
+          identifier: "09120000001",
+          password: "synthetic",
+        }),
+      },
+      { incoming: { socket: { remoteAddress: peer } } },
+    );
+  for (let attempt = 1; attempt <= 20; attempt++) {
+    const response = await login("192.0.2.1", `198.51.100.${attempt}`);
+    assert.equal(response.status, 200);
+  }
+  const limited = await login("192.0.2.1", "198.51.100.21");
+  assert.equal(limited.status, 429);
+  assert.ok(limited.headers.get("retry-after"));
+  const otherPeer = await login("192.0.2.2", "198.51.100.1");
+  assert.equal(otherPeer.status, 200);
+});
+
 test("authorization precedes deletion and localizes an in-use conflict", async () => {
   const forbidden = fixture([]);
   const rejected = await forbidden.app.request("/users/private-id", {
@@ -309,6 +338,29 @@ test("JSON size is enforced from bytes when Content-Length lies", async () => {
     body: JSON.stringify({ identifier: "u", password: "x".repeat(70_000) }),
   });
   assert.equal(response.status, 413);
+});
+
+test("malformed UTF-8 and a leading BOM are rejected before a profile write", async () => {
+  const value = fixture(["users.update"]);
+  for (const body of [
+    Buffer.concat([
+      Buffer.from('{"first_name":"'),
+      Buffer.from([0xc3, 0x28]),
+      Buffer.from('"}'),
+    ]),
+    Buffer.from('\uFEFF{"first_name":"Valid"}'),
+  ]) {
+    const response = await value.app.request("/users/target", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body,
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), {
+      message: getTranslator("fa")("invalidJson"),
+    });
+  }
+  assert.equal(value.getUpdateActor(), undefined);
 });
 
 test("JSON limit retains 413 if canceling the source fails", async () => {

@@ -22,13 +22,10 @@ export const parseInitialAdminInput = (input: unknown): InitialAdminInput => {
   const fields = input as Record<string, unknown>;
   const text = (key: string) => {
     const value = fields[key];
-    if (
-      typeof value !== "string" ||
-      !value.trim() ||
-      value.length > profileNameMaxLength
-    )
+    const trimmed = typeof value === "string" ? value.trim() : "";
+    if (!trimmed || trimmed.length > profileNameMaxLength)
       throw new Error("Invalid initial administrator input.");
-    return value.trim();
+    return trimmed;
   };
   const firstName = text("first_name");
   const lastName = text("last_name");

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash, createHmac } from "node:crypto";
+import { EventEmitter, once } from "node:events";
 import fs from "node:fs";
 import fsPromises, { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import http, { createServer } from "node:http";
@@ -223,7 +224,9 @@ const fixture = async (context: TestContext) => {
   const failures: string[] = [];
   const state: {
     fault?: string;
+    stalledVersioning?: { reading: () => void; closed: () => void };
     truncate?: boolean;
+    dropPutResponse?: boolean;
     redirectRegion?: string;
     message?: string;
     location?: string;
@@ -309,6 +312,15 @@ const fixture = async (context: TestContext) => {
       }
       if (operation === "versioning") {
         response.setHeader("content-type", "application/xml");
+        if (state.stalledVersioning) {
+          const { reading, closed } = state.stalledVersioning;
+          responseBodyObservers.set(endpoint, (body) =>
+            body.once("data", reading),
+          );
+          response.once("close", closed);
+          response.write("<VersioningConfiguration>");
+          return;
+        }
         response.end(
           `<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/">${existing.versioning === undefined ? "" : `<Status>${existing.versioning}</Status>`}</VersioningConfiguration>`,
         );
@@ -327,6 +339,10 @@ const fixture = async (context: TestContext) => {
           return;
         }
         existing.objects.set(key, body);
+        if (state.dropPutResponse) {
+          response.destroy();
+          return;
+        }
         response.writeHead(200, { etag: '"fixture-etag"' });
         response.end();
       } else if (operation === "get") {
@@ -707,6 +723,8 @@ test("public URLs preserve configured prefixes and encoded values without traver
     "https://user:password@cdn.example.test/",
     "https://cdn.example.test/?key=value",
     "https://cdn.example.test/#fragment",
+    "https://cdn.example.test/assets/?",
+    "https://cdn.example.test/assets/#",
   ]) {
     assert.throws(
       () => publicObjectUrl(base, "owned-public", "id/file"),
@@ -747,6 +765,29 @@ test("readiness propagates real S3 permission failures without creating or grant
         false,
       );
   }
+});
+
+test("canceling readiness closes a stalled MinIO response body and stops later operations", async (context) => {
+  const { storage, records, state } = await fixture(context);
+  const controller = new AbortController();
+  const events = new EventEmitter();
+  const reading = once(events, "reading");
+  const closed = once(events, "closed");
+  state.stalledVersioning = {
+    reading: () => events.emit("reading"),
+    closed: () => events.emit("closed"),
+  };
+
+  const rejected = assert.rejects(storage.ensureReady(controller.signal));
+  await reading;
+  controller.abort();
+  await rejected;
+  await closed;
+
+  assert.deepEqual(
+    records.map(({ operation }) => operation),
+    ["head", "create", "versioning"],
+  );
 });
 
 test("versioning fails closed at startup and again before writes or deletion", async (context) => {
@@ -871,6 +912,22 @@ test("the factory selects the reviewed local adapter or signed MinIO adapter and
   assert.throws(
     () => createObjectStorage({ ...config, storageDriver: "unknown" as never }),
     /Unsupported object storage driver/,
+  );
+});
+
+test("a lost PUT response can leave stored bytes without deleting them", async (context) => {
+  const { storage, state, buckets, records } = await fixture(context);
+  await storage.ensureReady();
+  state.dropPutResponse = true;
+  const value = input("private");
+  await assert.rejects(storage.put(value));
+  assert.deepEqual(
+    buckets.get("kernel-fixture-private")?.objects.get(value.objectKey),
+    Buffer.from(value.data),
+  );
+  assert.equal(
+    records.some(({ operation }) => operation === "delete"),
+    false,
   );
 });
 

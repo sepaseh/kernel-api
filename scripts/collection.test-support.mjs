@@ -69,13 +69,16 @@ export const requireCollectionGroups = async (...required) => {
       collectionPaths.includes(file),
       `Missing common collection path: ${file}`,
     );
-  // HTTP tests publish this single response fixture before the files collection.
+  // HTTP tests publish these response fixtures before the files collection.
   const declaredPaths = collectionPaths.filter(
     (file) =>
       !common.includes(file) &&
       !(
-        file === "collection/files/upload/415.json" &&
-        !declared.includes("files")
+        [
+          "collection/files/upload/408.json",
+          "collection/files/upload/415.json",
+          "collection/files/upload/503.json",
+        ].includes(file) && !declared.includes("files")
       ),
   );
   const published = [

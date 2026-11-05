@@ -49,13 +49,12 @@ PRODUCTION_HOST and rejects that host. URLs must be exact HTTPS origins without
 credentials/path/query/hash. The expected release is independently supplied from
 protected settings, not trusted from the remote response.
 
-DAST is a separate, manually dispatched workflow for authorized staging targets.
-Its job references the GitHub `staging` environment. Before dispatch, configure
-and verify that environment's protection rules and the trusted
-`STAGING_ALLOWED_API_HOST` and `PRODUCTION_HOST` variables. The target validator
-requires an exact HTTPS origin on the allowed staging host and rejects the
-production host. DAST can send mutating scan traffic; do not dispatch without
-explicit target authorization.
+The manual DAST workflow validates the initial HTTPS origin against the
+protected `STAGING_ALLOWED_API_HOST` and `PRODUCTION_HOST` settings, then stops
+before running a scanner. Re-enabling active scans requires a reviewed workflow
+change and verified scanner egress that allows only the authorized staging
+origin, including redirect targets. Active scans can send mutating requests
+and require explicit target authorization.
 
 Release, staging, smoke, DAST and Sonar configuration neither provisions an
 environment nor establishes that any remote workflow has run. Local tests use

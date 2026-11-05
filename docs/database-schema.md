@@ -32,6 +32,15 @@ profile address. Email verification changes profileEmail without replacing
 auth_email or the provider's email_verified flag. Do not confuse these columns
 in queries, exports or migrations.
 
+The historical `0001_optional_profile_email` migration copied external legacy
+addresses into the profile column and kept all legacy addresses in `auth_email`.
+The current provider flag cannot tell whether a profile address was copied by
+that migration or verified separately afterward. Current services display and
+filter by the profile address, and sign-in uses the internal identity. Require
+fresh verification of a legacy profile address before using it for trusted
+delivery or identity checks. Correcting an already copied address requires
+profile verification evidence independent of the provider flag.
+
 Account and managed-user profile patches carry only changed name/mobile values.
 Persistence composes the full name in the same SQL UPDATE using bound provided
 parts and current database columns. Partial patches from stale actor snapshots,
@@ -41,10 +50,10 @@ independent of their mobile number. A mobile change preserves the stored email,
 including legacy mobile-derived or custom values; migrations do not rewrite it.
 The authentication layer must look up the user by mobile and use the stored
 identity when signing in. A new account can therefore reuse a released mobile
-without taking over a legacy internal email. Auth adapters are tested against synthetic
-databases; end-to-end HTTP authentication requires separate verification before
-rollout. Verify deployment rollback compatibility with existing authentication
-identities and data before reverting to an older version.
+without taking over a legacy internal email. Auth adapter and [HTTP transport](http-transport.md)
+suites test local authentication with disposable databases. Verify deployment
+rollback compatibility with existing authentication identities and data before
+reverting to an older version.
 
 If the account disappears before a profile, username or verified-email write,
 the adapter reports the authentication-required error instead of succeeding or
@@ -105,6 +114,13 @@ rebuilds settings while preserving every row and its language, theme and logo
 values. Tests verify foreign keys are enabled after the migration runner restores
 them and that post-upgrade foreign-key integrity is clean.
 
+The Drizzle libSQL migrator delegates the SQL batch to libSQL, which disables
+foreign keys on the migration connection before beginning the transaction and
+restores enforcement afterward. The historical PRAGMA in the `0001` SQL does
+not control enforcement inside that transaction. A populated upgrade from
+`0000` verifies that the user rebuild preserves credentials, sessions, role
+memberships and owned files.
+
 Real populated-upgrade tests compare all business/technical table rows before
 and after migration. Direct deletion of either referenced logo is rejected; a
 transaction that changes language and then attempts forbidden deletion rolls
@@ -115,15 +131,15 @@ Cause classification terminates on cycles; only structured SQLite constraint
 codes or compatible anchored diagnostics establish a unique conflict. Query or
 user payload text cannot mask unrelated database failures.
 
-Run `npm run validate -- full` for the complete current-phase gate. Actual LCOV
-comes from this checkout's tests; do not treat these local SQLite results as
-remote database, production rollout, HTTP, OTP delivery or complete authentication
-runtime evidence. Database initialization, optional development seeding and
-initial administrator provisioning are published in this phase. The HTTP/server
-entry point and repository Drizzle generation configuration/commands belong to
-later publications; they are not available as part of this snapshot. Do not run
-migrations on existing data without explicit authorization and a verified
-matching backup.
+Run `npm run validate -- full` for the complete current-phase gate. The SQLite
+suites establish local persistence behavior, and the HTTP and runtime suites
+exercise the local composition. Remote database behavior, production rollout
+and OTP delivery require separate evidence. The local server applies the
+reviewed migrations and initializes settings. The published tooling also
+includes optional development seeding, initial administrator provisioning and
+the Drizzle Kit commands documented in [development](development.md). Obtain
+explicit authorization and a verified matching backup before migrating existing
+data.
 
 See [architecture](architecture.md), [validation](validation.md) and
 [Contributing](../CONTRIBUTING.md).
