@@ -17,6 +17,10 @@ export const es = {
   fileEmpty: "El archivo está vacío.",
   fileNotFound: "No se encontró el archivo.",
   fileTooLarge: "El archivo supera el límite de carga.",
+  fileUploadTimedOut:
+    "Se agotó el tiempo de espera de la carga. Vuelve a intentarlo.",
+  fileUploadsBusy:
+    "Hay demasiadas cargas en curso. Vuelve a intentarlo en breve.",
   finalAdminDelete: "No se puede eliminar al último administrador del sistema.",
   internalError: "Error interno del servidor.",
   invalidCredentials: "Credenciales no válidas.",

@@ -7,70 +7,77 @@
       "id": "snapshot",
       "command": "npm run check:snapshot",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["quality"],
       "scopes": ["collection-management"]
     },
     {
       "id": "ci-policy",
       "command": "npm run check:ci",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["quality"],
+      "scopes": ["collection-management"]
+    },
+    {
+      "id": "actions-lint",
+      "command": "npm run check:actions",
+      "kind": "required",
+      "ciJobs": ["quality"],
       "scopes": ["collection-management"]
     },
     {
       "id": "audit",
       "command": "npm run audit",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["audit"],
       "scopes": ["collection-management"]
     },
     {
       "id": "boundaries",
       "command": "npm run check:boundaries",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["quality"],
       "scopes": ["collection-management"]
     },
     {
       "id": "typecheck",
       "command": "npm run typecheck",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["quality"],
       "scopes": ["collection-management"]
     },
     {
       "id": "lint",
       "command": "npm run lint",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["quality"],
       "scopes": ["collection-management"]
     },
     {
       "id": "format",
       "command": "npm run format:check",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["quality"],
       "scopes": ["collection-management"]
     },
     {
       "id": "guidance",
       "command": "npm run check:guidance",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["quality"],
       "scopes": ["collection-management"]
     },
     {
       "id": "coverage-tests",
       "command": "npm run test:coverage",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["governance"],
       "scopes": ["collection-management"]
     },
     {
       "id": "audit-helper-tests",
       "command": "npm run test:audit",
       "kind": "required",
-      "ciJobs": ["check"],
+      "ciJobs": ["governance"],
       "scopes": ["collection-management"]
     }
   ],
@@ -78,6 +85,7 @@
     "full": [
       "snapshot",
       "ci-policy",
+      "actions-lint",
       "audit",
       "boundaries",
       "typecheck",
@@ -86,6 +94,28 @@
       "guidance",
       "coverage-tests",
       "audit-helper-tests"
-    ]
-  }
+    ],
+    "ci-quality": [
+      "snapshot",
+      "ci-policy",
+      "actions-lint",
+      "boundaries",
+      "typecheck",
+      "lint",
+      "format",
+      "guidance"
+    ],
+    "ci-audit": ["audit"],
+    "ci-governance": ["coverage-tests", "audit-helper-tests"]
+  },
+  "externalWorkflows": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "mode": "ci"
+    },
+    {
+      "path": ".github/workflows/codeql.yml",
+      "mode": "security"
+    }
+  ]
 }

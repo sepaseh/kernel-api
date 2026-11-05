@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import fsPromises, { mkdtemp, readFile, rm } from "node:fs/promises";
+import fsPromises, { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
@@ -133,6 +133,31 @@ test("put creates missing directories and exclusive creation never overwrites an
   );
 });
 
+test(
+  "new local storage directories and objects have owner-only POSIX permissions",
+  { skip: process.platform === "win32" },
+  async (context) => {
+    const { root, storage } = await fixture(context);
+    const privateObject = await storage.put(upload("private"));
+    await storage.ensureReady();
+    const publicObject = await storage.put(upload("public"));
+    const storageRoot = path.join(root, "objects");
+    const mask = process.umask();
+
+    assert.equal((await stat(storageRoot)).mode & 0o777, 0o700 & ~mask);
+    for (const { bucket, objectKey } of [privateObject, publicObject]) {
+      const bucketRoot = path.join(storageRoot, bucket);
+      const objectPath = path.join(bucketRoot, objectKey);
+      assert.equal((await stat(bucketRoot)).mode & 0o777, 0o700 & ~mask);
+      assert.equal(
+        (await stat(path.dirname(objectPath))).mode & 0o777,
+        0o700 & ~mask,
+      );
+      assert.equal((await stat(objectPath)).mode & 0o777, 0o600 & ~mask);
+    }
+  },
+);
+
 test("a partial failed write is removed and the same object key can be retried", async (context) => {
   const { storage } = await fixture(context);
   const failure = new Error("synthetic-partial-write");
@@ -243,6 +268,8 @@ test("object operations reject escaping, absolute and Windows-shaped keys", asyn
     "..",
     "../outside",
     "nested/../../outside",
+    "id/../other",
+    "id/./other",
     path.join(root, "outside"),
     "C:\\outside\\object",
     "C:/outside/object",
@@ -264,6 +291,24 @@ test("object operations reject escaping, absolute and Windows-shaped keys", asyn
       /Invalid local storage object key/,
     );
   }
+});
+
+test("legacy dot-name records can read and delete their file ID but cannot write through that alias", async (context) => {
+  const { storage } = await fixture(context);
+  const original = upload("private", "legacy-file-id");
+  const { bucket, objectKey } = await storage.put(original);
+  const legacyKey = `${objectKey}/.`;
+
+  await assert.rejects(
+    storage.put(upload("private", legacyKey)),
+    /Invalid local storage object key/,
+  );
+  assert.deepEqual(
+    new Uint8Array(await storage.get(bucket, legacyKey)),
+    original.data,
+  );
+  await storage.delete(bucket, legacyKey);
+  await assert.rejects(storage.get(bucket, objectKey), { code: "ENOENT" });
 });
 
 test("public links target the API content route and private objects have no link", async (context) => {

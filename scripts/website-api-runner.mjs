@@ -158,7 +158,11 @@ export async function superviseWebsiteApi(
 }
 
 export function createWebsiteTestEnvironment(directory, parentEnvironment) {
-  const apiOrigin = "http://127.0.0.1:3100";
+  const suppliedPort = parentEnvironment.WEBSITE_TEST_API_PORT ?? "3100";
+  const apiPort = Number(suppliedPort);
+  if (!/^\d+$/.test(suppliedPort) || apiPort < 1 || apiPort > 65535)
+    throw new Error("WEBSITE_TEST_API_PORT must be between 1 and 65535.");
+  const apiOrigin = `http://127.0.0.1:${apiPort}`;
   const websiteOrigin = "http://127.0.0.1:3101";
   return {
     BETTER_AUTH_SECRET:
@@ -172,7 +176,7 @@ export function createWebsiteTestEnvironment(directory, parentEnvironment) {
     NODE_V8_COVERAGE: undefined,
     OTP_FIXED_CODE: "123456",
     PATH: parentEnvironment.PATH ?? "",
-    PORT: "3100",
+    PORT: String(apiPort),
     SERVER_ALLOWED_ORIGIN: websiteOrigin,
     SERVER_ALLOWED_ORIGINS: websiteOrigin,
     SERVER_ENVIRONMENT: "website-e2e",
@@ -193,13 +197,6 @@ async function main() {
   const directory = await mkdtemp(
     path.join(temporaryParent, "kernel-website-e2e-"),
   );
-  const environment = createWebsiteTestEnvironment(directory, process.env);
-  const child = spawn(process.execPath, ["src/index.ts"], {
-    cwd: repository,
-    env: environment,
-    stdio: "inherit",
-    windowsHide: true,
-  });
   const cleanup = async () => {
     const resolved = path.resolve(directory);
     if (
@@ -215,6 +212,27 @@ async function main() {
       recursive: true,
     });
   };
+  let child;
+  try {
+    const environment = createWebsiteTestEnvironment(directory, process.env);
+    child = spawn(process.execPath, ["src/index.ts"], {
+      cwd: repository,
+      env: environment,
+      stdio: "inherit",
+      windowsHide: true,
+    });
+  } catch (error) {
+    try {
+      await cleanup();
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        "Website API setup failed",
+        { cause: cleanupError },
+      );
+    }
+    throw error;
+  }
   try {
     process.exitCode = await superviseWebsiteApi(child, cleanup);
   } catch (error) {

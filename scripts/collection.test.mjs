@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { before, test } from "node:test";
+import { runInNewContext } from "node:vm";
 
 import { en } from "../src/infrastructure/localization/catalogs/en.ts";
 import { createLogger } from "../src/infrastructure/logging/logger.ts";
@@ -9,10 +10,79 @@ import { createHttpApp } from "../src/presentation/http/app.ts";
 import {
   collectionRoot as root,
   collectionRoutes,
+  parseBrunoBlock,
+  readBrunoBlock,
   requireCollectionGroups,
 } from "./collection.test-support.mjs";
 
 before(() => requireCollectionGroups("account", "auth"));
+
+test("Bruno block lookup skips other headers and commented blocks", () => {
+  const source = `
+/* script:post-response { throw new Error("commented"); } */
+script:pre-request {
+  const nested = { message: "pre-request" };
+  script:post-response { throw new Error("nested"); }
+}
+script:post-response {
+  result.push("post-response");
+}
+`;
+  const result = [];
+  runInNewContext(parseBrunoBlock(source, "script:post-response"), { result });
+  assert.deepEqual(result, ["post-response"]);
+  assert.throws(
+    () =>
+      parseBrunoBlock(
+        "/* script:post-response {} */\nscript:pre-request {}",
+        "script:post-response",
+      ),
+    /Missing active script:post-response block/,
+  );
+});
+
+test("the active collection script exempts only the bodyless readiness response", async () => {
+  const script = await readBrunoBlock("collection.bru", "tests");
+  for (const [status, body, identifier, valid, assertions] of [
+    [503, "", undefined, true, 0],
+    [200, { access_token: "synthetic" }, "request_1", true, 1],
+    [503, { message: en.internalError }, "request_2", true, 1],
+    [200, "", undefined, false, 1],
+    [503, { message: en.internalError }, undefined, false, 1],
+    [503, "Unavailable", undefined, false, 1],
+    [200, {}, "invalid identifier", false, 1],
+  ]) {
+    let tests = 0;
+    let matches = 0;
+    const execute = () =>
+      runInNewContext(script, {
+        test: (_name, callback) => {
+          tests++;
+          callback();
+        },
+        expect: (value) => ({
+          to: {
+            match: (pattern) => {
+              matches++;
+              assert.match(value, pattern);
+            },
+          },
+        }),
+        res: {
+          getStatus: () => status,
+          getBody: () => body,
+          getHeader: (name) => {
+            assert.equal(name, "x-request-id");
+            return identifier;
+          },
+        },
+      });
+    if (valid) execute();
+    else assert.throws(execute);
+    assert.equal(tests, 1);
+    assert.equal(matches, assertions);
+  }
+});
 
 test("collection origin allows cookie-bearing requests through the HTTP guard", async () => {
   const collection = await readFile(path.join(root, "collection.bru"), "utf8");

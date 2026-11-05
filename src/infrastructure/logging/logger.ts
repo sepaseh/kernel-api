@@ -84,7 +84,7 @@ export const createAuthLogger = (logger: AppLogger) => ({
     (current?.logger ?? logger)[level](
       {
         component: "better-auth",
-        ...(!current && error instanceof Error && { err: error }),
+        ...(error instanceof Error && { err: error }),
         event: "auth.diagnostic",
       },
       "Better Auth diagnostic",

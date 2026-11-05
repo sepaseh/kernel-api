@@ -50,6 +50,11 @@ export type OtpAttempt = {
   valueHash: string;
 };
 
+// A missing or inactive account receives an unusable subject without exposing
+// account existence through the OTP issuance response.
+export const recoveryOtpSubject = (userId?: string): string =>
+  JSON.stringify([userId ?? null]);
+
 export type OtpGateway = {
   consume: (attempt: OtpAttempt) => Promise<void>;
   issue: (
@@ -79,6 +84,8 @@ export type AuthPersistence = {
   findUserById: (id: string) => Promise<UserRecord | undefined>;
   findUserByMobile: (mobile: string) => Promise<UserRecord | undefined>;
   getPermissions: (userId: string) => Promise<PermissionKey[]>;
+  // Check the live account and its OTP subject before consuming the code and
+  // changing the password atomically. Inactive accounts cannot reset passwords.
   resetPasswordWithOtp: (input: {
     userId: string;
     newHash: string;

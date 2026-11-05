@@ -34,6 +34,29 @@ test("child environment supports a minimal parent environment", () => {
   );
   assert.equal(environment.PATH, "");
   assert.equal(Object.hasOwn(environment, "SystemRoot"), false);
+  assert.equal(environment.PORT, "3100");
+  assert.equal(environment.BETTER_AUTH_URL, "http://127.0.0.1:3100");
+});
+
+test("a selected website fixture port sets both the listener and auth origin", () => {
+  const directory = "/isolated/owned-fixture";
+  const environment = createWebsiteTestEnvironment(directory, {
+    PORT: "9000",
+    WEBSITE_TEST_API_PORT: "43100",
+  });
+  assert.equal(environment.PORT, "43100");
+  assert.equal(environment.BETTER_AUTH_URL, "http://127.0.0.1:43100");
+  for (const WEBSITE_TEST_API_PORT of [
+    "",
+    "0",
+    "65536",
+    "3100.0",
+    "http://localhost",
+  ])
+    assert.throws(
+      () => createWebsiteTestEnvironment(directory, { WEBSITE_TEST_API_PORT }),
+      /WEBSITE_TEST_API_PORT/,
+    );
 });
 
 function childFixture() {

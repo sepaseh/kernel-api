@@ -111,15 +111,23 @@ afterEach(async (context) => {
 });
 
 const removals = [
-  { body: undefined, method: "DELETE", name: "deletion", suffix: "" },
+  {
+    body: undefined,
+    expectedTarget: [],
+    method: "DELETE",
+    name: "deletion",
+    suffix: "",
+  },
   {
     body: { status: "inactive" },
+    expectedTarget: [{ isSystemAdmin: true, status: "inactive" }],
     method: "PATCH",
     name: "deactivation",
     suffix: "/status",
   },
   {
     body: { is_system_admin: false },
+    expectedTarget: [{ isSystemAdmin: false, status: "active" }],
     method: "PATCH",
     name: "demotion",
     suffix: "/system-admin",
@@ -230,6 +238,11 @@ for (const removal of removals) {
       administratorToken,
     );
     assert.equal(response.status, 200);
+    const target = await database
+      .select({ isSystemAdmin: user.isSystemAdmin, status: user.status })
+      .from(user)
+      .where(eq(user.id, targetId));
+    assert.deepEqual(target, removal.expectedTarget);
     const remaining = await database
       .select({ id: user.id })
       .from(user)
