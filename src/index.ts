@@ -25,6 +25,8 @@ let client: ReturnType<typeof createDatabase>["client"] | undefined;
 let server: ReturnType<typeof serve> | undefined;
 let stopping = false;
 let shutdownPromise: Promise<void> | undefined;
+let cancelStorageReadiness: (() => void) | undefined;
+const storageReadinessTimeoutMs = 30_000;
 
 const closeServer = async () => {
   if (!server?.listening) return;
@@ -54,9 +56,9 @@ const start = async () => {
   const config = loadConfig();
   const state: { app?: ReturnType<typeof createApp> } = {};
   server = serve({
-    fetch: (request) =>
+    fetch: (request, bindings) =>
       state.app
-        ? state.app.fetch(request)
+        ? state.app.fetch(request, bindings)
         : new Response(null, {
             headers: { "Cache-Control": "no-store" },
             status: 503,
@@ -74,8 +76,36 @@ const start = async () => {
   const storage = createObjectStorage(config);
   await initializeDatabase(config, database, auth);
   if (stopping) return;
-  await withStorageLogging(logger, config.storageDriver, "ensureReady", () =>
-    storage.ensureReady(),
+  await withStorageLogging(
+    logger,
+    config.storageDriver,
+    "ensureReady",
+    async () => {
+      const controller = new AbortController();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const interruption = new Promise<void>((resolve, reject) => {
+          if (config.storageDriver === "minio") {
+            cancelStorageReadiness = () => {
+              resolve();
+              controller.abort();
+            };
+          }
+          timer = setTimeout(() => {
+            const error = new Error("Object storage readiness timed out.");
+            reject(error);
+            controller.abort(error);
+          }, storageReadinessTimeoutMs);
+        });
+        await Promise.race([
+          interruption,
+          storage.ensureReady(controller.signal),
+        ]);
+      } finally {
+        cancelStorageReadiness = undefined;
+        clearTimeout(timer);
+      }
+    },
   );
   if (stopping) return;
 
@@ -90,6 +120,7 @@ const startup = start();
 const shutdown = () => {
   if (stopping) return;
   stopping = true;
+  cancelStorageReadiness?.();
   const deadline = setTimeout(() => {
     logger.error(
       { event: "server.shutdown.failed", reason: "timeout" },

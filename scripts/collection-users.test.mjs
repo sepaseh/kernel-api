@@ -77,17 +77,32 @@ test("management creation examples match the services", async () => {
   );
   assert.notEqual(userBody.mobile, loginBody.identifier);
   const users = createUsersService({
-    provider: { signUp: async () => ({ userId: userExample.id }) },
+    provider: {
+      passwordBounds: async () => ({ min: 8, max: 128 }),
+      hashPassword: async (password) => {
+        assert.equal(password, userBody.password);
+        return "synthetic-password-hash";
+      },
+    },
     repository: {
-      deleteSessions: async () => {},
-      find: async () => ({
-        id: userExample.id,
-        firstName: userBody.first_name,
-        lastName: userBody.last_name,
-        mobile: userBody.mobile,
-        isSystemAdmin: false,
-        status: "active",
-      }),
+      createWithCredential: async (input) => {
+        assert.match(input.authEmail, /^[0-9a-f-]{36}@kernel\.local$/);
+        assert.deepEqual(input, {
+          authEmail: input.authEmail,
+          firstName: userBody.first_name,
+          lastName: userBody.last_name,
+          mobile: userBody.mobile,
+          passwordHash: "synthetic-password-hash",
+        });
+        return {
+          id: userExample.id,
+          firstName: input.firstName,
+          lastName: input.lastName,
+          mobile: input.mobile,
+          isSystemAdmin: false,
+          status: "active",
+        };
+      },
     },
   });
   assert.deepEqual(await users.create(userBody), userExample);

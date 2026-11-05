@@ -12,7 +12,11 @@ synthetic inputs; configuration does not load environment files.
 Creating an adapter does not call `ensureReady`. The published Node entry point
 binds the listener before initializing the database and awaiting storage
 readiness. Until initialization completes it serves non-cacheable 503 responses;
-uploads are available only through the ready composed app. An occupied port
+uploads are available only through the ready composed app. A 30-second deadline
+covers the storage readiness sequence, including MinIO bucket and policy requests.
+Expiry aborts in-flight MinIO requests and runs the startup failure cleanup. A
+shutdown signal during MinIO readiness cancels the request and closes the listener
+and database. Object transfers use their own request settings. An occupied port
 fails before database or storage initialization. See
 [architecture](architecture.md) and the [validation policy](validation.md).
 
@@ -24,12 +28,22 @@ object. A write/close failure removes only that call's newly created file on a
 best-effort basis and preserves the original failure. Failed cleanup can leave
 partial bytes for operator attention. Reads and deletes of missing files fail.
 
+On POSIX hosts, newly created directories request mode `0700` and files request
+mode `0600`, subject to the process umask. Existing paths retain their permissions.
+For an existing storage tree, verify the API service identity and review ownership
+and access before changing permissions. On Windows, restrict access with filesystem
+ACLs for that identity.
+
 Keep this directory under the API process's control. Lexical path containment
 does not prevent a privileged host user from inserting symlinks. Public URLs
 point to `GET /files/:fileId/content`. That handler reads the metadata and public
 visibility before retrieving bytes; it does not expose the storage directory.
 A URL alone does not prove that its object exists or that a deployed route is
 reachable. Private objects are not served by this public route.
+
+Local object keys reject `.` and `..` path segments. Reads and deletes also
+accept the exact legacy `<file-id>/.` key for uploads whose original filename
+was `.`, resolving it to the existing file at `<file-id>`.
 
 ## MinIO through the S3 SDK
 

@@ -14,6 +14,8 @@ services:
       HOST: 0.0.0.0
       PORT: "3000"
       BETTER_AUTH_URL: ${API_PUBLIC_ORIGIN:?Set exact public HTTPS API origin}
+      API_HOST: ${API_HOST:?Set API_HOST}
+      HTTPS_PORT: ${HTTPS_PORT:-443}
       SERVER_ALLOWED_ORIGINS: ${SERVER_ALLOWED_ORIGINS:?Set exact admin and website HTTPS origins}
       SERVER_RELEASE_ID: ${RELEASE_ID:?Set immutable RELEASE_ID}
       SERVER_SEED_DEVELOPMENT_DATA: "false"

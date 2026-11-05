@@ -32,5 +32,5 @@ export const resolveLanguage = (language: string): string =>
 
 export const getTranslator = (language: string): Translator => {
   const fixed = instance.getFixedT(resolveLanguage(language));
-  return (key, values) => fixed(key, values);
+  return (key, values) => fixed(key, { replace: values });
 };

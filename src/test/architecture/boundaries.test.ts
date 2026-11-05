@@ -34,6 +34,30 @@ const sourceFiles = async (directory: string): Promise<string[]> => {
   return files.flat().sort();
 };
 
+const unwrapExpression = (node: ts.Node): ts.Node => {
+  while (
+    ts.isParenthesizedExpression(node) ||
+    ts.isAsExpression(node) ||
+    ts.isTypeAssertionExpression(node) ||
+    ts.isSatisfiesExpression(node) ||
+    ts.isNonNullExpression(node)
+  )
+    node = node.expression;
+  return node;
+};
+
+const isReferenceName = (name: ts.Identifier) => {
+  const { parent } = name;
+  if (ts.isShorthandPropertyAssignment(parent)) return true;
+  return (
+    !ts.isQualifiedName(parent) &&
+    !ts.isImportTypeNode(parent) &&
+    !("name" in parent && parent.name === name) &&
+    !("propertyName" in parent && parent.propertyName === name) &&
+    !("label" in parent && parent.label === name)
+  );
+};
+
 const inspectSource = (file: string, content: string) => {
   const source = ts.createSourceFile(
     file,
@@ -42,8 +66,27 @@ const inspectSource = (file: string, content: string) => {
     true,
   );
   const imports: Array<{ node: ts.Node; specifier: string }> = [];
-  const webTypes: ts.Node[] = [];
+  const webUses: ts.Node[] = [];
+  let checker: ts.TypeChecker | undefined;
+  const symbolAt = (name: ts.Identifier) => {
+    if (!checker) {
+      const options: ts.CompilerOptions = {
+        noLib: true,
+        noResolve: true,
+        types: [],
+      };
+      const host = ts.createCompilerHost(options);
+      host.getSourceFile = (filename) =>
+        path.resolve(filename) === path.resolve(file) ? source : undefined;
+      checker = ts.createProgram([file], options, host).getTypeChecker();
+    }
+    const { parent } = name;
+    return ts.isShorthandPropertyAssignment(parent) && parent.name === name
+      ? checker.getShorthandAssignmentValueSymbol(parent)
+      : checker.getSymbolAtLocation(name);
+  };
   const httpGlobals = new Set([
+    "fetch",
     "File",
     "FormData",
     "Headers",
@@ -51,6 +94,86 @@ const inspectSource = (file: string, content: string) => {
     "Response",
     "URLSearchParams",
   ]);
+  const isGlobalThis = (receiver: ts.Node) => {
+    let reference = unwrapExpression(receiver);
+    const visited = new Set<ts.VariableDeclaration>();
+    while (ts.isIdentifier(reference)) {
+      const symbol = symbolAt(reference);
+      if (!symbol?.declarations?.length) return reference.text === "globalThis";
+
+      const declaration = symbol.valueDeclaration;
+      if (
+        !declaration ||
+        !ts.isVariableDeclaration(declaration) ||
+        !ts.isVariableDeclarationList(declaration.parent) ||
+        !(declaration.parent.flags & ts.NodeFlags.Const) ||
+        !declaration.initializer ||
+        visited.has(declaration)
+      )
+        return false;
+      visited.add(declaration);
+      reference = unwrapExpression(declaration.initializer);
+    }
+    return false;
+  };
+  const isLiteralHttpName = (node: ts.Node) => {
+    const literal = unwrapExpression(node);
+    return ts.isStringLiteralLike(literal) && httpGlobals.has(literal.text);
+  };
+  const usesGlobalHttpMember = (node: ts.Node) => {
+    if (ts.isQualifiedName(node))
+      return httpGlobals.has(node.right.text) && isGlobalThis(node.left);
+    if (ts.isPropertyAccessExpression(node))
+      return httpGlobals.has(node.name.text) && isGlobalThis(node.expression);
+    return (
+      ts.isElementAccessExpression(node) &&
+      isLiteralHttpName(node.argumentExpression) &&
+      isGlobalThis(node.expression)
+    );
+  };
+  const isHttpBindingKey = (node: ts.Node) => {
+    if (ts.isComputedPropertyName(node))
+      return isLiteralHttpName(node.expression);
+    return ts.isIdentifier(node)
+      ? httpGlobals.has(node.text)
+      : isLiteralHttpName(node);
+  };
+  const destructuresGlobalHttpMember = (node: ts.Node) => {
+    if (
+      (ts.isVariableDeclaration(node) || ts.isParameter(node)) &&
+      ts.isObjectBindingPattern(node.name) &&
+      node.initializer
+    )
+      return (
+        node.name.elements.some(
+          (element) =>
+            !element.dotDotDotToken &&
+            isHttpBindingKey(element.propertyName ?? element.name),
+        ) && isGlobalThis(node.initializer)
+      );
+    if (
+      !ts.isBinaryExpression(node) ||
+      node.operatorToken.kind !== ts.SyntaxKind.EqualsToken
+    )
+      return false;
+
+    const target = unwrapExpression(node.left);
+    return (
+      ts.isObjectLiteralExpression(target) &&
+      target.properties.some(
+        (property) =>
+          (ts.isPropertyAssignment(property) ||
+            ts.isShorthandPropertyAssignment(property)) &&
+          isHttpBindingKey(property.name),
+      ) &&
+      isGlobalThis(node.right)
+    );
+  };
+  const usesBareHttpGlobal = (node: ts.Node) =>
+    ts.isIdentifier(node) &&
+    httpGlobals.has(node.text) &&
+    isReferenceName(node) &&
+    !symbolAt(node)?.declarations?.length;
   const visit = (node: ts.Node) => {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
@@ -87,20 +210,18 @@ const inspectSource = (file: string, content: string) => {
       imports.push({ node, specifier: node.moduleReference.expression.text });
     }
 
-    const name = ts.isTypeReferenceNode(node)
-      ? node.typeName
-      : ts.isNewExpression(node)
-        ? node.expression
-        : undefined;
-    if (name && ts.isIdentifier(name) && httpGlobals.has(name.text)) {
-      webTypes.push(node);
-    }
+    if (
+      usesBareHttpGlobal(node) ||
+      usesGlobalHttpMember(node) ||
+      destructuresGlobalHttpMember(node)
+    )
+      webUses.push(node);
     ts.forEachChild(node, visit);
   };
   visit(source);
   const location = (node: ts.Node) =>
     `${path.relative(sourceRoot, file)}:${source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1}`;
-  return { imports, location, webTypes };
+  return { imports, location, webUses };
 };
 
 const inspect = async (file: string) =>
@@ -142,6 +263,8 @@ const allowedApplicationImport = (
 ) => {
   if (!specifier.startsWith("."))
     return isBuiltin(specifier) && !/^(?:node:)?https?(?:2)?$/.test(specifier);
+  if (!specifier.endsWith(".ts")) return false;
+
   const target = path.resolve(path.dirname(file), specifier);
   if (inside(applicationMessageTypes, target))
     return target === applicationMessageTypes && isErasedTypeReference(node);
@@ -170,10 +293,14 @@ test("application message types are allowed only through erased type references"
   }
 });
 
-test("application rejects runtime vocabulary imports and infrastructure catalogs", () => {
+test("application rejects runtime vocabulary imports, alternate paths, and infrastructure catalogs", () => {
   const file = path.join(applicationRoot, "message-runtime-fixture.ts");
   for (const source of [
     'import { ApiMessageKey } from "./localization.ts";',
+    'import { ApiMessageKey } from "./localization.js";',
+    'import { ApiMessageKey } from "./localization";',
+    'import type { ApiMessageKey } from "./localization.js";',
+    'import type { ApiMessageKey } from "./localization";',
     'import { type ApiMessageKey, runtime } from "./localization.ts";',
     'import * as messages from "./localization.ts";',
     'import "./localization.ts";',
@@ -198,19 +325,114 @@ test("application rejects runtime vocabulary imports and infrastructure catalogs
   }
 });
 
+test("application HTTP checks detect global names without rejecting local fetch", () => {
+  const file = path.join(applicationRoot, "fetch-fixture.ts");
+  const content = [
+    'fetch("fixture");',
+    'globalThis.fetch("fixture");',
+    'globalThis["fetch"]("fixture");',
+    'new globalThis.Request("fixture");',
+    "type HttpRequest = globalThis.Request;",
+    'function local(fetch: (value: string) => string) { fetch("fixture"); }',
+    "function localGlobal(globalThis: { fetch(): void }) { globalThis.fetch(); }",
+    'client.fetch("fixture");',
+    "globalThis.setTimeout(() => {});",
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}fetch-fixture.ts:1`,
+    `application${path.sep}fetch-fixture.ts:2`,
+    `application${path.sep}fetch-fixture.ts:3`,
+    `application${path.sep}fetch-fixture.ts:4`,
+    `application${path.sep}fetch-fixture.ts:5`,
+  ]);
+});
+
+test("application HTTP checks distinguish bare globals from local types and constructors", () => {
+  const file = path.join(applicationRoot, "http-name-fixture.ts");
+  const content = [
+    "type TransportResponse = Response;",
+    'new Request("fixture");',
+    "function localType() { type Response = string; let value: Response; }",
+    "function localConstructor() { class Request {}; new Request(); }",
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}http-name-fixture.ts:1`,
+    `application${path.sep}http-name-fixture.ts:2`,
+  ]);
+});
+
+test("application HTTP checks detect destructuring from the real globalThis", () => {
+  const file = path.join(applicationRoot, "http-binding-fixture.ts");
+  const content = [
+    "const { fetch: transport } = globalThis;",
+    '({ ["Request" as const]: transportRequest } = (globalThis));',
+    "function withDefault({ Response } = globalThis) {}",
+    "const { setTimeout: fetch } = globalThis;",
+    "const { Headers } = other;",
+    "function local(globalThis: Fixture) { const { fetch } = globalThis; }",
+    "function assignLocal(globalThis: Fixture) { let Request; ({ Request } = globalThis); }",
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}http-binding-fixture.ts:1`,
+    `application${path.sep}http-binding-fixture.ts:2`,
+    `application${path.sep}http-binding-fixture.ts:3`,
+  ]);
+});
+
+test("application HTTP checks follow const aliases of globalThis within their scope", () => {
+  const file = path.join(applicationRoot, "global-alias-fixture.ts");
+  const content = [
+    "const globals = globalThis;",
+    "const again = (globals);",
+    "const { fetch: transport } = again;",
+    'transport("fixture");',
+    "const request = globals.Request;",
+    "function local(globals: Fixture) { const same = globals; same.fetch(); }",
+    "function localGlobal(globalThis: Fixture) { const same = globalThis; same.fetch(); }",
+    "const cycleA = cycleB; const cycleB = cycleA; cycleA.fetch();",
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}global-alias-fixture.ts:3`,
+    `application${path.sep}global-alias-fixture.ts:5`,
+  ]);
+});
+
+test("application HTTP checks distinguish bare global values from property names", () => {
+  const file = path.join(applicationRoot, "http-value-fixture.ts");
+  const content = [
+    "const transport = fetch;",
+    "const request = Request;",
+    "const headers = { Headers };",
+    "const local = { fetch: transport, Request: request };",
+    "const method = local.fetch;",
+    'type Callback = import("./fixture.ts").Request;',
+    "function localNames(fetch: Callback, Request: Callback) { return { fetch, Request }; }",
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}http-value-fixture.ts:1`,
+    `application${path.sep}http-value-fixture.ts:2`,
+    `application${path.sep}http-value-fixture.ts:3`,
+  ]);
+});
+
 test("application imports remain framework-free and inward-facing", async () => {
   const files = await sourceFiles(applicationRoot);
   assert.ok(files.length, "The application boundary must contain source files");
   const violations: string[] = [];
   for (const file of files) {
-    const { imports, location, webTypes } = await inspect(file);
+    const { imports, location, webUses } = await inspect(file);
     for (const { node, specifier } of imports) {
       const allowed = allowedApplicationImport(file, node, specifier);
       if (!allowed) violations.push(`${location(node)} imports ${specifier}`);
     }
-    for (const node of webTypes) {
+    for (const node of webUses) {
       violations.push(
-        `${location(node)} uses an HTTP/browser type or constructor`,
+        `${location(node)} uses an HTTP/browser type, constructor or global function`,
       );
     }
   }
@@ -237,7 +459,7 @@ test("presentation consumes services without persistence or auth SDK imports", a
           ].some((root) => inside(root, resolved))
         : specifier === "hono" ||
           specifier.startsWith("hono/") ||
-          isBuiltin(specifier);
+          (isBuiltin(specifier) && !/^(?:node:)?sqlite$/.test(specifier));
       if (!allowed) violations.push(`${location(node)} imports ${specifier}`);
     }
   }

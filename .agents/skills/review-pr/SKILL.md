@@ -1,27 +1,34 @@
 ---
 name: review-pr
-description: Review a Kernel pull request for actionable defects.
+description: Review a Kernel pull request for actionable defects using the complete diff, current source and actual phase evidence.
 ---
 
 # Review a pull request
 
-Read `.agents/rules/git.md`, `.agents/rules/code-review.md`,
-`.agents/rules/pull-requests.md`, and `.agents/rules/safety.md`.
+Read [Git workflow](../../rules/git.md), [code review](../../rules/code-review.md),
+[pull requests](../../rules/pull-requests.md) and [safety](../../rules/safety.md).
 
-1. Confirm the repository and PR. Read its title, body, linked acceptance criteria,
-   relevant comments, checks, commits and complete base-to-head diff.
-2. Inspect relevant implementation, tests, collection entries, and documentation.
-3. Evaluate the affected dimensions in `code-review.md`; do not treat CI as a substitute for review.
-4. Report actionable findings first, ordered by priority, with tight locations and failure scenarios.
-   Review changed functions' phases under code-quality.md; keep style preferences,
-   questions and non-blocking suggestions separate from introduced defects.
-5. Submit a remote review only when the user explicitly authorizes it.
-6. If the task authorizes requesting or re-requesting CodeRabbit, first enforce
-   [CodeRabbit preflight](../../rules/pull-requests.md#before-requesting-coderabbit):
-   all required non-CodeRabbit checks, Sonar scanner execution and its actual
-   quality gate must pass for the exact current head, with zero open/unresolved
-   issues in the complete applicable latest Sonar PR/branch report at every
-   severity, including existing issues. Recheck after every commit. Missing,
-   skipped, pending or failed evidence blocks the request. Exclude CodeRabbit's
-   own status/approval only to avoid a cycle; respect quotas and one in-flight
-   request per head. Reading existing findings remains allowed before preflight.
+1. Verify repository and PR, then read title/body, relevant acceptance criteria,
+   current checks, commits and the complete base-to-head diff. Preserve checkout
+   state; local review does not require changing branches or the index.
+2. Inspect actual implementation, local HTTP contracts, collection entries, synthetic
+   fixtures and tests. Read the current publication policy and actual check results before
+   claiming application, HTTP, database, authentication or storage test evidence.
+   Review independently released consumer compatibility through the local HTTP contract;
+   external project source or documentation is not required for this review.
+3. Evaluate concrete defects using the code-review rule. A passing check is
+   evidence rather than a substitute for source review; stale provider approval
+   does not approve a newer commit.
+4. Report actionable findings first, with priority, tight location, failure trigger,
+   impact and fix direction. If none remain, say so and disclose evidence limits.
+5. Submit remote comments/reviews only under the user's explicit authorization,
+   including existing authorization in the current conversation. A local review
+   does not authorize CodeRabbit, merging or publication.
+
+Before an authorized CodeRabbit request, follow the canonical
+[preflight](../../rules/pull-requests.md#coderabbit-request-preflight). Verify all
+required current-head non-CodeRabbit checks for the declared phase, including the
+scanner and actual Sonar gate, and zero unresolved issues across every page and
+severity of the complete applicable report. Missing or stale evidence, including
+an open documented false positive, blocks the request. A new commit requires fresh
+preflight; respect actual quota and avoid duplicate in-flight requests.

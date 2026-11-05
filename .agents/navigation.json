@@ -39,13 +39,11 @@
       "id": "git-policy",
       "when": "Prepare branches, commits, successive PRs, review settings or provider evidence.",
       "owners": [
-        ".github/rulesets/bootstrap.json",
         ".github/rulesets/main.json",
         ".github/workflows/ci.yml",
-        ".github/workflows/coderabbit-approval.yml",
-        ".github/workflows/review-events.yml",
-        "scripts/check-coderabbit-approval.mjs",
-        "scripts/ci-evidence.mjs"
+        ".github/workflows/codeql.yml",
+        "scripts/ci-evidence.mjs",
+        "scripts/run-actionlint.mjs"
       ],
       "contracts": [
         ".agents/rules/git.md",
@@ -55,13 +53,14 @@
         "docs/sonarqube.md"
       ],
       "tests": [
-        "scripts/check-coderabbit-approval.test.mjs",
         "scripts/ci-evidence.test.mjs",
-        "scripts/check-governance.test.mjs"
+        "scripts/check-governance.test.mjs",
+        "scripts/run-actionlint.test.mjs"
       ],
       "checks": [
         "snapshot",
         "ci-policy",
+        "actions-lint",
         "guidance",
         "format",
         "coverage-tests"
@@ -106,8 +105,25 @@
         "src/application/roles.ts",
         "src/application/settings.ts",
         "src/application/users.ts",
-        "src/application/ports",
-        "src/infrastructure/localization/catalogs"
+        "src/application/ports/account.ts",
+        "src/application/ports/auth.ts",
+        "src/application/ports/calendar.ts",
+        "src/application/ports/files.ts",
+        "src/application/ports/object-storage.ts",
+        "src/application/ports/roles.ts",
+        "src/application/ports/settings.ts",
+        "src/application/ports/users.ts",
+        "src/infrastructure/localization/catalogs/ar.ts",
+        "src/infrastructure/localization/catalogs/de.ts",
+        "src/infrastructure/localization/catalogs/en.ts",
+        "src/infrastructure/localization/catalogs/es.ts",
+        "src/infrastructure/localization/catalogs/fa.ts",
+        "src/infrastructure/localization/catalogs/fr.ts",
+        "src/infrastructure/localization/catalogs/index.ts",
+        "src/infrastructure/localization/catalogs/it.ts",
+        "src/infrastructure/localization/catalogs/pt.ts",
+        "src/infrastructure/localization/catalogs/ru.ts",
+        "src/infrastructure/localization/catalogs/tr.ts"
       ],
       "contracts": [
         "src/contracts",

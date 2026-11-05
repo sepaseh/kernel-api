@@ -7,12 +7,17 @@ For rules and assistant workflows, read [.agents/README.md](../.agents/README.md
 [settings](../.agents/settings.json) and [guidance](../.agents/rules/guidance.md).
 For branches, commits, PRs and reviews, use
 [Git workflow](../.agents/rules/git.md), [branch protection](branch-protection.md)
-and [Sonar guidance](sonarqube.md).
+and [Sonar guidance](sonarqube.md). The [CodeQL workflow](../.github/workflows/codeql.yml)
+and policy regressions in [the governance tests](../scripts/check-governance.test.mjs)
+own hosted JavaScript/TypeScript and GitHub Actions security scan configuration.
+The [actionlint runner](../scripts/run-actionlint.mjs) and its [regressions](../scripts/run-actionlint.test.mjs)
+validate the actual workflow files as part of Static checks.
 
 For foundation behavior, follow `src/application/authorization.ts`, `errors.ts`,
 `identity.ts`, `localization.ts`, `models.ts`, `permissions.ts` and `validation.ts`.
-The original foundation closure includes `src/application/ports/auth.ts` and
-the contracts for locales, OTP, permissions and profile bounds. Read
+The import closure also includes `src/application/ports/auth.ts` and the
+`src/contracts` modules for locales, OTP, permissions, profile bounds and
+public-settings language shapes. Read
 `src/application/foundation.test.ts` and `validation.test.ts` for actual behavior
 evidence. Select the relevant source, type, lint and test checks from the
 [canonical manifest](../.agents/validation.json), then run the full profile
@@ -55,6 +60,10 @@ The `deployment` task covers owned packaging, deployment references, migration
 tooling, recovery workers and manual workflow targets. Start with
 [deployment](deployment.md), [release operations](release-operations.md),
 [backup/recovery](backup-restore.md) and [security review](security/reviews.md).
+The [operations policy](../scripts/check-operations-policy.mjs) owns the four
+manual workflows for release metadata, staging verification, deployment smoke
+verification and the staging DAST preflight. The native CodeQL workflow remains under the
+security policy described above.
 Use the real CLI toolchain fixtures, template/parser tests, loopback checks and
 resource-cleanup tests as evidence. Native/Docker smoke execution is opt-in;
 publishing its command or testing cleanup helpers does not prove a smoke run.
@@ -63,7 +72,7 @@ Read actual owners and tests before making claims. Map entries, successful
 configuration parsing and installed applications do not establish that an
 assistant loaded instructions or that remote review ran.
 
-Collection group owners will be added with their corresponding source phases.
+Collection group owners follow their corresponding published source.
 Do not register unpublished paths as live owners or interpret
 ambient local source as part of a checked partial publication.
 

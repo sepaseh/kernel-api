@@ -3,9 +3,17 @@ import { EventEmitter } from "node:events";
 import { test } from "node:test";
 
 import {
+  reserveSmokePorts,
   smokeInterruption,
   withSmokeResources,
 } from "./docker-smoke-cleanup.mjs";
+
+test("HTTP and HTTPS receive distinct loopback ports", async () => {
+  const [https, http] = await reserveSmokePorts();
+  assert.ok(Number.isInteger(https) && https > 0);
+  assert.ok(Number.isInteger(http) && http > 0);
+  assert.notEqual(https, http);
+});
 
 const builder = "kernel-api-smoke-0123456789ab-builder";
 const images = [
@@ -139,6 +147,52 @@ test("a signal received during cleanup cannot turn cancellation into success", a
     assert.equal(state.directory, false);
     assert.equal(state.builders.has(builder), false);
     assert.equal(state.images.has(images[0]), false);
+  } finally {
+    interruption.dispose();
+  }
+});
+
+test("a second signal cancels stalled Docker cleanup and preserves the original failure", async () => {
+  const events = new EventEmitter();
+  const interruption = smokeInterruption(events);
+  const { state, resources, build } = fixture();
+  const run = resources.run;
+  const original = new Error("Synthetic verification failed.");
+  resources.signal = interruption.signal;
+  resources.run = async (args, { cleanup } = {}) => {
+    if (cleanup) interruption.cleanupSignal.throwIfAborted();
+    return run(args);
+  };
+  resources.down = async () => {
+    events.emit("SIGINT");
+    assert.match(interruption.signal.reason.message, /SIGINT/);
+    assert.equal(interruption.cleanupSignal.aborted, false);
+    const cancelled = new Promise((_, reject) => {
+      interruption.cleanupSignal.addEventListener(
+        "abort",
+        () => reject(interruption.cleanupSignal.reason),
+        { once: true },
+      );
+    });
+    events.emit("SIGTERM");
+    await cancelled;
+  };
+
+  try {
+    await assert.rejects(
+      withSmokeResources(resources, async () => {
+        build();
+        throw original;
+      }),
+      (error) =>
+        error instanceof AggregateError &&
+        error.errors.includes(original) &&
+        error.errors.includes(interruption.cleanupSignal.reason),
+    );
+    assert.match(interruption.cleanupSignal.reason.message, /SIGTERM/);
+    assert.equal(state.builders.has(builder), true);
+    assert.equal(state.builders.has("unrelated-builder"), true);
+    assert.equal(state.directory, false);
   } finally {
     interruption.dispose();
   }

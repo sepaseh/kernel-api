@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import ts from "typescript";
+
 import { createLogger } from "../src/infrastructure/logging/logger.ts";
 import { createHttpApp } from "../src/presentation/http/app.ts";
 import { enforceAuthAttempt } from "../src/presentation/http/auth-attempts.ts";
@@ -69,13 +71,16 @@ export const requireCollectionGroups = async (...required) => {
       collectionPaths.includes(file),
       `Missing common collection path: ${file}`,
     );
-  // HTTP tests publish this single response fixture before the files collection.
+  // HTTP tests publish these response fixtures before the files collection.
   const declaredPaths = collectionPaths.filter(
     (file) =>
       !common.includes(file) &&
       !(
-        file === "collection/files/upload/415.json" &&
-        !declared.includes("files")
+        [
+          "collection/files/upload/408.json",
+          "collection/files/upload/415.json",
+          "collection/files/upload/503.json",
+        ].includes(file) && !declared.includes("files")
       ),
   );
   const published = [
@@ -106,6 +111,57 @@ export const requireCollectionGroups = async (...required) => {
 export const readCollectionJson = async (name) =>
   JSON.parse(await readFile(path.join(collectionRoot, name), "utf8"));
 
+export async function readBrunoBlock(relativePath, blockName) {
+  const source = await readFile(
+    path.join(collectionRoot, relativePath),
+    "utf8",
+  );
+  return parseBrunoBlock(source, blockName);
+}
+
+export function parseBrunoBlock(source, blockName) {
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    true,
+    ts.LanguageVariant.Standard,
+    source,
+  );
+  const parts = blockName.split(/(:|-)/);
+  let depth = 0;
+  for (
+    let token = scanner.scan();
+    token !== ts.SyntaxKind.EndOfFileToken;
+    token = scanner.scan()
+  ) {
+    if (depth === 0 && scanner.getTokenText() === parts[0]) {
+      const start = scanner.lookAhead(() => {
+        for (const part of parts.slice(1)) {
+          scanner.scan();
+          if (scanner.getTokenText() !== part) return undefined;
+        }
+        if (scanner.scan() === ts.SyntaxKind.OpenBraceToken)
+          return scanner.getTokenPos();
+        return undefined;
+      });
+      if (start !== undefined) {
+        const parsed = ts.createSourceFile(
+          "bruno-script.js",
+          source.slice(start),
+          ts.ScriptTarget.Latest,
+          true,
+          ts.ScriptKind.JS,
+        );
+        const block = parsed.statements[0];
+        assert.ok(ts.isBlock(block), `Missing ${blockName} block`);
+        return block.getText(parsed).slice(1, -1);
+      }
+    }
+    if (token === ts.SyntaxKind.OpenBraceToken) depth++;
+    if (token === ts.SyntaxKind.CloseBraceToken) depth--;
+  }
+  throw new Error(`Missing active ${blockName} block`);
+}
+
 export async function* attemptLimitResponses(context, cases) {
   context.mock.method(Date, "now", () => 1_000);
   for (const [operation, method, route, scope, identity, maximum] of cases) {
@@ -113,7 +169,18 @@ export async function* attemptLimitResponses(context, cases) {
       logger: createLogger({ level: "silent", pretty: false }, { write() {} }),
       config: { allowedOrigins: [] },
       services: {
-        settings: { getLanguageCode: async () => "en" },
+        account: {
+          getAccount: async ({ account, permissions }) => ({
+            first_name: account.firstName,
+            id: account.id,
+            is_system_admin: account.isSystemAdmin,
+            last_name: account.lastName,
+            mobile: account.mobile,
+            permissions,
+            status: account.status,
+          }),
+          verifyEmail: async () => {},
+        },
         auth: {
           fromRequest: () => ({
             authenticate: async () => ({
@@ -121,22 +188,55 @@ export async function* attemptLimitResponses(context, cases) {
               permissions: ["users.update"],
               session: { id: "synthetic-session" },
             }),
+            forgotPassword: async () => {},
+            login: async () => ({ token: "synthetic-token", userId: "actor" }),
+            register: async () => ({
+              token: "synthetic-token",
+              userId: "actor",
+            }),
+            responseCookies: () => [],
+          }),
+        },
+        settings: { getLanguageCode: async () => "en" },
+        users: {
+          requestMobileVerification: async () => ({
+            expires_in: 300,
+            remaining_seconds: 0,
+          }),
+          update: async (actor, id, input) => ({
+            first_name: "Synthetic",
+            id,
+            is_system_admin:
+              id === actor.account.id && actor.account.isSystemAdmin,
+            last_name: "User",
+            mobile: input.mobile,
+            roles: [],
+            status: "active",
           }),
         },
       },
     };
     const context = { get: () => dependencies, header: () => {} };
-    for (let index = 0; index < maximum; index++)
+    for (let index = 0; index < maximum - 1; index++)
       enforceAuthAttempt(context, scope, identity, maximum);
-    const response = await createHttpApp(dependencies).request(route, {
-      method,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        identifier: "synthetic-login",
-        mobile: "09120000001",
-        otp: "123456",
-      }),
-    });
+    const app = createHttpApp(dependencies);
+    const send = () =>
+      app.request(route, {
+        method,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          identifier: "synthetic-login",
+          mobile: "09120000001",
+          otp: "123456",
+        }),
+      });
+    const accepted = await send();
+    assert.equal(
+      accepted.status,
+      operation === "auth/register" ? 201 : 200,
+      `${operation} allows ${maximum} attempts`,
+    );
+    const response = await send();
     const saved = JSON.parse(
       await readFile(path.join(collectionRoot, operation, "429.json"), "utf8"),
     );

@@ -43,6 +43,7 @@
   "recommendedChecks": [
     "npm run check:snapshot",
     "npm run check:ci",
+    "npm run check:actions",
     "npm run audit",
     "npm run check:boundaries",
     "npm run typecheck",

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
@@ -19,8 +20,10 @@ import { stringify } from "yaml";
 import {
   actions,
   checksForPhase,
+  ciProfilesForPhase,
   commandOwnersForPhase,
   coveragePlan,
+  externalWorkflows,
   foundationDependencies,
   foundationFiles,
   inspectFormatting,
@@ -34,10 +37,12 @@ import {
   reviewedOverrides,
   runCheck,
   runFull,
+  runProfile,
   sourceChecks,
   testFiles,
   validateAuditResult,
   validateCiWorkflow,
+  validateCodeqlWorkflow,
   validateCodeRabbit,
   validateInventory,
   validateManifest,
@@ -45,6 +50,7 @@ import {
   validateNavigation,
   validatePackage,
   validateRuleset,
+  validateWorkflowTrust,
 } from "./check-governance.mjs";
 import {
   guidanceAssetPaths,
@@ -90,6 +96,7 @@ const lockFixture = lockForPackage(packageFixture);
 const checkScripts = {
   snapshot: "check:snapshot",
   "ci-policy": "check:ci",
+  "actions-lint": "check:actions",
   audit: "audit",
   boundaries: "check:boundaries",
   typecheck: "typecheck",
@@ -107,13 +114,21 @@ const manifestForPhase = (phase) => ({
     id,
     command: `npm run ${checkScripts[id]}`,
     kind: "required",
-    ciJobs: ["check"],
+    ciJobs: [
+      id === "audit"
+        ? "audit"
+        : ["coverage-tests", "audit-helper-tests"].includes(id)
+          ? "governance"
+          : "quality",
+    ],
     scopes: [phase],
   })),
-  profiles: { full: [...checksForPhase(phase)] },
+  profiles: { full: [...checksForPhase(phase)], ...ciProfilesForPhase(phase) },
+  externalWorkflows: structuredClone(externalWorkflows),
 });
 const manifestFixture = manifestForPhase("governance");
 const ciText = await readSource(".github/workflows/ci.yml");
+const codeqlText = await readSource(".github/workflows/codeql.yml");
 const files = [
   ".github/bootstrap-policy.json",
   ".agents/validation.json",
@@ -122,9 +137,8 @@ const files = [
   ".agents/rules/safety.md",
   ".agents/skills/commit/SKILL.md",
   ".github/workflows/ci.yml",
-  ".github/workflows/coderabbit-approval.yml",
+  ".github/workflows/codeql.yml",
   ".github/rulesets/main.json",
-  ".github/rulesets/bootstrap.json",
   ".coderabbit.yaml",
   ".prettierrc.json",
   "package.json",
@@ -162,8 +176,8 @@ const rabbit = () => ({
     review_status: true,
   },
 });
-const ruleset = (bootstrap = false) => ({
-  name: bootstrap ? "Synthetic bootstrap" : "Synthetic main",
+const ruleset = () => ({
+  name: "Synthetic main",
   target: "branch",
   enforcement: "active",
   bypass_actors: [],
@@ -188,10 +202,10 @@ const ruleset = (bootstrap = false) => ({
         do_not_enforce_on_create: false,
         required_status_checks: [
           ["check", 15368],
+          ["CodeQL", 57789],
           ["SonarQube Cloud analysis", 15368],
           ["SonarCloud Code Analysis", 12526],
           ["CodeRabbit", 347564],
-          ...(!bootstrap ? [["CodeRabbit approval", 15368]] : []),
         ].map(([context, integration_id]) => ({ context, integration_id })),
       },
     },
@@ -261,40 +275,9 @@ const fixture = async (context, phase = "governance") => {
   await json(".agents/navigation.json", navigation());
   await json(".agents/settings.json", settings(phase));
   await json(".github/rulesets/main.json", ruleset());
-  await json(".github/rulesets/bootstrap.json", ruleset(true));
   await json(".prettierrc.json", {});
   await put(".github/workflows/ci.yml", ciText);
-  await put(
-    ".github/workflows/coderabbit-approval.yml",
-    stringify({
-      on: {
-        pull_request_target: {
-          branches: ["main"],
-          types: [
-            "opened",
-            "synchronize",
-            "reopened",
-            "edited",
-            "ready_for_review",
-          ],
-        },
-      },
-      permissions: { contents: "read", "pull-requests": "read" },
-      jobs: {
-        guard: {
-          steps: [
-            {
-              uses: actions.checkout,
-              with: {
-                ref: "${{ github.workflow_sha }}",
-                "persist-credentials": false,
-              },
-            },
-          ],
-        },
-      },
-    }),
-  );
+  await put(".github/workflows/codeql.yml", codeqlText);
   await put(".coderabbit.yaml", stringify(rabbit()));
   await put(
     "sonar-project.properties",
@@ -441,7 +424,22 @@ test("the canonical full profile cannot omit, duplicate, demote, or replace a re
       manifest.phase = "local-runtime";
     },
     (manifest) => {
+      manifest.externalWorkflows.pop();
+    },
+    (manifest) => {
+      manifest.externalWorkflows[1].mode = "ci";
+    },
+    (manifest) => {
       manifest.profiles.full.pop();
+    },
+    (manifest) => {
+      manifest.profiles["ci-quality"].pop();
+    },
+    (manifest) => {
+      manifest.profiles["ci-quality"].push("coverage-tests");
+    },
+    (manifest) => {
+      manifest.checks[0].ciJobs = ["quality", "governance"];
     },
     (manifest) => {
       manifest.profiles.full.push("snapshot");
@@ -476,7 +474,7 @@ test("full execution runs each canonical check once and stops at its first failu
       executed.push(name);
       return { status: 0 };
     }),
-    6,
+    7,
   );
   assert.deepEqual(
     executed,
@@ -492,7 +490,7 @@ test("full execution runs each canonical check once and stops at its first failu
     }),
     /audit/,
   );
-  assert.equal(failed.length, 3);
+  assert.equal(failed.length, 4);
   await assert.rejects(
     runFull(root, async () => ({
       status: null,
@@ -503,7 +501,78 @@ test("full execution runs each canonical check once and stops at its first failu
   await assert.rejects(runCheck("workspace", root), /Usage/);
 });
 
-test("CI policy rejects conditional, filtered, duplicated, advisory, or redirected full validation", () => {
+test("CI profiles partition the canonical full gate and execute each check once", async (context) => {
+  const { root } = await fixture(context);
+  const executed = [];
+  for (const profile of Object.keys(ciProfilesForPhase("governance"))) {
+    await runProfile(profile, root, async (name) => {
+      executed.push(name);
+      return { status: 0 };
+    });
+  }
+  assert.equal(executed.length, manifestFixture.profiles.full.length);
+  assert.equal(new Set(executed).size, executed.length);
+  assert.deepEqual(
+    new Set(executed),
+    new Set(
+      Object.values(checkScripts).filter((name) =>
+        manifestFixture.checks.some(
+          (check) => check.command === `npm run ${name}`,
+        ),
+      ),
+    ),
+  );
+  await assert.rejects(
+    runProfile("ci-missing", root, async () => ({ status: 0 })),
+    /declared validation profile/,
+  );
+  const failed = [];
+  await assert.rejects(
+    runProfile("ci-quality", root, async (name) => {
+      failed.push(name);
+      return { status: name === "check:ci" ? 1 : 0 };
+    }),
+    /ci-policy/,
+  );
+  assert.deepEqual(failed, ["check:snapshot", "check:ci"]);
+});
+
+test("the actual aggregate rejects missing, failed, skipped and cancelled suites", () => {
+  const command = parseYaml(ciText).jobs.check.steps[0].run;
+  const script = /^node -e "(.*)"$/.exec(command)?.[1];
+  assert.ok(script);
+  const healthy = Object.fromEntries(
+    ["quality", "audit", "governance"].map((job) => [
+      job,
+      { result: "success" },
+    ]),
+  );
+  const execute = (needs) =>
+    spawnSync(process.execPath, ["-e", script], {
+      env: { CI_NEEDS: JSON.stringify(needs) },
+      windowsHide: true,
+    }).status;
+  assert.equal(execute(healthy), 0);
+  for (const job of Object.keys(healthy)) {
+    for (const result of [
+      undefined,
+      "failure",
+      "skipped",
+      "cancelled",
+      "pending",
+    ]) {
+      const needs = structuredClone(healthy);
+      needs[job] = { result };
+      assert.equal(execute(needs), 1);
+    }
+    const missing = structuredClone(healthy);
+    delete missing[job];
+    assert.equal(execute(missing), 1);
+  }
+  assert.equal(execute({}), 1);
+});
+
+test("CI policy rejects conditional, filtered, duplicated, advisory, or redirected validation", () => {
   const healthy = parseYaml(ciText);
   validateCiWorkflow(healthy);
   for (const mutate of [
@@ -514,19 +583,31 @@ test("CI policy rejects conditional, filtered, duplicated, advisory, or redirect
       ci.on.pull_request.branches = ["main"];
     },
     (ci) => {
+      ci.on.pull_request.types = ["opened"];
+    },
+    (ci) => {
       ci.jobs.check.if = "false";
+    },
+    (ci) => {
+      ci.jobs.check.needs.pop();
+    },
+    (ci) => {
+      ci.jobs.governance.if = "false";
+    },
+    (ci) => {
+      ci.jobs.audit["continue-on-error"] = true;
     },
     (ci) => {
       ci.jobs.check["continue-on-error"] = true;
     },
     (ci) => {
-      ci.jobs.check.steps[3].if = "github.event_name != 'pull_request'";
+      ci.jobs.quality.steps[3].if = "github.event_name != 'pull_request'";
     },
     (ci) => {
-      ci.jobs.check.steps[3]["working-directory"] = "another-project";
+      ci.jobs.quality.steps[3]["working-directory"] = "another-project";
     },
     (ci) => {
-      ci.jobs.check.steps[3].run += " || true";
+      ci.jobs.quality.steps[3].run += " || true";
     },
     (ci) => {
       ci.jobs.check.steps.push({ run: "npm run validate -- full" });
@@ -572,12 +653,81 @@ test("Sonar policy protects secret isolation, scanner execution, and same-run me
       ci.jobs.analysis.steps[6].uses = "SonarSource/sonarqube-scan-action@main";
     },
     (ci) => {
-      ci.jobs.check.steps[5].with["if-no-files-found"] = "warn";
+      ci.jobs.analysis.steps[6].with.args =
+        "-Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} -Dsonar.scm.revision=${{ github.sha }}";
+    },
+    (ci) => {
+      ci.jobs.governance.steps[5].with["if-no-files-found"] = "warn";
     },
   ]) {
     const changed = structuredClone(healthy);
     mutate(changed);
     assert.throws(() => validateCiWorkflow(changed));
+  }
+});
+
+test("CodeQL cannot skip stacked PRs, weaken queries, run source or broaden upload permissions", () => {
+  const healthy = parseYaml(codeqlText);
+  validateCodeqlWorkflow(healthy);
+  for (const mutate of [
+    (workflow) => {
+      delete workflow.on.pull_request;
+    },
+    (workflow) => {
+      workflow.on.pull_request = { branches: ["main"] };
+    },
+    (workflow) => {
+      workflow.on.pull_request = { paths: ["src/**"] };
+    },
+    (workflow) => {
+      workflow.on.pull_request = { types: ["opened"] };
+    },
+    (workflow) => {
+      delete workflow.on.schedule;
+    },
+    (workflow) => {
+      delete workflow.on.workflow_dispatch;
+    },
+    (workflow) => {
+      workflow.permissions.contents = "write";
+    },
+    (workflow) => {
+      workflow.jobs.analyze.permissions.contents = "write";
+    },
+    (workflow) => {
+      delete workflow.jobs.analyze.permissions["security-events"];
+    },
+    (workflow) => {
+      workflow.jobs.analyze.if = "false";
+    },
+    (workflow) => {
+      workflow.jobs.analyze["continue-on-error"] = true;
+    },
+    (workflow) => {
+      workflow.jobs.analyze.steps[0].with["persist-credentials"] = true;
+    },
+    (workflow) => {
+      workflow.jobs.analyze.steps[1].uses = "github/codeql-action/init@main";
+    },
+    (workflow) => {
+      workflow.jobs.analyze.steps[1].with.queries = "default";
+    },
+    (workflow) => {
+      workflow.jobs.analyze.steps[1].with.languages = "javascript-typescript";
+    },
+    (workflow) => {
+      workflow.jobs.analyze.steps[1].with["build-mode"] = "autobuild";
+    },
+    (workflow) => {
+      workflow.jobs.analyze.steps[2].if = "false";
+    },
+    (workflow) => {
+      workflow.jobs.analyze.steps.push({ run: "npm install" });
+    },
+  ]) {
+    const changed = structuredClone(healthy);
+    mutate(changed);
+    assert.throws(() => validateCodeqlWorkflow(changed), /CodeQL must analyze/);
   }
 });
 
@@ -607,12 +757,20 @@ test("duplicate YAML keys and automatic CodeRabbit reviews cannot hide a policy 
   }
 });
 
-test("both protection plans require real provider checks and current independent approval", () => {
+test("native protection requires real provider checks and current independent approval", () => {
   validateRuleset(ruleset());
-  validateRuleset(ruleset(true), true);
   for (const mutate of [
     (rules) => {
       rules.enforcement = "disabled";
+    },
+    (rules) => {
+      const checks = rules.rules.find(
+        ({ type }) => type === "required_status_checks",
+      );
+      checks.parameters.required_status_checks =
+        checks.parameters.required_status_checks.filter(
+          ({ context }) => context !== "CodeQL",
+        );
     },
     (rules) => {
       rules.bypass_actors.push({ actor_type: "RepositoryRole", actor_id: 5 });
@@ -650,36 +808,19 @@ test("both protection plans require real provider checks and current independent
     mutate(changed);
     assert.throws(() => validateRuleset(changed));
   }
-  assert.throws(() => validateRuleset(ruleset(true)), /provider identities/);
+  const custom = ruleset();
+  custom.rules
+    .find(({ type }) => type === "required_status_checks")
+    .parameters.required_status_checks.push({
+      context: "CodeRabbit approval",
+      integration_id: 15368,
+    });
+  assert.throws(() => validateRuleset(custom), /provider identities/);
 });
 
-test("policy integration rejects untrusted guard checkout, floating actions, and suppressed Sonar coverage", async (context) => {
+test("policy integration keeps native checks and rejects suppressed Sonar coverage", async (context) => {
   const { root, put, json } = await fixture(context);
   assert.deepEqual(await inspectPolicy(root), { workflows: 2 });
-  const guard = parseYaml(
-    await readFile(
-      path.join(root, ".github/workflows/coderabbit-approval.yml"),
-      "utf8",
-    ),
-  );
-  const targetEvent = structuredClone(guard.on);
-  delete guard.on.pull_request_target.branches;
-  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
-  await assert.rejects(inspectPolicy(root), /target main explicitly/);
-  guard.on = ["pull_request_target"];
-  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
-  await assert.rejects(inspectPolicy(root), /target main explicitly/);
-  guard.on = targetEvent;
-  guard.jobs.guard.steps[0].with.ref =
-    "${{ github.event.pull_request.head.sha }}";
-  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
-  await assert.rejects(inspectPolicy(root), /trusted default-branch code/);
-  guard.jobs.guard.steps[0].with.ref = "${{ github.workflow_sha }}";
-  guard.jobs.guard.steps[0].uses = "actions/checkout@main";
-  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
-  await assert.rejects(inspectPolicy(root), /immutable commit/);
-  guard.jobs.guard.steps[0].uses = actions.checkout;
-  await put(".github/workflows/coderabbit-approval.yml", stringify(guard));
   await put(
     "sonar-project.properties",
     sonar + "sonar.coverage.exclusions=**/*\n",
@@ -688,8 +829,118 @@ test("policy integration rejects untrusted guard checkout, floating actions, and
   await put("sonar-project.properties", sonar + "sonar.scanner.skip=true\n");
   await assert.rejects(inspectPolicy(root), /suppress/);
   await put("sonar-project.properties", sonar);
-  await json(".github/rulesets/main.json", ruleset(true));
+  const missing = ruleset();
+  missing.rules
+    .find(({ type }) => type === "required_status_checks")
+    .parameters.required_status_checks.pop();
+  await json(".github/rulesets/main.json", missing);
   await assert.rejects(inspectPolicy(root), /provider identities/);
+});
+
+const trustedWorkflow = () => ({
+  on: {
+    pull_request_target: {
+      branches: ["main"],
+      types: [
+        "opened",
+        "synchronize",
+        "reopened",
+        "edited",
+        "ready_for_review",
+      ],
+    },
+  },
+  permissions: { contents: "read", "pull-requests": "read" },
+  jobs: {
+    guard: {
+      steps: [
+        {
+          uses: actions.checkout,
+          with: {
+            ref: "${{ github.workflow_sha }}",
+            "persist-credentials": false,
+          },
+        },
+      ],
+    },
+  },
+});
+
+test("policy integration inspects admitted .yaml workflows and rejects unsafe checkouts", async (context) => {
+  const { root, json, put } = await fixture(context);
+  const filename = ".github/workflows/guard.yaml";
+  await json(".github/bootstrap-policy.json", {
+    ...policy(),
+    allowedFiles: [...files, filename],
+  });
+  const workflow = trustedWorkflow();
+  await put(filename, stringify(workflow));
+  assert.deepEqual(await inspectPolicy(root), { workflows: 3 });
+
+  workflow.jobs.guard.steps[0].with.ref =
+    "${{ github.event.pull_request.head.sha }}";
+  await put(filename, stringify(workflow));
+  await assert.rejects(inspectPolicy(root), /trusted default-branch code/);
+});
+
+test("privileged workflows reject untrusted checkouts and floating actions", () => {
+  validateWorkflowTrust(trustedWorkflow());
+  for (const mutate of [
+    (workflow) => {
+      delete workflow.on.pull_request_target.branches;
+    },
+    (workflow) => {
+      workflow.on = ["pull_request_target"];
+    },
+    (workflow) => {
+      workflow.jobs.guard.steps[0].with.ref =
+        "${{ github.event.pull_request.head.sha }}";
+    },
+    (workflow) => {
+      workflow.jobs.guard.steps[0].uses = "actions/checkout@main";
+    },
+    (workflow) => {
+      workflow.jobs.guard.steps[0].with["persist-credentials"] = true;
+    },
+  ]) {
+    const workflow = trustedWorkflow();
+    mutate(workflow);
+    assert.throws(() => validateWorkflowTrust(workflow));
+  }
+});
+
+test("workflow checkout trust follows effective job write permissions", () => {
+  const workflow = trustedWorkflow();
+  workflow.on = { pull_request: {} };
+  const job = workflow.jobs.guard;
+  const checkout = job.steps[0];
+  checkout.with.ref = "${{ github.event.pull_request.head.sha }}";
+
+  validateWorkflowTrust(workflow);
+  job.permissions = { checks: "write" };
+  assert.throws(
+    () => validateWorkflowTrust(workflow),
+    /trusted default-branch code/,
+  );
+  checkout.with.ref = "${{ github.workflow_sha }}";
+  validateWorkflowTrust(workflow);
+
+  checkout.with.ref = "${{ github.event.pull_request.head.sha }}";
+  delete job.permissions;
+  workflow.permissions.checks = "write";
+  assert.throws(
+    () => validateWorkflowTrust(workflow),
+    /trusted default-branch code/,
+  );
+  job.permissions = { contents: "read" };
+  validateWorkflowTrust(workflow);
+  job.permissions = { contents: "write" };
+  assert.throws(
+    () => validateWorkflowTrust(workflow),
+    /trusted default-branch code/,
+  );
+  job.permissions = "write-all";
+  assert.throws(() => validateWorkflowTrust(workflow), /explicit and minimal/);
 });
 
 test("guidance resolves only published task paths, canonical commands, and safe Markdown links", async (context) => {
@@ -705,6 +956,8 @@ test("guidance resolves only published task paths, canonical commands, and safe 
   await assert.rejects(inspectGuidance(root), /project the canonical/);
   await json(".agents/settings.json", settings());
   await put("README.md", "Read [unpublished API](src/index.ts).\n");
+  await assert.rejects(inspectGuidance(root), /published inventory/);
+  await put("README.md", "Read [guide][setup].\n\n[setup]: ../missing.md\n");
   await assert.rejects(inspectGuidance(root), /published inventory/);
   const published = new Set(files);
   validateMarkdownLinks(
@@ -756,7 +1009,10 @@ test("formatting checks the inventory directly without an ignore-file escape or 
     "src/index.ts",
     "Unpublished code does not become part of a governance format check.",
   );
-  assert.ok((await inspectFormatting(root)) > 20);
+  assert.equal(
+    await inspectFormatting(root),
+    files.filter((file) => /\.(?:json|ya?ml|mjs|md)$/i.test(file)).length,
+  );
   await put("package.json", JSON.stringify(packageFixture));
   await assert.rejects(inspectFormatting(root), /package.json/);
 });
@@ -783,7 +1039,7 @@ test("online audit fails closed on incomplete reports, service errors, or severe
     assert.throws(() => validateAuditResult(result));
 });
 
-test("foundation restores all ten checks and requires the entire pure source closure", async (context) => {
+test("foundation restores the complete gate and requires the entire pure source closure", async (context) => {
   const { root } = await fixture(context, "foundation");
   const result = await inspectSnapshot(root);
   assert.equal(result.phase, "foundation");
@@ -794,7 +1050,7 @@ test("foundation restores all ten checks and requires the entire pure source clo
       executed.push(name);
       return { status: 0 };
     }),
-    10,
+    11,
   );
   assert.deepEqual(
     executed,
@@ -942,7 +1198,16 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
     dependencies,
   };
   pkg.overrides = overridesForPackage(pkg);
-  const lock = lockForPackage(pkg);
+  const missingCore = lockForPackage(pkg);
+  assert.throws(
+    () => validatePackage(pkg, missingCore, "auth-bootstrap"),
+    /must include the reviewed authentication core/,
+  );
+  const lock = structuredClone(missingCore);
+  lock.packages["node_modules/@better-auth/core"] = {
+    version: "1.7.14",
+    integrity: syntheticIntegrity,
+  };
   validatePackage(pkg, lock, "auth-bootstrap");
   assert.equal(pkg.scripts["server:bootstrap"], "node src/bootstrap-admin.ts");
   assert.deepEqual(checksForPhase("auth-bootstrap"), sourceChecks);
@@ -995,7 +1260,7 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
     /one declared runtime/,
   );
   const unsafe = structuredClone(lock);
-  unsafe.packages["node_modules/@better-auth/core"] = {
+  unsafe.packages["node_modules/better-auth/node_modules/@better-auth/core"] = {
     version: "1.8.0",
     integrity: syntheticIntegrity,
   };
@@ -1036,7 +1301,7 @@ test("Markdown link scanning handles malformed long input and checks angle desti
   );
 });
 
-test("HTTP composition publishes only owned listener commands while preserving bootstrap and all ten checks", () => {
+test("HTTP composition publishes only owned listener commands while preserving bootstrap and the full gate", () => {
   const dependencies = {
     hono: "4.13.14",
     "@hono/node-server": "2.1.5",
@@ -1053,6 +1318,10 @@ test("HTTP composition publishes only owned listener commands while preserving b
   };
   pkg.overrides = overridesForPackage(pkg);
   const lock = lockForPackage(pkg);
+  lock.packages["node_modules/@better-auth/core"] = {
+    version: "1.7.14",
+    integrity: syntheticIntegrity,
+  };
   validatePackage(pkg, lock, "http-composition");
   assert.equal(pkg.scripts.dev, "node src/index.ts");
   assert.equal(pkg.scripts.start, "node src/index.ts");
@@ -1079,6 +1348,33 @@ test("HTTP composition publishes only owned listener commands while preserving b
       ),
     /real governance checks/,
   );
+});
+
+test("Markdown reference definitions validate local destinations, encoding, angles, and titles", () => {
+  const published = new Set(files);
+  validateMarkdownLinks(
+    "README.md",
+    '[guide][setup]\n[setup]: <.agents/rules/safety.md#section> "Safety guide"\n' +
+      "[safety]:\n  .agents/rules/safety.md 'Safety'\n" +
+      '[external]: https://example.invalid "External"\n[anchor]: #section\n',
+    published,
+  );
+  for (const target of [
+    "../missing.md",
+    "src/index.ts",
+    "/private.md",
+    ".env",
+    "%zz",
+    "<src/index.ts>",
+    '<../missing.md> "Missing guide"',
+  ])
+    assert.throws(() =>
+      validateMarkdownLinks(
+        "README.md",
+        `[guide][setup]\n[setup]: ${target}\n`,
+        published,
+      ),
+    );
 });
 
 test("catalog duplication exceptions cover only the ten published literal data files", async (context) => {
@@ -1353,7 +1649,14 @@ test("operations CI policy loads only in its owning phase and keeps unrelated pr
     ),
   );
   await json(".github/bootstrap-policy.json", publication);
-  assert.equal((await inspectPolicy(root)).workflows, 7);
+  assert.equal((await inspectPolicy(root)).workflows, 6);
+
+  const restrictedCodeql = parseYaml(codeqlText);
+  restrictedCodeql.on.pull_request = { branches: ["main"] };
+  await put(".github/workflows/codeql.yml", stringify(restrictedCodeql));
+  await assert.rejects(inspectPolicy(root), /CodeQL must analyze/);
+  await put(".github/workflows/codeql.yml", codeqlText);
+
   publication.allowedFiles.push(".github/workflows/unexpected.yml");
   await json(".github/bootstrap-policy.json", publication);
   await put(

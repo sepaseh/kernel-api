@@ -1,72 +1,63 @@
-# Repository guidance and evidence
+# Guidance and documentation
 
-Read this rule when changing instructions, navigation, validation policy or
-comprehension evaluation. Keep the starter assistant-neutral and do not make an
-assistant or optional tool a runtime dependency.
+Use [AGENTS](../../AGENTS.md), the [settings index](../settings.json) and
+[source navigation](../../docs/source-navigation.md) for progressive reading.
+Read the owner source and tests; index entries and static links do not prove
+behavior or successful execution.
 
-## Canonical sources
+Keep assistant instructions and maintained documentation English, current and
+organized by reader task. Use [source navigation](../../docs/source-navigation.md)
+to select the existing owner. Update that owner alongside behavior, configuration,
+test or workflow changes. Procedures state prerequisites, actions, expected
+results and relevant recovery; references define contracts; explanations describe
+ownership and reasoning. Verify changed claims against source and nearby tests.
+Do not add routine dated QA reports, archives, ADRs, translated companion guides
+or bilingual navigation. Application localization remains a separate concern.
 
-- Observable HTTP behavior: the API-owned Bruno collection, local wire DTOs,
-  owning-service routes and consumer/provider tests. Frontend repositories keep
-  their own HTTP integration evidence; the Bruno collection and backend routes
-  belong to the API repository.
-- Runtime ownership: source, composition and executable boundary checks.
-- Validation commands/profiles: `.agents/validation.json`. Other command lists are
-  links or checked projections, never independent definitions of a complete gate.
-- Task navigation: `.agents/navigation.json`; the readable guide is
-  `docs/source-navigation.md`. Open owners and contracts, not just the map.
-- Read-only evaluation: the [guide](../evaluation/README.md),
-  [cases](../evaluation/cases.json) and [run template](../evaluation/run-template.json).
-  Published prompts and static validation do not establish an executed evaluation;
-  the unused template remains not-run with instruction discovery unknown.
+Use repository-relative machine paths and document-relative Markdown links.
+Link maintained current files, not future or deleted paths. Register only
+published owners, tests, rules, skills and actual check IDs. The publication
+inventory owns admitted paths; generated output and private runtime state are
+never documentation fixtures. Keep human guides flat and task-oriented.
 
-When a document conflicts with current behavior, verify source and contracts,
-correct the active explanation and report actual outcomes in the current task.
-Never describe a proposed tool, template or past test as a current executed result.
+The [manifest](../validation.json) owns commands and profiles; settings project
+that inventory. Do not duplicate an independent complete gate or fixed count.
+Optional host adapters and hooks need actual integration; they do not grant
+authorization, install themselves automatically or replace the full gate.
 
-## Progressive reading and verification
+Report execution outcomes and evidence limits in the current task or terminal.
+Do not commit execution reports. Create a local report only when explicitly
+requested, under ignored `test-results/`; required coverage stays in its configured
+location. Keep repository-specific scratch exports, validation evidence and
+recovery files inside ignored repository-local directories.
 
-Root and scoped `AGENTS.md` files are short entry points that link canonical rules.
-Assistant entry points, rules, skills, evaluation prompts and human documentation
-are English-only. Maintain one canonical document per topic, with alphanumeric
-words joined by hyphens or underscores and a single `.md` extension. The publication inventory
-owns admitted paths. Do not add locale-specific discovery, compatibility paths,
-validators, test fixtures or restoration instructions for documentation variants.
-Application localization remains a separate concern.
-The governance guide check reads only published inventory paths, including
-deployment and collection guides. Generated output and private runtime state
-remain outside that inventory and must not be traversed for guidance validation.
-`.agents/settings.json` inventories guidance; it does not register itself with every
-assistant. Optional hooks are host-dependent fast checks, not a full validation gate.
-The optional [CLAUDE.md](../../CLAUDE.md) adapter references AGENTS.md;
-keep all rules in canonical sources. Do not add installers, plugins or remote
-services merely for discovery. An adapter's presence does not prove a host loaded it.
+Static checks establish paths, indexes and command consistency. They do not prove
+that a host loaded instructions, that an assistant understood them, that a
+provider completed analysis or review, or that an application ran. Record actual
+host-reported loading where available and otherwise mark discovery unknown.
+Keep evaluation prompts separate from oracle answers. Use only synthetic
+fixtures; never inspect secrets or owner data to answer evaluation questions.
+Do not claim portability or improved performance without measured evidence.
 
-Register only published task owners. Keep navigation paths relative to the
-repository root and maintained Markdown links
-relative to their file. Prefer symbol/path references over fragile line numbers in
-living navigation; cite verified lines in actual task evidence. Update renamed paths,
-affected tests and matching maintained human documentation in the same change.
+The API owns observable HTTP behavior through its Bruno collection, local wire
+DTOs, owning-service routes and consumer/provider tests. Frontend repositories
+own their HTTP integration evidence. Source, manual composition and executable
+boundary checks establish runtime ownership. HTTP changes need compatibility
+review with independently released consumers.
 
-The guidance checker can verify paths, indexes and command consistency. It cannot
-prove that an assistant loaded instructions, that a semantic graph is complete, or
-that the linked explanation remains factually correct. Record host-reported loaded
-files where available; otherwise mark discovery unknown and follow the manual probe.
+Maintain one canonical document per topic with alphanumeric words joined by
+hyphens or underscores and one `.md` extension. Do not add locale-specific
+discovery, compatibility paths, validators, fixtures or restoration instructions
+for documentation variants. The guide check reads admitted inventory paths,
+including deployment and collection guides. Generated output and private runtime
+state remain outside that inventory and must not be traversed for guidance validation.
 
-Use only synthetic disposable fixtures. Do not read real environments, credentials,
-ignored databases or object stores to answer comprehension questions. Do not claim
-all-client portability or improved agent performance without measured evidence.
-
-## Local ownership and evidence
-
-This repository owns its contracts, catalogs, tests and operating instructions.
-HTTP changes require compatibility review with affected consumers. Maintained API
-Markdown is checked for safe local links, including nested operating guides.
-Display QA/test outcomes in the terminal or current chat by default. Keep docs for
-current guides and do not commit execution reports. Create a local report only
-when explicitly requested, under ignored `test-results/`; required coverage stays
-in its configured location.
-
-## Change acceptance and test failures
-
-Use the [change checklist](../../docs/feature-development.md) to distinguish required behavior, proposals and provider-dependent work, and link observable acceptance scenarios to the canonical checks. Use [test reliability](../../docs/test-reliability.md) to record ownership, first failures, reproduction and time-bounded exceptions. These are portable workflows, not automatic assistant discovery, flaky-test detection or permission to weaken a required gate.
+The optional [CLAUDE.md](../../CLAUDE.md) adapter references AGENTS.md; canonical
+rules remain the owners. Do not install plugins or remote services for discovery.
+The read-only evaluation [guide](../evaluation/README.md),
+[cases](../evaluation/cases.json) and [run template](../evaluation/run-template.json)
+are published. Their static validation does not execute the prompts; the blank
+template remains not-run with instruction discovery unknown.
+Use the [feature-development checklist](../../docs/feature-development.md) for
+change acceptance and [test reliability](../../docs/test-reliability.md) for
+ownership, first failures, reproduction and bounded exceptions without weakening the gate.

@@ -13,9 +13,10 @@ Explain the concrete policy change and any prerequisite PR.
 
 - Exact proposed tree and base/head:
 - Full profile commands actually run and results:
+- Native CodeQL result for the current head, or blocker:
 - CodeRabbit current-head review and approval evidence, or blocker:
 - Sonar scanner, actual quality gate and complete issue report, or blocker:
-- Trusted default-branch bootstrap status:
+- Native required checks and approval evidence, or blocker:
 
 ## Rollout and review
 

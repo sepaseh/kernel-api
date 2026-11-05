@@ -44,8 +44,7 @@ export const normalizedPublicBaseUrl = (value: string) => {
     (url.protocol === "http:" && !isLoopbackHost(url.hostname)) ||
     url.username ||
     url.password ||
-    url.search ||
-    url.hash
+    /[?#]/.test(value)
   )
     throw new Error(
       "Public object storage URLs require HTTPS without credentials, query or fragment.",
