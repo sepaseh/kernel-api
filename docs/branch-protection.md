@@ -30,11 +30,10 @@ to hide failures or unblock publication.
 
 ## Published phase and trust
 
-The foundation phase keeps `applicationReady: false`. Require its complete
-canonical source-phase CI, CodeQL, scanner, provider quality gate and CodeRabbit
-results, without claiming unpublished API checks. Introduce the relevant real
-HTTP, database, authentication and storage checks with their owners; foundation
-evidence cannot replace those checks.
+The runtime-operations phase keeps `applicationReady: false`. Require the
+complete canonical CI profile for the published HTTP, database, authentication,
+storage and operations owners, along with CodeQL, the Sonar scanner and quality
+gate, and CodeRabbit. Those checks do not establish production readiness.
 
 The source ruleset binds the native `CodeQL` context to the CodeQL application
 (`57789`). The Actions job

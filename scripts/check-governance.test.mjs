@@ -21,6 +21,7 @@ import {
   actions,
   checksForPhase,
   ciProfilesForPhase,
+  commandOwnersForPhase,
   coveragePlan,
   externalWorkflows,
   foundationDependencies,
@@ -1410,4 +1411,162 @@ test("catalog duplication exceptions cover only the ten published literal data f
   );
   await json(".github/bootstrap-policy.json", inventory);
   await assert.rejects(inspectPolicy(root), /all ten literal catalogs/);
+});
+
+test("operations exposes only owned operator aliases and the reviewed scoped Drizzle compiler", () => {
+  const scripts = packageScripts("runtime-operations");
+  const pkg = {
+    ...packageFixture,
+    scripts,
+    devDependencies: { ...foundationDependencies, "drizzle-kit": "0.31.11" },
+  };
+  pkg.overrides = overridesForPackage(pkg);
+  const lock = lockForPackage(pkg);
+  validatePackage(pkg, lock, "runtime-operations");
+  assert.deepEqual(pkg.overrides["@esbuild-kit/core-utils@3.3.2"], {
+    esbuild: "0.28.2",
+  });
+  assert.equal(
+    scripts["server:generate"],
+    "node node_modules/drizzle-kit/bin.cjs generate --config=drizzle.config.ts",
+  );
+  assert.equal(
+    scripts["server:migrate"],
+    "node node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.config.ts",
+  );
+  assert.equal(
+    scripts["test:fixture:website"],
+    "node scripts/website-api-runner.mjs",
+  );
+  assert.equal(
+    scripts["test:deploy:docker"],
+    "node scripts/test-docker-release.mjs",
+  );
+  assert.equal(
+    scripts["test:deploy:native"],
+    "node scripts/test-native-release.mjs",
+  );
+  assert.equal(scripts["test:deploy"].split(" ").slice(2).length, 10);
+  assert.equal(scripts.build, undefined);
+  assert.equal(scripts.knip, undefined);
+  assert.deepEqual(checksForPhase("runtime-operations"), sourceChecks);
+  assert.ok(
+    commandOwnersForPhase("runtime-operations").includes(
+      "scripts/docker-smoke-cleanup.test.mjs",
+    ),
+  );
+  for (const phase of [
+    "collection-core",
+    "collection-account-auth",
+    "collection-management",
+    "local-runtime",
+  ])
+    assert.deepEqual(packageScripts(phase), scripts);
+  assert.equal(packageScripts("http-composition")["deploy:package"], undefined);
+  assert.throws(
+    () =>
+      validatePackage(
+        { ...pkg, devDependencies: foundationDependencies },
+        lock,
+        "runtime-operations",
+      ),
+    /reviewed Drizzle Kit/,
+  );
+  assert.throws(
+    () =>
+      validatePackage(
+        { ...pkg, overrides: reviewedOverrides },
+        lock,
+        "runtime-operations",
+      ),
+    /scoped Drizzle compiler/,
+  );
+  assert.throws(
+    () =>
+      validatePackage(
+        { ...pkg, overrides: { ...pkg.overrides, esbuild: "0.28.2" } },
+        lock,
+        "runtime-operations",
+      ),
+    /scoped Drizzle compiler/,
+  );
+  assert.throws(
+    () =>
+      validatePackage(
+        {
+          ...pkg,
+          overrides: {
+            ...pkg.overrides,
+            "@esbuild-kit/core-utils@3.3.2": { esbuild: "0.25.12" },
+          },
+        },
+        lock,
+        "runtime-operations",
+      ),
+    /scoped Drizzle compiler/,
+  );
+  const publication = policy("runtime-operations");
+  publication.allowedFiles = [
+    ...new Set([
+      ...publication.allowedFiles,
+      ...commandOwnersForPhase("runtime-operations"),
+    ]),
+  ];
+  validateInventory(publication);
+  publication.allowedFiles = publication.allowedFiles.filter(
+    (file) => file !== "scripts/docker-smoke-cleanup.test.mjs",
+  );
+  assert.throws(() => validateInventory(publication), /cannot omit/);
+});
+
+test("operations CI policy loads only in its owning phase and keeps unrelated privileged workflows blocked", async (context) => {
+  const { root, put, json } = await fixture(context, "runtime-operations");
+  const { operationsWorkflowPaths, operationsRequiredFiles } =
+    await import("./check-operations-policy.mjs");
+  const publication = policy("runtime-operations");
+  publication.allowedFiles = [
+    ...new Set([
+      ...publication.allowedFiles,
+      ...commandOwnersForPhase("runtime-operations"),
+    ]),
+  ];
+  await json(".github/bootstrap-policy.json", publication);
+  await Promise.all(
+    commandOwnersForPhase("runtime-operations").map((file) =>
+      put(file, "// Synthetic command owner.\n"),
+    ),
+  );
+  await assert.rejects(inspectPolicy(root), /Operations policy and tests/);
+  const additions = [
+    ...new Set([...operationsWorkflowPaths, ...operationsRequiredFiles]),
+  ].filter((file) => !publication.allowedFiles.includes(file));
+  publication.allowedFiles.push(...additions);
+  await Promise.all(
+    additions.map((file) => put(file, "// Synthetic policy owner.\n")),
+  );
+  await Promise.all(
+    operationsWorkflowPaths.map(async (file) =>
+      put(file, await readSource(file)),
+    ),
+  );
+  await json(".github/bootstrap-policy.json", publication);
+  assert.equal((await inspectPolicy(root)).workflows, 6);
+
+  const restrictedCodeql = parseYaml(codeqlText);
+  restrictedCodeql.on.pull_request = { branches: ["main"] };
+  await put(".github/workflows/codeql.yml", stringify(restrictedCodeql));
+  await assert.rejects(inspectPolicy(root), /CodeQL must analyze/);
+  await put(".github/workflows/codeql.yml", codeqlText);
+
+  publication.allowedFiles.push(".github/workflows/unexpected.yml");
+  await json(".github/bootstrap-policy.json", publication);
+  await put(
+    ".github/workflows/unexpected.yml",
+    stringify({
+      on: { workflow_dispatch: null },
+      permissions: { contents: "write" },
+      jobs: {},
+    }),
+  );
+  await assert.rejects(inspectPolicy(root), /explicit and minimal/);
 });

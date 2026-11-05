@@ -27,8 +27,10 @@ Each check belongs to one CI job and runs once. The required `check` context onl
 aggregates these jobs: missing, failed, skipped or cancelled work fails the result.
 It does not install dependencies or rerun tests. Local `full` validation runs
 the complete canonical profile in its declared order. The coverage check runs
-the published foundation, service, catalog, adapter, HTTP and local runtime
-suites. These use disposable fixtures. Browser checks belong to the API's
+the published foundation, service, catalog, adapter, HTTP, local runtime and
+operations suites. Operations fixtures exercise migration tooling, packaging,
+deployment configuration, recovery and target validation. Native and Docker
+smoke commands run separately on request. Browser checks belong to the API's
 consumers, and local execution uses the TypeScript entry point directly.
 
 The Sonar job waits for successful validation and consumes the governance job's
@@ -76,6 +78,14 @@ results but cannot write repository contents. The manifest records this hosted
 security workflow separately from local checks; local policy tests validate its
 configuration and do not claim to run CodeQL. Inspect the actual current-head
 native `CodeQL` result before merge or any CodeRabbit request.
+
+Manual operations workflows handle release metadata, staging verification and
+deployment smoke verification. The DAST workflow validates the target and stops
+before running a scan. The [operations policy](../scripts/check-operations-policy.mjs)
+checks permissions, triggers, concurrency and target controls in Static checks.
+Native CodeQL uses its own
+workflow policy and runs independently. Policy tests and local fixtures do not
+establish that a manual workflow ran or that a deployment is ready.
 
 PR file count is advisory [pre-PR planning](../CONTRIBUTING.md#scope-and-pr-planning),
 not an automated validation or merge limit. Native provider checks and the native

@@ -4,7 +4,7 @@ Standalone TypeScript project for Kernel's backend API.
 
 ## Published scope
 
-The current **http-composition** phase publishes pure feature contracts,
+The current **runtime-operations** phase publishes pure feature contracts,
 framework-free application services and feature ports, core policies, ten flat
 API catalogs, and infrastructure for configuration, translation, logging, fatal
 process failures and local or S3-compatible MinIO object storage. It also includes
@@ -41,6 +41,15 @@ fixtures. Local runtime tests cover startup, cleanup and shutdown, non-cacheable
 storage initialization. See [HTTP transport](docs/http-transport.md) and
 [development](docs/development.md) for explicit local configuration and execution.
 
+Operational tooling adds owned release packaging, Docker/native deployment
+references, configuration/health checks and Drizzle generation compatibility
+tests. Synthetic recovery drills exercise matched database/object recovery and
+HTTP/log correlation. CodeQL configuration and manual release, staging and
+smoke workflows require separate provider setup. The manual DAST workflow
+stops after target validation while staging-only scanner egress is unavailable. See
+[deployment](docs/deployment.md), [release operations](docs/release-operations.md)
+and [backup/recovery](docs/backup-restore.md).
+
 `applicationReady` remains false. A runnable local API does not establish
 production OTP delivery, deployment readiness or a deployed integration.
 
@@ -61,3 +70,4 @@ The [canonical manifest](.agents/validation.json) owns the required source-phase
 checks, including the published HTTP and local runtime suites. Their disposable
 fixtures establish local behavior. Deployed database and MinIO integrations,
 production OTP delivery and deployment readiness require separate evidence.
+Native and Docker smoke commands are opt-in and run separately from the full profile.

@@ -205,7 +205,8 @@
         "docs/http-transport.md",
         "docs/development.md",
         "src/contracts",
-        ".agents/rules/backend.md"
+        ".agents/rules/backend.md",
+        "docs/collection-guide.md"
       ],
       "tests": [
         "scripts/http-upload-loopback.test.mjs",
@@ -220,6 +221,61 @@
         "src/infrastructure/lifecycle.test.ts"
       ],
       "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+    },
+    {
+      "id": "deployment",
+      "when": "Change owned packaging, deployment templates, backup/recovery, migration tooling or manual verification/release workflows.",
+      "owners": [
+        "deploy",
+        "compose.yaml",
+        "drizzle.config.ts",
+        "scripts/check-deployed-api.mjs",
+        "scripts/docker-smoke-cleanup.mjs",
+        "scripts/healthcheck.mjs",
+        "scripts/native-smoke-cleanup.mjs",
+        "scripts/package-release.mjs",
+        "scripts/render-deployment.mjs",
+        "scripts/test-docker-release.mjs",
+        "scripts/test-native-release.mjs",
+        "scripts/validate-deployment-env.mjs",
+        "scripts/validate-workflow-targets.mjs",
+        "scripts/website-api-runner.mjs",
+        "scripts/check-operations-policy.mjs"
+      ],
+      "contracts": [
+        "docs/deployment.md",
+        "docs/backup-restore.md",
+        "docs/release-operations.md",
+        "docs/releasing.md",
+        "docs/security/threat-model.md"
+      ],
+      "tests": [
+        "scripts/check-deployed-api.integration.test.mjs",
+        "scripts/check-deployed-api.test.mjs",
+        "scripts/deployment.integration.test.mjs",
+        "scripts/docker-smoke-cleanup.test.mjs",
+        "scripts/healthcheck.test.mjs",
+        "scripts/native-smoke-cleanup.test.mjs",
+        "scripts/package-release.integration.test.mjs",
+        "scripts/package-release.test.mjs",
+        "scripts/render-deployment.test.mjs",
+        "scripts/validate-deployment-env.test.mjs",
+        "scripts/validate-workflow-targets.test.mjs",
+        "scripts/website-api-runner.test.mjs",
+        "src/test/architecture/drizzle-toolchain.test.ts",
+        "src/test/architecture/lint-toolchain.test.ts",
+        "src/test/integration/auth-invariants.test.ts",
+        "src/test/integration/bootstrap-admin.test.ts",
+        "src/test/integration/recovery-drill.test.ts",
+        "scripts/check-operations-policy.test.mjs"
+      ],
+      "checks": [
+        "ci-policy",
+        "boundaries",
+        "typecheck",
+        "lint",
+        "coverage-tests"
+      ]
     }
   ]
 }

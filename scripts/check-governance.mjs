@@ -92,43 +92,111 @@ export const overridesForPackage = (pkg) => ({
   ...(pkg.dependencies?.["better-auth"]
     ? { "@better-auth/core": reviewedAuthCoreVersion }
     : {}),
+  ...(pkg.devDependencies?.["drizzle-kit"]
+    ? { "@esbuild-kit/core-utils@3.3.2": { esbuild: "0.28.2" } }
+    : {}),
 });
+export const operationsPhases = new Set([
+  "runtime-operations",
+  "collection-core",
+  "collection-account-auth",
+  "collection-management",
+  "local-runtime",
+]);
+const runtimeCommandPhases = new Set(["http-composition", ...operationsPhases]);
 const adminCommandPhases = new Set([
   "database-persistence",
   "auth-bootstrap",
   "http-transport",
-  "http-composition",
-  "runtime-operations",
-  "collection-core",
-  "collection-account-auth",
-  "collection-management",
-  "local-runtime",
+  ...runtimeCommandPhases,
 ]);
-const runtimeCommandPhases = new Set([
-  "http-composition",
-  "runtime-operations",
-  "collection-core",
-  "collection-account-auth",
-  "collection-management",
-  "local-runtime",
-]);
+const deploymentTests = [
+  "scripts/deployment.integration.test.mjs",
+  "scripts/native-smoke-cleanup.test.mjs",
+  "scripts/package-release.test.mjs",
+  "scripts/check-deployed-api.test.mjs",
+  "scripts/docker-smoke-cleanup.test.mjs",
+  "scripts/healthcheck.test.mjs",
+  "scripts/render-deployment.test.mjs",
+  "scripts/validate-deployment-env.test.mjs",
+  "scripts/package-release.integration.test.mjs",
+  "scripts/check-deployed-api.integration.test.mjs",
+];
+const operationsCommands = {
+  "server:generate": {
+    command:
+      "node node_modules/drizzle-kit/bin.cjs generate --config=drizzle.config.ts",
+    owners: ["drizzle.config.ts", "src/infrastructure/db/schema.ts"],
+  },
+  "server:migrate": {
+    command:
+      "node node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.config.ts",
+    owners: [
+      "drizzle.config.ts",
+      "src/infrastructure/db/schema.ts",
+      "drizzle/meta/_journal.json",
+    ],
+  },
+  "deploy:package": {
+    command: "node scripts/package-release.mjs",
+    owners: ["scripts/package-release.mjs"],
+  },
+  "deploy:render": {
+    command: "node scripts/render-deployment.mjs",
+    owners: ["scripts/render-deployment.mjs"],
+  },
+  "deploy:check": {
+    command: "node scripts/validate-deployment-env.mjs",
+    owners: ["scripts/validate-deployment-env.mjs"],
+  },
+  "deploy:health": {
+    command: "node scripts/healthcheck.mjs",
+    owners: ["scripts/healthcheck.mjs"],
+  },
+  "test:fixture:website": {
+    command: "node scripts/website-api-runner.mjs",
+    owners: ["scripts/website-api-runner.mjs"],
+  },
+  "test:recovery": {
+    command: "node --test src/test/integration/recovery-drill.test.ts",
+    owners: ["src/test/integration/recovery-drill.test.ts"],
+  },
+  "test:deploy": {
+    command: `node --test ${deploymentTests.join(" ")}`,
+    owners: deploymentTests,
+  },
+  "test:deploy:docker": {
+    command: "node scripts/test-docker-release.mjs",
+    owners: ["scripts/test-docker-release.mjs"],
+  },
+  "test:deploy:native": {
+    command: "node scripts/test-native-release.mjs",
+    owners: ["scripts/test-native-release.mjs"],
+  },
+};
 const ownedCommands = (phase) => ({
   ...(adminCommandPhases.has(phase)
     ? {
         "server:bootstrap": {
           command: "node src/bootstrap-admin.ts",
-          owner: "src/bootstrap-admin.ts",
+          owners: ["src/bootstrap-admin.ts"],
         },
       }
     : {}),
   ...(runtimeCommandPhases.has(phase)
     ? {
-        dev: { command: "node src/index.ts", owner: "src/index.ts" },
-        start: { command: "node src/index.ts", owner: "src/index.ts" },
-        server: { command: "npm run dev", owner: "src/index.ts" },
+        dev: { command: "node src/index.ts", owners: ["src/index.ts"] },
+        start: { command: "node src/index.ts", owners: ["src/index.ts"] },
+        server: { command: "npm run dev", owners: ["src/index.ts"] },
       }
     : {}),
+  ...(operationsPhases.has(phase) ? operationsCommands : {}),
 });
+export const commandOwnersForPhase = (phase) => [
+  ...new Set(
+    Object.values(ownedCommands(phase)).flatMap(({ owners }) => owners),
+  ),
+];
 export const foundationDependencies = {
   "@eslint/js": "10.0.1",
   "@types/node": "24.19.2",
@@ -288,7 +356,7 @@ export const validateInventory = (policy) => {
     ...(policy.phase === "governance"
       ? []
       : [...foundationFiles, ...sourceToolingFiles]),
-    ...Object.values(ownedCommands(policy.phase)).map(({ owner }) => owner),
+    ...commandOwnersForPhase(policy.phase),
   ];
   assert(
     mandatory.every((file) => files.has(file)),
@@ -343,6 +411,17 @@ const validatePackageDefinition = (pkg, phase) => {
     );
   const expectedDependencies =
     phase === "governance" ? governanceDependencies : foundationDependencies;
+  if (operationsPhases.has(phase))
+    equal(
+      pkg.devDependencies?.["drizzle-kit"],
+      "0.31.11",
+      "Operations must use the reviewed Drizzle Kit version.",
+    );
+  else
+    assert(
+      !Object.hasOwn(pkg.devDependencies ?? {}, "drizzle-kit"),
+      "Drizzle Kit belongs to the operations publication phase.",
+    );
   assert(
     !Object.keys(pkg.dependencies ?? {}).some((name) =>
       Object.hasOwn(pkg.devDependencies ?? {}, name),
@@ -460,12 +539,13 @@ export const validatePackage = (pkg, lock, phase = "governance") => {
   else if (
     phase === "foundation" ||
     pkg.dependencies?.["better-auth"] ||
+    pkg.devDependencies?.["drizzle-kit"] ||
     Object.hasOwn(pkg, "overrides")
   )
     equal(
       pkg.overrides,
       overridesForPackage(pkg),
-      "Only the reviewed minimatch and owned authentication core overrides are permitted in source phases.",
+      "Only the reviewed minimatch and owned authentication core overrides, plus the scoped Drizzle compiler override, are permitted in source phases.",
     );
   validateLockfile(pkg, lock, phase);
 };
@@ -1130,6 +1210,46 @@ const validateSonarProperties = (text, phase, files) => {
   );
 };
 
+const validatePublishedWorkflows = async (root, phase, files, workflows) => {
+  const codeqlPath = ".github/workflows/codeql.yml";
+  validateCodeqlWorkflow(workflows[codeqlPath]);
+  const otherWorkflows = Object.entries(workflows).filter(
+    ([file]) => file !== codeqlPath,
+  );
+  if (!operationsPhases.has(phase)) {
+    otherWorkflows.forEach(([, workflow]) => validateWorkflowTrust(workflow));
+    return;
+  }
+  const policyFiles = [
+    "scripts/check-operations-policy.mjs",
+    "scripts/check-operations-policy.test.mjs",
+  ];
+  assert(
+    policyFiles.every((file) => files.has(file)),
+    "Operations policy and tests must be published before validating its workflows.",
+  );
+  await Promise.all(policyFiles.map((file) => regularFile(root, file)));
+  const {
+    operationsWorkflowPaths,
+    operationsRequiredFiles,
+    validateOperationsWorkflows,
+  } = await import("./check-operations-policy.mjs");
+  assert(
+    [...operationsWorkflowPaths, ...operationsRequiredFiles].every((file) =>
+      files.has(file),
+    ),
+    "Operations workflows and every declared owner must be published together.",
+  );
+  const selected = Object.fromEntries(
+    operationsWorkflowPaths.map((file) => [file, workflows[file]]),
+  );
+  validateOperationsWorkflows(selected, files);
+  const operationsPaths = new Set(operationsWorkflowPaths);
+  otherWorkflows
+    .filter(([file]) => !operationsPaths.has(file))
+    .forEach(([, workflow]) => validateWorkflowTrust(workflow));
+};
+
 export const inspectPolicy = async (root) => {
   const { policy, files } = await readInventory(root);
   const workflowFiles = [...files].filter((file) =>
@@ -1144,12 +1264,10 @@ export const inspectPolicy = async (root) => {
   ]);
   validateCiWorkflow(parseYaml(ci));
   validateCodeRabbit(parseYaml(rabbit));
-  workflows.forEach((text, index) => {
-    const workflow = parseYaml(text);
-    if (workflowFiles[index] === ".github/workflows/codeql.yml")
-      validateCodeqlWorkflow(workflow);
-    else validateWorkflowTrust(workflow);
-  });
+  const parsedWorkflows = Object.fromEntries(
+    workflowFiles.map((file, index) => [file, parseYaml(workflows[index])]),
+  );
+  await validatePublishedWorkflows(root, policy.phase, files, parsedWorkflows);
   assert(
     files.has(".github/rulesets/main.json"),
     "The native main-branch protection plan must be published.",

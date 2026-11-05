@@ -4,7 +4,7 @@ The [inventory](../.github/bootstrap-policy.json) and
 [validation manifest](../.agents/validation.json) declare the exact published
 phase. `applicationReady` remains false.
 
-The http-composition phase includes pure feature contracts, core policies,
+The runtime-operations phase includes pure feature contracts, core policies,
 eight feature ports, seven framework-free application services and their
 synthetic-port tests. All ten literal API catalogs, their registry and integrity
 tests remain published, alongside the earlier governance controls and foundation.
@@ -71,10 +71,20 @@ An occupied port fails before those resources initialize. Local runtime suites
 cover readiness, startup failure, cleanup and shutdown, using real Unix signals
 or the Windows signal-message simulation in their respective environments.
 
-The storage protocol evidence is not a deployed MinIO integration. Local HTTP
-and server tests do not establish deployed services, production OTP delivery or
-production readiness. Deployment tooling and operational integrations remain
-outside this phase. See [HTTP transport](http-transport.md),
+Operational owners provide exclusive immutable release packaging, validated
+Docker/native references, health/configuration checks, migration tooling and
+manual verification/release workflows. Real toolchain tests generate and migrate
+only owned scratch schemas/databases. Static/template, parser, loopback and
+cleanup tests exercise the published tooling. Recovery workers restore matched
+synthetic database/object fixtures and verify authenticated HTTP behavior and
+redacted incident correlation.
+
+The storage protocol evidence is not a deployed MinIO integration. Local HTTP,
+server and recovery tests do not establish deployed services, production OTP
+delivery or production readiness. Native/Docker smoke commands are separate
+opt-in execution, not part of the full validation profile. Checked-in templates
+and workflows do not prove their operator setup or remote execution. See
+[deployment](deployment.md), [backup/recovery](backup-restore.md), [HTTP transport](http-transport.md),
 [development](development.md), [logging](backend-logging.md) and
 [object storage](object-storage.md) for execution and evidence limits.
 

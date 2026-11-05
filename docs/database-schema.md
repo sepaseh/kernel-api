@@ -136,8 +136,8 @@ suites establish local persistence behavior, and the HTTP and runtime suites
 exercise the local composition. Remote database behavior, production rollout
 and OTP delivery require separate evidence. The local server applies the
 reviewed migrations and initializes settings. The published tooling also
-includes optional development seeding and initial administrator provisioning.
-Drizzle generation commands belong to a later tooling publication. Obtain
+includes optional development seeding, initial administrator provisioning and
+the Drizzle Kit commands documented in [development](development.md). Obtain
 explicit authorization and a verified matching backup before migrating existing
 data.
 

@@ -15,7 +15,7 @@ hypotheses, disclose checks that could not run, and do not include credentials o
 real user data. Create a local report only on explicit request under ignored
 `test-results/`.
 
-The current tests validate pure foundation modules and repository tooling.
-Future HTTP, authentication, database and storage scenarios must establish their
-own evidence when their source is published. See [testing](testing.md) and
+The published suites cover foundation, service, database, authentication,
+storage, HTTP, local runtime and operations behavior. Use evidence from the
+owning suite to investigate a failure. See [testing](testing.md) and
 [validation](validation.md).

@@ -46,6 +46,18 @@ const unwrapExpression = (node: ts.Node): ts.Node => {
   return node;
 };
 
+const isReferenceName = (name: ts.Identifier) => {
+  const { parent } = name;
+  if (ts.isShorthandPropertyAssignment(parent)) return true;
+  return (
+    !ts.isQualifiedName(parent) &&
+    !ts.isImportTypeNode(parent) &&
+    !("name" in parent && parent.name === name) &&
+    !("propertyName" in parent && parent.propertyName === name) &&
+    !("label" in parent && parent.label === name)
+  );
+};
+
 const inspectSource = (file: string, content: string) => {
   const source = ts.createSourceFile(
     file,
@@ -56,7 +68,7 @@ const inspectSource = (file: string, content: string) => {
   const imports: Array<{ node: ts.Node; specifier: string }> = [];
   const webUses: ts.Node[] = [];
   let checker: ts.TypeChecker | undefined;
-  const resolvesLocally = (name: ts.Identifier) => {
+  const symbolAt = (name: ts.Identifier) => {
     if (!checker) {
       const options: ts.CompilerOptions = {
         noLib: true,
@@ -68,9 +80,13 @@ const inspectSource = (file: string, content: string) => {
         path.resolve(filename) === path.resolve(file) ? source : undefined;
       checker = ts.createProgram([file], options, host).getTypeChecker();
     }
-    return Boolean(checker.getSymbolAtLocation(name)?.declarations?.length);
+    const { parent } = name;
+    return ts.isShorthandPropertyAssignment(parent) && parent.name === name
+      ? checker.getShorthandAssignmentValueSymbol(parent)
+      : checker.getSymbolAtLocation(name);
   };
   const httpGlobals = new Set([
+    "fetch",
     "File",
     "FormData",
     "Headers",
@@ -78,25 +94,37 @@ const inspectSource = (file: string, content: string) => {
     "Response",
     "URLSearchParams",
   ]);
-  const isHttpMemberName = (name: string) =>
-    name === "fetch" || httpGlobals.has(name);
   const isGlobalThis = (receiver: ts.Node) => {
-    const name = unwrapExpression(receiver);
-    return (
-      ts.isIdentifier(name) &&
-      name.text === "globalThis" &&
-      !resolvesLocally(name)
-    );
+    let reference = unwrapExpression(receiver);
+    const visited = new Set<ts.VariableDeclaration>();
+    while (ts.isIdentifier(reference)) {
+      const symbol = symbolAt(reference);
+      if (!symbol?.declarations?.length) return reference.text === "globalThis";
+
+      const declaration = symbol.valueDeclaration;
+      if (
+        !declaration ||
+        !ts.isVariableDeclaration(declaration) ||
+        !ts.isVariableDeclarationList(declaration.parent) ||
+        !(declaration.parent.flags & ts.NodeFlags.Const) ||
+        !declaration.initializer ||
+        visited.has(declaration)
+      )
+        return false;
+      visited.add(declaration);
+      reference = unwrapExpression(declaration.initializer);
+    }
+    return false;
   };
   const isLiteralHttpName = (node: ts.Node) => {
     const literal = unwrapExpression(node);
-    return ts.isStringLiteralLike(literal) && isHttpMemberName(literal.text);
+    return ts.isStringLiteralLike(literal) && httpGlobals.has(literal.text);
   };
   const usesGlobalHttpMember = (node: ts.Node) => {
     if (ts.isQualifiedName(node))
-      return isHttpMemberName(node.right.text) && isGlobalThis(node.left);
+      return httpGlobals.has(node.right.text) && isGlobalThis(node.left);
     if (ts.isPropertyAccessExpression(node))
-      return isHttpMemberName(node.name.text) && isGlobalThis(node.expression);
+      return httpGlobals.has(node.name.text) && isGlobalThis(node.expression);
     return (
       ts.isElementAccessExpression(node) &&
       isLiteralHttpName(node.argumentExpression) &&
@@ -107,20 +135,21 @@ const inspectSource = (file: string, content: string) => {
     if (ts.isComputedPropertyName(node))
       return isLiteralHttpName(node.expression);
     return ts.isIdentifier(node)
-      ? isHttpMemberName(node.text)
+      ? httpGlobals.has(node.text)
       : isLiteralHttpName(node);
   };
   const destructuresGlobalHttpMember = (node: ts.Node) => {
     if (
       (ts.isVariableDeclaration(node) || ts.isParameter(node)) &&
       ts.isObjectBindingPattern(node.name) &&
-      node.initializer &&
-      isGlobalThis(node.initializer)
+      node.initializer
     )
-      return node.name.elements.some(
-        (element) =>
-          !element.dotDotDotToken &&
-          isHttpBindingKey(element.propertyName ?? element.name),
+      return (
+        node.name.elements.some(
+          (element) =>
+            !element.dotDotDotToken &&
+            isHttpBindingKey(element.propertyName ?? element.name),
+        ) && isGlobalThis(node.initializer)
       );
     if (
       !ts.isBinaryExpression(node) ||
@@ -131,35 +160,20 @@ const inspectSource = (file: string, content: string) => {
     const target = unwrapExpression(node.left);
     return (
       ts.isObjectLiteralExpression(target) &&
-      isGlobalThis(node.right) &&
       target.properties.some(
         (property) =>
           (ts.isPropertyAssignment(property) ||
             ts.isShorthandPropertyAssignment(property)) &&
           isHttpBindingKey(property.name),
-      )
+      ) &&
+      isGlobalThis(node.right)
     );
   };
-  const usesBareHttpGlobal = (node: ts.Node) => {
-    if (ts.isCallExpression(node))
-      return (
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === "fetch" &&
-        !resolvesLocally(node.expression)
-      );
-
-    const name = ts.isTypeReferenceNode(node)
-      ? node.typeName
-      : ts.isNewExpression(node)
-        ? node.expression
-        : undefined;
-    return (
-      name !== undefined &&
-      ts.isIdentifier(name) &&
-      httpGlobals.has(name.text) &&
-      !resolvesLocally(name)
-    );
-  };
+  const usesBareHttpGlobal = (node: ts.Node) =>
+    ts.isIdentifier(node) &&
+    httpGlobals.has(node.text) &&
+    isReferenceName(node) &&
+    !symbolAt(node)?.declarations?.length;
   const visit = (node: ts.Node) => {
     if (
       (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
@@ -358,13 +372,51 @@ test("application HTTP checks detect destructuring from the real globalThis", ()
     "const { setTimeout: fetch } = globalThis;",
     "const { Headers } = other;",
     "function local(globalThis: Fixture) { const { fetch } = globalThis; }",
-    "function assignLocal(globalThis: Fixture) { ({ Request } = globalThis); }",
+    "function assignLocal(globalThis: Fixture) { let Request; ({ Request } = globalThis); }",
   ].join("\n");
   const { location, webUses } = inspectSource(file, content);
   assert.deepEqual(webUses.map(location), [
     `application${path.sep}http-binding-fixture.ts:1`,
     `application${path.sep}http-binding-fixture.ts:2`,
     `application${path.sep}http-binding-fixture.ts:3`,
+  ]);
+});
+
+test("application HTTP checks follow const aliases of globalThis within their scope", () => {
+  const file = path.join(applicationRoot, "global-alias-fixture.ts");
+  const content = [
+    "const globals = globalThis;",
+    "const again = (globals);",
+    "const { fetch: transport } = again;",
+    'transport("fixture");',
+    "const request = globals.Request;",
+    "function local(globals: Fixture) { const same = globals; same.fetch(); }",
+    "function localGlobal(globalThis: Fixture) { const same = globalThis; same.fetch(); }",
+    "const cycleA = cycleB; const cycleB = cycleA; cycleA.fetch();",
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}global-alias-fixture.ts:3`,
+    `application${path.sep}global-alias-fixture.ts:5`,
+  ]);
+});
+
+test("application HTTP checks distinguish bare global values from property names", () => {
+  const file = path.join(applicationRoot, "http-value-fixture.ts");
+  const content = [
+    "const transport = fetch;",
+    "const request = Request;",
+    "const headers = { Headers };",
+    "const local = { fetch: transport, Request: request };",
+    "const method = local.fetch;",
+    'type Callback = import("./fixture.ts").Request;',
+    "function localNames(fetch: Callback, Request: Callback) { return { fetch, Request }; }",
+  ].join("\n");
+  const { location, webUses } = inspectSource(file, content);
+  assert.deepEqual(webUses.map(location), [
+    `application${path.sep}http-value-fixture.ts:1`,
+    `application${path.sep}http-value-fixture.ts:2`,
+    `application${path.sep}http-value-fixture.ts:3`,
   ]);
 });
 

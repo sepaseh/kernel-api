@@ -1,6 +1,6 @@
 # HTTP transport adapters
 
-The current http-composition phase wires the Hono route adapters to the existing
+The local API wires the Hono route adapters to the existing
 application services and concrete infrastructure through manual composition.
 It includes a local Node server entry point, runnable with explicit configuration
 through `npm run dev` or `npm start`. Local execution does not establish deployment
