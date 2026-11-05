@@ -35,6 +35,12 @@ are initialized. See [HTTP transport](http-transport.md).
 Local OTP flows require an explicitly configured development/test code. A fixed
 code is rejected in production, and no production delivery provider is supplied.
 
+`npm run test:fixture:website` starts a disposable test API on
+`http://127.0.0.1:3100` by default. For concurrent runs or a port conflict, set
+`WEBSITE_TEST_API_PORT` to a distinct available port and configure the website test
+client to use that same API origin. The allowed website origin remains
+`http://127.0.0.1:3101`.
+
 ## Database initialization and administrator provisioning
 
 Startup applies the reviewed migrations and initializes settings for the

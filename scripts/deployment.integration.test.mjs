@@ -4,6 +4,8 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { parse } from "yaml";
+
 import { loadConfig } from "../src/infrastructure/config.ts";
 import { publicValues, validApi } from "./deployment.test-support.mjs";
 import { renderDeploymentTemplate } from "./render-deployment.mjs";
@@ -95,10 +97,24 @@ test("Docker and native API gateways reject unknown HTTP hosts and TLS names", a
       new URL(`../${file}`, import.meta.url),
       "utf8",
     );
-    assert.match(source, /listen 80 default_server;/);
-    assert.match(source, /return 444;/);
-    assert.match(source, /listen 443 ssl default_server;/);
-    assert.match(source, /ssl_reject_handshake on;/);
+    const blocks = [...source.matchAll(/^server\s+\{([\s\S]*?)^\}/gm)].map(
+      (match) => match[1],
+    );
+    const http = blocks.find((block) =>
+      /listen 80 default_server;/.test(block),
+    );
+    const tls = blocks.find((block) =>
+      /listen 443 ssl default_server;/.test(block),
+    );
+    assert.ok(http, `Missing default HTTP server in ${file}`);
+    assert.ok(tls, `Missing default TLS server in ${file}`);
+    assert.match(http, /listen \[::\]:80 default_server;/);
+    assert.match(http, /return 444;/);
+    assert.match(tls, /listen \[::\]:443 ssl default_server;/);
+    assert.match(tls, /ssl_reject_handshake on;/);
+    assert.match(tls, /return 444;/);
+    assert.doesNotMatch(http, /^\s*location\s/m);
+    assert.doesNotMatch(tls, /^\s*location\s/m);
   }
 });
 
@@ -141,6 +157,11 @@ test("standalone deployment wiring retains preflight, durable state, least privi
   const compose = await load("deploy/docker/compose.yaml");
   assert.match(compose, /api-data:\/var\/lib\/kernel-api/);
   assert.match(compose, /API_PUBLIC_ORIGIN/);
+  const { api, gateway } = parse(compose).services;
+  assert.match(api.environment.API_HOST, /^\$\{API_HOST:\?/);
+  assert.match(api.environment.HTTPS_PORT, /^\$\{HTTPS_PORT:-443\}$/);
+  assert.equal(api.environment.API_HOST, gateway.environment.API_HOST);
+  assert.equal(api.environment.HTTPS_PORT, gateway.environment.HTTPS_PORT);
   const unit = await load("deploy/native/systemd/kernel-api.service");
   assert.match(unit, /ExecStartPre=.*validate-deployment-env/);
   assert.match(unit, /ProtectSystem=strict/);

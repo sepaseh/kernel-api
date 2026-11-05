@@ -19,19 +19,19 @@ export class LocalFileStorage implements ObjectStorage {
   }
 
   async delete(bucket: string, objectKey: string) {
-    await unlink(this.#resolve(bucket, objectKey));
+    await unlink(this.#resolveExisting(bucket, objectKey));
   }
 
   async ensureReady() {
     await Promise.all(
       Object.values(buckets).map((bucket) =>
-        mkdir(path.join(this.#root, bucket), { recursive: true }),
+        mkdir(path.join(this.#root, bucket), { mode: 0o700, recursive: true }),
       ),
     );
   }
 
   async get(bucket: string, objectKey: string) {
-    return readFile(this.#resolve(bucket, objectKey));
+    return readFile(this.#resolveExisting(bucket, objectKey));
   }
 
   async put(input: {
@@ -42,8 +42,8 @@ export class LocalFileStorage implements ObjectStorage {
   }) {
     const bucket = buckets[input.visibility];
     const target = this.#resolve(bucket, input.objectKey);
-    await mkdir(path.dirname(target), { recursive: true });
-    const handle = await open(target, "wx");
+    await mkdir(path.dirname(target), { mode: 0o700, recursive: true });
+    const handle = await open(target, "wx", 0o600);
     try {
       await handle.writeFile(input.data);
       await handle.close();
@@ -71,6 +71,15 @@ export class LocalFileStorage implements ObjectStorage {
       : undefined;
   }
 
+  #resolveExisting(bucket: string, objectKey: string) {
+    const parts = objectKey.split("/");
+    const [id, name] = parts;
+    // Older uploads named "." were stored directly at the generated file ID.
+    if (parts.length === 2 && name === "." && id && !/[^\w-]/.test(id))
+      return this.#resolve(bucket, id);
+    return this.#resolve(bucket, objectKey);
+  }
+
   #resolve(bucket: string, objectKey: string) {
     if (
       !Object.values(buckets).includes(
@@ -79,7 +88,11 @@ export class LocalFileStorage implements ObjectStorage {
     ) {
       throw new Error("Invalid local storage bucket.");
     }
-    if (objectKey.includes("\\") || path.win32.isAbsolute(objectKey)) {
+    if (
+      objectKey.includes("\\") ||
+      path.win32.isAbsolute(objectKey) ||
+      objectKey.split("/").some((part) => part === "." || part === "..")
+    ) {
       throw new Error("Invalid local storage object key.");
     }
     const bucketRoot = path.resolve(this.#root, bucket);

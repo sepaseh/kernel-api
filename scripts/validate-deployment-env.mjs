@@ -2,6 +2,9 @@ import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { loadConfig } from "../src/infrastructure/config.ts";
+import { minioEndpointUrl } from "../src/infrastructure/storage/minio.ts";
+
 const releasePattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const placeholderReleaseIds = new Set([
   "replace-release-id",
@@ -127,7 +130,7 @@ function validateGatewayOrigin(environment, publicOrigin) {
     throw new Error("BETTER_AUTH_URL must match API_HOST and HTTPS_PORT.");
 }
 
-function validateMinio(environment) {
+function validateMinio(environment, config) {
   for (const name of [
     "MINIO_ACCESS_KEY",
     "MINIO_SECRET_KEY",
@@ -139,13 +142,8 @@ function validateMinio(environment) {
       throw new Error(`${name} still contains a placeholder.`);
     }
   }
+  minioEndpointUrl(config);
   validateOrigin(environment.MINIO_PUBLIC_URL);
-  if (
-    environment.MINIO_USE_SSL !== "true" &&
-    !loopback.has(environment.MINIO_ENDPOINT)
-  ) {
-    throw new Error("External MinIO requires TLS.");
-  }
 }
 
 export function validateDeploymentEnv(
@@ -187,7 +185,7 @@ export function validateDeploymentEnv(
     );
   }
   if (
-    environment.OTP_FIXED_CODE ||
+    environment.OTP_FIXED_CODE !== undefined ||
     environment.SERVER_SEED_DEVELOPMENT_DATA === "true"
   ) {
     throw new Error(
@@ -197,6 +195,7 @@ export function validateDeploymentEnv(
   const database = requireValue(environment, "DATABASE_URL");
   validateStatePath(localDatabasePath(database), releaseRoot, "DATABASE_URL");
   const driver = requireValue(environment, "STORAGE_DRIVER");
+  const config = loadConfig(environment);
   if (driver === "local") {
     validateStatePath(
       requireValue(environment, "LOCAL_STORAGE_PATH"),
@@ -204,7 +203,7 @@ export function validateDeploymentEnv(
       "LOCAL_STORAGE_PATH",
     );
   } else if (driver === "minio") {
-    validateMinio(environment);
+    validateMinio(environment, config.minio);
   } else throw new Error("STORAGE_DRIVER must be local or minio.");
 }
 

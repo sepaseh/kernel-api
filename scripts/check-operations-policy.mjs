@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 
 export const operationsWorkflowPaths = Object.freeze(
-  ["codeql", "dast", "deployment-smoke", "release", "staging"].map(
+  ["dast", "deployment-smoke", "release", "staging"].map(
     (name) => `.github/workflows/${name}.yml`,
   ),
 );
@@ -22,14 +22,9 @@ export const operationsRequiredFiles = Object.freeze([
 
 const actions = {
   checkout: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-  codeqlInit:
-    "github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
-  codeqlAnalyze:
-    "github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
   node: "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
   release:
     "googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7",
-  zap: "zaproxy/action-full-scan@3c58388149901b9a03b7718852c5ba889646c27c",
 };
 const checkout = {
   uses: actions.checkout,
@@ -40,6 +35,19 @@ const setupNode = {
   with: { "node-version-file": ".nvmrc" },
 };
 const readOnly = { contents: "read" };
+const concurrencyGroups = [
+  "staging-dast",
+  "api-smoke",
+  "api-release",
+  "api-staging",
+];
+const releaseToken = "${{ secrets.RELEASE_PLEASE_TOKEN }}";
+const requireReleaseToken = `if [[ -z "$RELEASE_PLEASE_TOKEN" ]]; then
+  echo "::error::Configure RELEASE_PLEASE_TOKEN before running Release."
+  exit 1
+fi`;
+const requireDastEgress = `echo "::error::DAST requires verified staging-only scanner egress before it can run."
+exit 1`;
 const requirePolicy = (condition, message) => {
   if (!condition) throw new Error(message);
 };
@@ -57,13 +65,18 @@ const onlyKeys = (value, allowed, label) => {
     `Unexpected operations ${label} configuration requires an explicit policy transition.`,
   );
 };
-const validateRoot = (workflow) => {
+const validateRoot = (workflow, group) => {
   onlyKeys(
     workflow,
     ["name", "on", "permissions", "concurrency", "jobs"],
     "workflow",
   );
   exact(workflow.permissions, readOnly, "root permissions");
+  exact(
+    workflow.concurrency,
+    { group, "cancel-in-progress": false },
+    "concurrency",
+  );
 };
 const emptyDispatch = (events) => {
   requirePolicy(
@@ -122,35 +135,6 @@ const validateSteps = (actual, expected) => {
   }
 };
 
-const validateCodeql = (workflow) => {
-  const events = workflow.on;
-  onlyKeys(
-    events,
-    ["push", "pull_request", "schedule", "workflow_dispatch"],
-    "CodeQL triggers",
-  );
-  exact(events.push, { branches: ["main"] }, "CodeQL push trigger");
-  exact(events.pull_request, { branches: ["main"] }, "CodeQL PR trigger");
-  exact(events.schedule, [{ cron: "30 3 * * 1" }], "CodeQL schedule");
-  emptyDispatch(events);
-  const job = oneJob(workflow, "analyze", ["permissions"]);
-  exact(
-    job.permissions,
-    { contents: "read", "security-events": "write" },
-    "CodeQL report permissions",
-  );
-  validateSteps(job.steps, [
-    checkout,
-    {
-      uses: actions.codeqlInit,
-      with: {
-        languages: "javascript-typescript",
-        queries: "security-extended",
-      },
-    },
-    { uses: actions.codeqlAnalyze },
-  ]);
-};
 const validateDast = (workflow) => {
   manualTrigger(workflow.on, "target_url");
   const job = readOnlyJob(workflow, "zap", ["environment", "env"]);
@@ -168,18 +152,7 @@ const validateDast = (workflow) => {
     checkout,
     setupNode,
     { run: "node scripts/validate-workflow-targets.mjs dast" },
-    {
-      uses: actions.zap,
-      with: {
-        allow_issue_writing: false,
-        artifact_name: "staging-dast-${{ github.run_id }}",
-        cmd_options: "-a",
-        docker_name:
-          "ghcr.io/zaproxy/zaproxy:2.17.0@sha256:c558ee87358911ab17278c70991e856f57793e115d9cd0f88ca475cf82907a1a",
-        fail_action: true,
-        target: "${{ env.DAST_TARGET }}",
-      },
-    },
+    { run: requireDastEgress },
   ]);
 };
 const validateVerification = (workflow, mode) => {
@@ -206,20 +179,19 @@ const validateVerification = (workflow, mode) => {
 };
 const validateRelease = (workflow) => {
   manualTrigger(workflow.on);
-  const job = oneJob(workflow, "release", ["if", "permissions"]);
+  const job = readOnlyJob(workflow, "release", ["if"]);
   exact(job.if, "github.ref == 'refs/heads/main'", "release source branch");
-  exact(
-    job.permissions,
-    { contents: "write", "pull-requests": "write" },
-    "release job permissions",
-  );
   validateSteps(job.steps, [
+    {
+      env: { RELEASE_PLEASE_TOKEN: releaseToken },
+      run: requireReleaseToken,
+    },
     {
       uses: actions.release,
       with: {
         "config-file": "release-please-config.json",
         "manifest-file": ".release-please-manifest.json",
-        token: "${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}",
+        token: releaseToken,
       },
     },
   ]);
@@ -238,7 +210,6 @@ export const validateOperationsWorkflows = (workflows, files) => {
     "Operations phases must publish every workflow, configuration, enforcing owner and test.",
   );
   const validators = [
-    validateCodeql,
     validateDast,
     (workflow) => validateVerification(workflow, "smoke"),
     validateRelease,
@@ -246,7 +217,7 @@ export const validateOperationsWorkflows = (workflows, files) => {
   ];
   for (const [index, filename] of operationsWorkflowPaths.entries()) {
     const workflow = workflows[filename];
-    validateRoot(workflow);
+    validateRoot(workflow, concurrencyGroups[index]);
     validators[index](workflow);
   }
 };

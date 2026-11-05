@@ -34,7 +34,7 @@ const rejectsMutation = (name, mutate) => {
   });
 };
 
-test("reviewed operations definitions preserve manual authorization and allowed CodeQL analysis", () => {
+test("reviewed operations definitions preserve manual authorization", () => {
   assert.doesNotThrow(() =>
     validateOperationsWorkflows(workflows, publishedFiles()),
   );
@@ -43,7 +43,6 @@ test("reviewed operations definitions preserve manual authorization and allowed 
 test("equivalent manual-dispatch and explicit read-only job declarations are accepted", () => {
   const changed = structuredClone(workflows);
   changed[filename("release")].on.workflow_dispatch = {};
-  changed[filename("codeql")].on.workflow_dispatch = {};
   changed[filename("dast")].jobs.zap.permissions = { contents: "read" };
   changed[filename("staging")].jobs.verify.permissions = { contents: "read" };
   changed[filename("deployment-smoke")].jobs.verify.permissions = {
@@ -83,6 +82,18 @@ for (const file of operationsWorkflowPaths) {
         "runs-on": "ubuntu-latest",
         steps: [{ run: "synthetic-deploy-command" }],
       };
+    },
+  );
+  rejectsMutation(`${file} cannot omit concurrency`, (changed) => {
+    delete changed[file].concurrency;
+  });
+  rejectsMutation(`${file} cannot cancel active operations`, (changed) => {
+    changed[file].concurrency["cancel-in-progress"] = true;
+  });
+  rejectsMutation(
+    `${file} cannot use an unreviewed concurrency group`,
+    (changed) => {
+      changed[file].concurrency.group = "unreviewed";
     },
   );
 }
@@ -169,7 +180,7 @@ const mutationCases = [
     },
   ],
   [
-    "DAST cannot invoke the network scanner before its target validator",
+    "DAST must validate the target before reporting the missing egress guard",
     (changed) => {
       changed[filename("dast")].jobs.zap.steps.reverse();
     },
@@ -194,30 +205,30 @@ const mutationCases = [
     },
   ],
   [
-    "DAST cannot create remote issues",
+    "DAST cannot omit the egress block",
     (changed) => {
-      changed[filename("dast")].jobs.zap.steps[3].with.allow_issue_writing =
-        true;
+      changed[filename("dast")].jobs.zap.steps.pop();
     },
   ],
   [
-    "DAST cannot ignore scan failures",
+    "DAST cannot report success without scanner egress",
     (changed) => {
-      changed[filename("dast")].jobs.zap.steps[3].with.fail_action = false;
+      changed[filename("dast")].jobs.zap.steps[3].run = "exit 0";
     },
   ],
   [
-    "DAST cannot pull a mutable scanner image",
+    "DAST cannot run a scanner without staging-only egress",
     (changed) => {
-      changed[filename("dast")].jobs.zap.steps[3].with.docker_name =
-        "ghcr.io/zaproxy/zaproxy:latest";
+      changed[filename("dast")].jobs.zap.steps[3] = {
+        uses: "zaproxy/action-full-scan@3c58388149901b9a03b7718852c5ba889646c27c",
+        with: { target: "${{ env.DAST_TARGET }}" },
+      };
     },
   ],
   [
-    "DAST cannot replace the validated scanner target",
+    "DAST cannot continue past the egress block",
     (changed) => {
-      changed[filename("dast")].jobs.zap.steps[3].with.target =
-        "https://synthetic.example";
+      changed[filename("dast")].jobs.zap.steps[3]["continue-on-error"] = true;
     },
   ],
   [
@@ -280,43 +291,31 @@ const mutationCases = [
     },
   ],
   [
-    "release cannot request unrelated write permissions",
+    "release cannot elevate the built-in token",
     (changed) => {
-      changed[filename("release")].jobs.release.permissions.issues = "write";
+      changed[filename("release")].jobs.release.permissions = {
+        contents: "write",
+      };
     },
   ],
   [
     "release cannot use alternate unreviewed configuration",
     (changed) => {
-      changed[filename("release")].jobs.release.steps[0].with["config-file"] =
+      changed[filename("release")].jobs.release.steps[1].with["config-file"] =
         "other.json";
     },
   ],
   [
-    "CodeQL cannot gain contents write privileges",
+    "release cannot omit the dedicated-token check",
     (changed) => {
-      changed[filename("codeql")].jobs.analyze.permissions.contents = "write";
+      changed[filename("release")].jobs.release.steps.shift();
     },
   ],
   [
-    "CodeQL cannot omit its security-report permission",
+    "release cannot fall back to the built-in token",
     (changed) => {
-      delete changed[filename("codeql")].jobs.analyze.permissions[
-        "security-events"
-      ];
-    },
-  ],
-  [
-    "CodeQL cannot silently narrow its published source checks",
-    (changed) => {
-      changed[filename("codeql")].jobs.analyze.steps[1].with.languages =
-        "python";
-    },
-  ],
-  [
-    "CodeQL cannot add a changed-path skip",
-    (changed) => {
-      changed[filename("codeql")].on.pull_request.paths = ["unrelated/**"];
+      changed[filename("release")].jobs.release.steps[1].with.token =
+        "${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}";
     },
   ],
 ];

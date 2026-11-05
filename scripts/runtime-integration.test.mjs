@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { registerFixtureCleanup } from "../src/test/support/fixture-cleanup.ts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const runner = `
+const acknowledgeSignals = `
   const acknowledge = () => process.send('fixture.signal.received', () => process.disconnect());
   process.once('SIGTERM', acknowledge);
   process.once('SIGINT', acknowledge);
@@ -20,9 +20,34 @@ const runner = `
     if (value === 'stop') process.emit('SIGTERM');
     if (value === 'interrupt') process.emit('SIGINT');
   });
-  await import('./src/index.ts');
 `;
-const observeDbCloseRunner = `import { mock } from 'node:test'; const real = await import('@libsql/client'); mock.module('@libsql/client', { exports: { ...real, createClient: (...args) => { const client = real.createClient(...args); const close = client.close.bind(client); client.close = () => { const result = close(); process.stdout.write('fixture.database.closed\\n'); return result; }; return client; } } }); await import('./src/index.ts')`;
+const recordDatabaseClose = `
+  import { mock } from 'node:test';
+  const real = await import('@libsql/client');
+  mock.module('@libsql/client', {
+    exports: {
+      ...real,
+      createClient: (...args) => {
+        const client = real.createClient(...args);
+        const close = client.close.bind(client);
+        client.close = () => {
+          const result = close();
+          process.stdout.write('fixture.database.closed\\n');
+          return result;
+        };
+        return client;
+      },
+    },
+  });
+`;
+const recordListenAttempt = `
+  import { Server } from 'node:net';
+  const listen = Server.prototype.listen;
+  Server.prototype.listen = function (...args) {
+    process.stdout.write('fixture.listener.listen-called\\n');
+    return listen.apply(this, args);
+  };
+`;
 const reserve = async () => {
   const server = net.createServer();
   server.listen(0, "127.0.0.1");
@@ -74,9 +99,17 @@ async function createFixture(t) {
   };
   return { dir, port, env, closers };
 }
-function start(fixture, { observeDbClose = false } = {}) {
+function start(
+  fixture,
+  { observeDbClose = false, observeListen = false } = {},
+) {
   const flags = observeDbClose ? ["--experimental-test-module-mocks"] : [];
-  const script = observeDbClose ? observeDbCloseRunner : runner;
+  const script = [
+    acknowledgeSignals,
+    observeDbClose ? recordDatabaseClose : "",
+    observeListen ? recordListenAttempt : "",
+    "await import('./src/index.ts');",
+  ].join("\n");
   const child = spawn(
     process.execPath,
     [...flags, "--input-type=module", "-e", script],
@@ -159,7 +192,7 @@ const waitForStorageRequest = (running, requestSeen) =>
 
 test("real Node adapter starts, authenticates and shuts down gracefully", async (t) => {
   const fixture = await createFixture(t);
-  const running = start(fixture);
+  const running = start(fixture, { observeDbClose: true });
   await waitForReady(fixture, running);
   const base = `http://127.0.0.1:${fixture.port}`;
   const login = await fetch(`${base}/auth/login`, {
@@ -282,38 +315,27 @@ test("real Node adapter starts, authenticates and shuts down gracefully", async 
   const result = await running.result;
   assert.equal(result.code, 0, running.output());
   assert.match(running.output(), /server.stopped/);
+  assert.equal(
+    (running.output().match(/fixture\.database\.closed/g) ?? []).length,
+    1,
+  );
 });
 
-test("startup responds 503 until storage is ready and handles shutdown during initialization", async (t) => {
+test("startup responds 503 and SIGTERM closes a stalled storage request and the database", async (t) => {
   const fixture = await createFixture(t);
-  let release;
-  let seen;
-  const requestSeen = new Promise((resolve) => {
-    seen = resolve;
-  });
-  const storage = http.createServer((request, response) => {
-    if (!release) {
-      release = () => {
-        response.statusCode = 200;
-        response.end();
-      };
-      seen();
-      return;
-    }
-    if (request.method === "GET") {
-      response.setHeader("Content-Type", "application/xml");
-      response.end(
-        '<VersioningConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"></VersioningConfiguration>',
-      );
-    } else {
-      response.statusCode = 204;
-      response.end();
-    }
+  const { promise: requestSeen, resolve: recordRequest } =
+    Promise.withResolvers();
+  const { promise: requestClosed, resolve: recordClose } =
+    Promise.withResolvers();
+  let storageRequests = 0;
+  const storage = http.createServer((_request, response) => {
+    storageRequests++;
+    response.once("close", () => recordClose(response.writableEnded));
+    recordRequest();
   });
   storage.listen(0, "127.0.0.1");
   await once(storage, "listening");
   fixture.closers.push(async () => {
-    release?.();
     storage.closeAllConnections();
     await close(storage);
   });
@@ -334,17 +356,22 @@ test("startup responds 503 until storage is ready and handles shutdown during in
     AWS_EC2_METADATA_DISABLED: "true",
     AWS_PROFILE: "synthetic-profile",
   });
-  const running = start(fixture);
+  const running = start(fixture, { observeDbClose: true });
   await waitForStorageRequest(running, requestSeen);
   const response = await fetch(`http://127.0.0.1:${fixture.port}/health`);
   assert.equal(response.status, 503);
   assert.equal(response.headers.get("cache-control"), "no-store");
   await running.signal("SIGTERM");
-  release();
   const result = await running.result;
   assert.equal(result.code, 0, running.output());
+  assert.equal(await requestClosed, false, "Storage response was never sent");
+  assert.equal(storageRequests, 1);
   assert.match(running.output(), /server.stopped/);
-  assert.doesNotMatch(running.output(), /server.started/);
+  assert.doesNotMatch(running.output(), /server\.(?:started|shutdown\.failed)/);
+  assert.equal(
+    (running.output().match(/fixture\.database\.closed/g) ?? []).length,
+    1,
+  );
 });
 
 test("occupied port fails before database or object-storage state is created", async (t) => {
@@ -368,14 +395,11 @@ test("occupied port fails before database or object-storage state is created", a
 test("configuration failure is sanitized and never opens a listener", async (t) => {
   const fixture = await createFixture(t);
   delete fixture.env.BETTER_AUTH_SECRET;
-  const running = start(fixture);
-  await assert.rejects(
-    waitForStorageRequest(running, new Promise(() => {})),
-    /Server exited before storage initialization/,
-  );
+  const running = start(fixture, { observeListen: true });
   const result = await running.result;
   assert.equal(result.code, 1, running.output());
   assert.match(running.output(), /server.startup.failed/);
+  assert.doesNotMatch(running.output(), /fixture\.listener\.listen-called/);
   await assert.rejects(stat(path.join(fixture.dir, "runtime.sqlite")), {
     code: "ENOENT",
   });

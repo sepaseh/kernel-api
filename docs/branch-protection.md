@@ -1,8 +1,9 @@
 # Main-branch protection
 
 Repository configuration files do not activate GitHub protection by themselves.
-An authorized administrator applies the reviewed ruleset and verifies the live
-readback. Keep required contexts bound to their actual provider applications.
+An authorized administrator applies the [main ruleset](../.github/rulesets/main.json)
+and verifies the live readback. Keep required contexts bound to their actual
+provider applications; change remote requirements only with explicit authorization.
 
 ## Required controls
 
@@ -11,53 +12,41 @@ the most recent push, resolved conversations, an up-to-date branch and linear
 history. Disallow force pushes, deletion and administrative bypass. Use squash
 merges; do not enable automatic merging as part of this setup.
 
-Require full CI, successful Sonar scanner execution and the actual Sonar provider
-quality gate. Require the native CodeRabbit result
-and the separate current-head CodeRabbit approval guard once its trusted
-default-branch implementation is available.
+Require the stable `check` aggregate over Static checks, Dependency audit and
+Governance tests, the native CodeQL security check, successful Sonar scanner execution
+and the actual Sonar provider
+quality gate and the native CodeRabbit result. Use the native approval count;
+no separate publisher or custom approval check is required. A PR author cannot
+supply their own approving review. CodeRabbit disables the author-triggered
+approval shortcut.
 
-An ordinary approval count accepts other eligible reviewers and therefore does
-not identify CodeRabbit. The guard must inspect the exact verified bot identity,
-latest review and native provider check on the current head, rejecting missing,
-stale, dismissed, skipped, neutral or failed evidence.
+Inspect actual evidence for the current PR head. A successful CodeRabbit status
+can represent a skipped or rate-limited review, and the native approval count
+does not select a particular reviewer. Missing, pending, failed, skipped or stale
+provider evidence cannot be reported as completed content review or approval.
+Keep incomplete work in draft unless the owner requests ready-for-review status;
+that status does not establish merge readiness. Do not remove active requirements
+to hide failures or unblock publication.
 
-## First-PR bootstrap
+## Published phase and trust
 
-A README-only default branch does not contain its own trusted
-`pull_request_target` or `workflow_run` evaluator. PR1 cannot establish those
-controls on itself. Its read-only bootstrap checks are useful evidence but do
-not establish trusted default-branch enforcement.
+The runtime-operations phase keeps `applicationReady: false`. Require the
+complete canonical CI profile for the published HTTP, database, authentication,
+storage and operations owners, along with CodeQL, the Sonar scanner and quality
+gate, and CodeRabbit. Those checks do not establish production readiness.
 
-The [bootstrap ruleset](../.github/rulesets/bootstrap.json) requires native CI,
-scanner, Sonar gate, CodeRabbit and an approving review.
-Before any separately authorized first merge, verify the actual current-head
-CodeRabbit approval and every provider result manually. Use draft for incomplete
-work unless the owner explicitly requests ready-for-review status; that status
-does not establish merge readiness. Do not remove an active requirement merely
-to unblock bootstrap.
+The source ruleset binds the native `CodeQL` context to the CodeQL application
+(`57789`). The Actions job
+`Analyze JavaScript, TypeScript and GitHub Actions` is separate from that provider
+result. Neither local workflow validation nor source configuration
+proves hosted analysis ran or that remote protection was changed.
 
-After the reviewed guard is on the default branch, apply the
-[complete main ruleset](../.github/rulesets/main.json), retaining the bootstrap
-requirements and adding the trusted CodeRabbit approval context.
-Verify real failure cases before treating those new controls as established.
-
-## Trust boundary
-
-The evaluator runs only trusted immutable default-branch code with write
-credentials; review-event relays have no permissions or checkout. It never
-requests a review. The bot identity and literal completed-success provider result
-block ordinary skips; they do not prove every file received content review.
-
-Trusted target workflows apply to PRs targeting `main`. Publish successive PRs
-into `main` after their prerequisites are reviewed and merged. Ordinary CI still
-runs for PRs with other targets; do not claim those establish the same trusted
-target enforcement.
-
-An Actions-authored required context is bound to the GitHub Actions app, not one
-specific workflow. Repository writers and administrators must remain trusted.
-Stricter workflow-specific enforcement requires organization-level required
-workflows or a separately authorized trusted publisher. Do not claim that an
-ordinary personal-repository context provides that stronger guarantee.
+Every external action must use an immutable commit. Any future privileged
+`pull_request_target` guard must execute only trusted default-branch code pinned
+to `github.workflow_sha`, with minimal permissions and no persisted checkout
+credentials. Never execute unreviewed PR head or base code with write credentials.
+An Actions-authored context identifies its app, not a particular workflow.
+Repository writers and administrators remain trusted.
 
 PR file count is advisory [pre-PR planning](../CONTRIBUTING.md#scope-and-pr-planning),
 not a required check or merge condition. Exceeding 100 files alone never fails

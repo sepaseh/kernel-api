@@ -6,6 +6,7 @@ export type FailureKind =
   | "forbidden"
   | "not-found"
   | "conflict"
+  | "request-timeout"
   | "too-large"
   | "unsupported-media"
   | "rate-limited"
