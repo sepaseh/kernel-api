@@ -38,6 +38,8 @@ docs {
   - `400 Bad Request` — File or visibility is invalid.
   - `401 Unauthorized` — Authentication is missing or invalid.
   - `403 Forbidden` — Public upload is not allowed.
+  - `408 Request Timeout` — The request body is still incomplete after the 60-second read deadline.
   - `413 Content Too Large` — The file exceeds its limit or the complete multipart body exceeds that limit plus 64 KiB of framing and metadata.
   - `415 Unsupported Media Type` — Content-Type is not multipart/form-data.
+  - `503 Service Unavailable` — Four uploads are already in progress in this process. An authenticated request is rejected before body reading, with `Cache-Control: no-store`.
 }
