@@ -7,6 +7,9 @@ import { ApiError, authenticate } from "../http.ts";
 // Allow bounded multipart framing and metadata in addition to the file itself.
 // The limit applies to bytes read, regardless of Content-Length or chunking.
 const multipartOverheadBytes = 64 * 1024;
+const multipartReadTimeoutMs = 60_000;
+const maxConcurrentUploads = 4;
+let activeUploads = 0;
 
 export const readBoundedMultipart = async (
   request: Request,
@@ -24,9 +27,15 @@ export const readBoundedMultipart = async (
   );
   const chunks: Uint8Array[] = [];
   let size = 0;
+  let timedOut = false;
+  const deadline = setTimeout(() => {
+    timedOut = true;
+    void reader.cancel().catch(() => undefined);
+  }, multipartReadTimeoutMs);
   try {
     while (true) {
       const chunk = await reader.read();
+      if (timedOut) throw new ApiError(408, "fileUploadTimedOut");
       if (chunk.done) break;
       size += chunk.value.byteLength;
       if (size > maximum) {
@@ -36,6 +45,7 @@ export const readBoundedMultipart = async (
       chunks.push(chunk.value);
     }
   } finally {
+    clearTimeout(deadline);
     reader.releaseLock();
   }
 
@@ -100,70 +110,83 @@ export const createFileRoutes = () => {
     const actor = await authenticate(context);
     context.set("uploadStage", "validation");
     const dependencies = context.get("dependencies");
-    const form = await readBoundedMultipart(
-      context.req.raw,
-      dependencies.config.uploadLimitBytes,
-    );
-    const file = form.get("file");
-    const events: FileEvents = {
-      cleanupFailed: ({ error, fileId }) => {
-        context
-          .get("logger")
-          .child({ fileId })
-          .error(
-            { err: error, event: "storage.cleanup.failed" },
-            "Object cleanup after metadata failure failed",
+    if (activeUploads >= maxConcurrentUploads) {
+      context.header("Cache-Control", "no-store");
+      return context.json(
+        { message: context.get("translate")("fileUploadsBusy") },
+        503,
+      );
+    }
+
+    activeUploads++;
+    try {
+      const form = await readBoundedMultipart(
+        context.req.raw,
+        dependencies.config.uploadLimitBytes,
+      );
+      const file = form.get("file");
+      const events: FileEvents = {
+        cleanupFailed: ({ error, fileId }) => {
+          context
+            .get("logger")
+            .child({ fileId })
+            .error(
+              { err: error, event: "storage.cleanup.failed" },
+              "Object cleanup after metadata failure failed",
+            );
+        },
+        stage: (stage) => context.set("uploadStage", stage),
+        storageFailed: ({ fileId, operation }) => {
+          const logger = fileId
+            ? context.get("logger").child({ fileId })
+            : context.get("logger");
+          logger.error(
+            {
+              event: "storage.operation.failed",
+              operation,
+              storageDriver: dependencies.config.storageDriver,
+            },
+            "Storage operation failed",
           );
-      },
-      stage: (stage) => context.set("uploadStage", stage),
-      storageFailed: ({ fileId, operation }) => {
-        const logger = fileId
-          ? context.get("logger").child({ fileId })
-          : context.get("logger");
-        logger.error(
-          {
-            event: "storage.operation.failed",
-            operation,
-            storageDriver: dependencies.config.storageDriver,
-          },
-          "Storage operation failed",
-        );
-      },
-      uploaded: ({ fileId, ...details }) => {
-        context
-          .get("logger")
-          .child({ fileId })
-          .info(
-            { ...details, event: "file.upload.completed" },
-            "File upload completed",
-          );
-      },
-    };
-    const result = await dependencies.services.files.upload(
-      {
-        actor,
-        source:
-          file instanceof File
-            ? {
-                name: file.name,
-                read: async () => new Uint8Array(await file.arrayBuffer()),
-                size: file.size,
-                type: file.type,
-              }
-            : undefined,
-        visibility: form.get("visibility"),
-      },
-      events,
-    );
-    return context.json(
-      {
-        content_type: result.contentType,
-        id: result.id,
-        ...(result.url && { url: result.url }),
-        visibility: result.visibility,
-      },
-      201,
-    );
+        },
+        uploaded: ({ fileId, ...details }) => {
+          context
+            .get("logger")
+            .child({ fileId })
+            .info(
+              { ...details, event: "file.upload.completed" },
+              "File upload completed",
+            );
+        },
+      };
+      const result = await dependencies.services.files.upload(
+        {
+          actor,
+          source:
+            file instanceof File
+              ? {
+                  name: file.name,
+                  read: async () => new Uint8Array(await file.arrayBuffer()),
+                  size: file.size,
+                  type: file.type,
+                }
+              : undefined,
+          visibility: form.get("visibility"),
+        },
+        events,
+      );
+      return context.json(
+        {
+          content_type: result.contentType,
+          id: result.id,
+          ...(result.url && { url: result.url }),
+          visibility: result.visibility,
+        },
+        201,
+      );
+    } finally {
+      activeUploads--;
+    }
   });
 
   return app;

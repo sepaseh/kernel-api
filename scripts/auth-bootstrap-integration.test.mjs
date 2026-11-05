@@ -11,6 +11,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/libsql/migrator";
 
+import { createAuthService } from "../src/application/auth.ts";
+import { recoveryOtpSubject } from "../src/application/ports/auth.ts";
+import { profileNameMaxLength } from "../src/contracts/profile.ts";
 import { createInitialAdmin } from "../src/infrastructure/admin/bootstrap.ts";
 import { createAuth } from "../src/infrastructure/auth/better-auth.ts";
 import { createAuthGateway } from "../src/infrastructure/auth/gateway.ts";
@@ -25,6 +28,7 @@ import {
 } from "../src/infrastructure/db/schema.ts";
 import { createLogger } from "../src/infrastructure/logging/logger.ts";
 import { createAuthPersistence } from "../src/infrastructure/persistence/auth.ts";
+import { createDrizzleUsersRepository } from "../src/infrastructure/persistence/users.ts";
 import { isolatedFileFixture } from "../src/test/support/fixture-cleanup.ts";
 
 const input = {
@@ -329,8 +333,18 @@ test("malformed stored or prepared hashes fail closed", async (context) => {
 
 test("bootstrap creates one credential without a session and refuses a rerun", async (context) => {
   const { auth, database } = await setup(context);
-  await createInitialAdmin(database, auth, input);
-  assert.equal((await database.query.user.findMany()).length, 1);
+  const name = "ن".repeat(profileNameMaxLength);
+  await assert.rejects(
+    createInitialAdmin(database, auth, { ...input, first_name: ` ${name}ن ` }),
+    /Invalid initial administrator input/,
+  );
+  await createInitialAdmin(database, auth, {
+    ...input,
+    first_name: ` ${name} `,
+  });
+  const administrators = await database.query.user.findMany();
+  assert.equal(administrators.length, 1);
+  assert.equal(administrators[0].firstName, name);
   assert.equal((await database.query.account.findMany()).length, 1);
   assert.equal((await database.query.session.findMany()).length, 0);
   await assert.rejects(createInitialAdmin(database, auth, input));
@@ -585,7 +599,11 @@ test("OTP throttling is scoped by purpose and subject and expires", async (conte
     key: "otpThrottled",
   });
   await otp.issue("09120000012", "register", "second");
-  await otp.issue("09120000012", "forgot_password");
+  await otp.issue(
+    "09120000012",
+    "forgot_password",
+    recoveryOtpSubject("first"),
+  );
   await database
     .update(otpCodes)
     .set({ createdAt: new Date(Date.now() - 121_000) })
@@ -607,8 +625,14 @@ test("failed password reset rolls back OTP consumption", async (context) => {
   });
   await database.delete(account).where(eq(account.userId, userId));
   const otp = createOtpGateway(config, database);
-  await otp.issue("09120000003", "forgot_password");
-  const attempt = otp.prepare("09120000003", "forgot_password", "123456");
+  const subject = recoveryOtpSubject(userId);
+  await otp.issue("09120000003", "forgot_password", subject);
+  const attempt = otp.prepare(
+    "09120000003",
+    "forgot_password",
+    "123456",
+    subject,
+  );
   const persistence = createAuthPersistence(database);
   await assert.rejects(
     persistence.resetPasswordWithOtp({
@@ -622,7 +646,7 @@ test("failed password reset rolls back OTP consumption", async (context) => {
   await assert.rejects(otp.consume(attempt));
 });
 
-test("failed password reset rolls back legacy OTP consumption", async (context) => {
+test("password reset rejects an unbound legacy code without consuming it", async (context) => {
   const { auth, config, database } = await setup(context, {
     OTP_FIXED_CODE: "123456",
   });
@@ -636,7 +660,6 @@ test("failed password reset rolls back legacy OTP consumption", async (context) 
     name: "Test User",
     password: "synthetic-password",
   });
-  await database.delete(account).where(eq(account.userId, userId));
   const legacy = createHash("sha256")
     .update(`${config.authSecret}:${destination}:forgot_password:123456`)
     .digest("hex");
@@ -648,7 +671,12 @@ test("failed password reset rolls back legacy OTP consumption", async (context) 
     createdAt: new Date(),
     expiresAt: new Date(Date.now() + 60_000),
   });
-  const attempt = otp.prepare(destination, "forgot_password", "123456");
+  const attempt = otp.prepare(
+    destination,
+    "forgot_password",
+    "123456",
+    recoveryOtpSubject(userId),
+  );
   const persistence = createAuthPersistence(database);
   await assert.rejects(
     persistence.resetPasswordWithOtp({
@@ -656,10 +684,10 @@ test("failed password reset rolls back legacy OTP consumption", async (context) 
       newHash: "synthetic",
       otp: attempt,
     }),
-    { key: "passwordResetInvalid" },
+    { key: "otpInvalid" },
   );
-  await otp.consume(attempt);
-  await assert.rejects(otp.consume(attempt), { key: "otpInvalid" });
+  const legacyRecord = await database.query.otpCodes.findFirst();
+  assert.equal(legacyRecord?.consumedAt, null);
 });
 
 test("password reset binds OTP destination to the current user mobile", async (context) => {
@@ -676,8 +704,14 @@ test("password reset binds OTP destination to the current user mobile", async (c
     password: "synthetic-password",
   });
   const otp = createOtpGateway(config, database);
-  await otp.issue("09120000008", "forgot_password");
-  const attempt = otp.prepare("09120000008", "forgot_password", "123456");
+  const subject = recoveryOtpSubject(first.userId);
+  await otp.issue("09120000008", "forgot_password", subject);
+  const attempt = otp.prepare(
+    "09120000008",
+    "forgot_password",
+    "123456",
+    subject,
+  );
   const persistence = createAuthPersistence(database);
   await assert.rejects(
     persistence.resetPasswordWithOtp({
@@ -687,6 +721,58 @@ test("password reset binds OTP destination to the current user mobile", async (c
     }),
   );
   await otp.consume(attempt);
+});
+
+test("an OTP issued before mobile reassignment cannot reset the new owner's password", async (context) => {
+  const { auth, config, database } = await setup(context, {
+    OTP_FIXED_CODE: "123456",
+  });
+  const { provider } = createAuthGateway(auth);
+  const otp = createOtpGateway(config, database);
+  const persistence = createAuthPersistence(database);
+  const service = createAuthService({ provider, persistence, otp });
+  const mobile = "09120000025";
+  const signup = (authEmail) =>
+    provider.signUp({
+      authEmail,
+      firstName: "Test",
+      lastName: "User",
+      mobile,
+      name: "Test User",
+      password: "synthetic-password",
+    });
+  const first = await signup("recovery-first@synthetic.local");
+  await service.requestOtp({ mobile, purpose: "forgot_password" });
+  await createDrizzleUsersRepository(database).update(
+    first.userId,
+    { mobile: "09120000026" },
+    first.userId,
+  );
+  const second = await signup("recovery-second@synthetic.local");
+  const credential = await persistence.findCredential(second.userId);
+  const reset = { mobile, otp: "123456", password: "replacement-password" };
+
+  await assert.rejects(service.forgotPassword(reset), { key: "otpInvalid" });
+  assert.deepEqual(await persistence.findCredential(second.userId), credential);
+  const original = await database.query.otpCodes.findFirst();
+  assert.equal(original?.subject, recoveryOtpSubject(first.userId));
+  assert.equal(original?.consumedAt, null);
+  await assert.rejects(
+    service.requestOtp({ mobile, purpose: "forgot_password" }),
+    { key: "otpThrottled" },
+  );
+
+  await database
+    .update(otpCodes)
+    .set({ createdAt: new Date(Date.now() - 121_000) })
+    .where(eq(otpCodes.id, original.id));
+  await service.requestOtp({ mobile, purpose: "forgot_password" });
+  await service.forgotPassword(reset);
+  assert.equal(
+    (await service.login({ identifier: mobile, password: reset.password }))
+      .userId,
+    second.userId,
+  );
 });
 
 test("OTP issuance fails without a configured delivery adapter", async (context) => {
@@ -774,7 +860,7 @@ test("successful password change revokes the user's sessions", async (context) =
   await persistence.deleteSession("missing");
 });
 
-test("successful OTP password reset consumes the code and revokes sessions", async (context) => {
+test("OTP password reset requires a live active account and preserves the code on rejection", async (context) => {
   const { auth, config, database } = await setup(context, {
     OTP_FIXED_CODE: "123456",
   });
@@ -788,14 +874,41 @@ test("successful OTP password reset consumes the code and revokes sessions", asy
     password: "synthetic-password",
   });
   const otp = createOtpGateway(config, database);
-  await otp.issue("09120000010", "forgot_password");
-  const attempt = otp.prepare("09120000010", "forgot_password", "123456");
+  const subject = recoveryOtpSubject(created.userId);
+  await otp.issue("09120000010", "forgot_password", subject);
+  const attempt = otp.prepare(
+    "09120000010",
+    "forgot_password",
+    "123456",
+    subject,
+  );
   const persistence = createAuthPersistence(database);
-  await persistence.resetPasswordWithOtp({
+  const reset = {
     userId: created.userId,
     newHash: "synthetic-new-hash",
     otp: attempt,
+  };
+  const credential = await persistence.findCredential(created.userId);
+  const sessions = await database.query.session.findMany();
+  await database
+    .update(user)
+    .set({ status: "inactive" })
+    .where(eq(user.id, created.userId));
+  await assert.rejects(persistence.resetPasswordWithOtp(reset), {
+    kind: "invalid",
+    key: "passwordResetInvalid",
   });
+  assert.deepEqual(
+    await persistence.findCredential(created.userId),
+    credential,
+  );
+  assert.deepEqual(await database.query.session.findMany(), sessions);
+
+  await database
+    .update(user)
+    .set({ status: "active" })
+    .where(eq(user.id, created.userId));
+  await persistence.resetPasswordWithOtp(reset);
   assert.equal((await database.query.session.findMany()).length, 0);
   assert.equal(
     (await persistence.findCredential(created.userId)).hash,

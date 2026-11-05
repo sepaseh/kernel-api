@@ -15,14 +15,13 @@ requesting CodeRabbit; a successful scanner alone does not establish a passing
 quality gate. Verify current CI and protection status rather than assuming it
 from workflow files.
 
-The [DAST workflow](../../.github/workflows/dast.yml) is a manual staging-only
-template that can send mutating scan traffic. It reads target settings from the
-staging environment and rejects the configured production host; environment
-protections must be configured and verified separately. Do not dispatch it
-without explicit authorization for the target. See [staging](../deployment.md#protected-manual-api-checks)
-for prerequisites. Use synthetic credentials and data for local tests; do not
-read real credentials or use production data. Local and synthetic tests do not
-prove that a production deployment or third-party security review has occurred.
+The [DAST workflow](../../.github/workflows/dast.yml) validates its initial
+target against staging environment settings and stops before running a scanner.
+Active scans can send mutating requests. They require explicit target
+authorization and verified egress that confines requests and redirects to the
+authorized staging origin. See [staging](../deployment.md#protected-manual-api-checks)
+for prerequisites. Use synthetic credentials and data for local tests. Production
+deployment and third-party security review require separate evidence.
 
 The following is a proposed review practice, not an established release policy:
 review trust-boundary changes against the threat model and auth/session changes

@@ -15,6 +15,8 @@ export const en = {
   fileEmpty: "File is empty.",
   fileNotFound: "File not found.",
   fileTooLarge: "File exceeds the upload limit.",
+  fileUploadTimedOut: "The upload timed out. Try again.",
+  fileUploadsBusy: "Too many uploads are in progress. Try again shortly.",
   finalAdminDelete: "The final system administrator cannot be deleted.",
   internalError: "Internal server error.",
   invalidCredentials: "Invalid credentials.",

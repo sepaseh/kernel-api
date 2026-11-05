@@ -11,8 +11,9 @@ credentials and revoke all old sessions together.
 A management mutation authenticates and authorizes and invokes its feature service.
 Operations that can affect the last administrator reread that state inside the write transaction. A preflight
 query or hidden frontend action cannot establish this invariant. Upload checks
-public/private policy, writes object bytes, persists metadata and compensates if
-metadata fails. Private metadata exposes no public URL; no private-download HTTP
+public/private policy, writes object bytes and persists metadata. It attempts to
+delete the uploaded object only when persistence confirms that the metadata
+insert did not commit. Private metadata exposes no public URL; no private-download HTTP
 endpoint exists.
 
 The API binds its HTTP listener before database or storage initialization. Until

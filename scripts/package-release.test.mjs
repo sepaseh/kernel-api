@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   access,
+  copyFile,
   lstat,
   mkdir,
   readdir,
   readFile,
   rm,
   symlink,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
@@ -66,6 +69,7 @@ test("packages a self-contained API source release and excludes credentials, sta
     "api/package.json",
     "api/package-lock.json",
     "api/src/index.ts",
+    "api/src/bootstrap-admin.ts",
     "api/drizzle/meta/_journal.json",
     "api/src/contracts/account.ts",
     "api/src/contracts/permissions.ts",
@@ -114,18 +118,32 @@ test("missing root lock entries fail before release directories are created", as
   );
   await assert.rejects(access(path.join(repository, "dist")));
 });
-test("source links cannot pull files from outside the specific runtime source tree", async (context) => {
+
+test("missing bootstrap entrypoint fails before release directories are created", async (context) => {
+  const { repository } = await fixture(context);
+  const entrypoint = path.join(repository, "src", "bootstrap-admin.ts");
+  await unlink(entrypoint);
+
+  await assert.rejects(
+    packageRelease({ repositoryRoot: repository, releaseId: "no-bootstrap" }),
+    { code: "ENOENT", path: entrypoint },
+  );
+  await assert.rejects(access(path.join(repository, "dist")), {
+    code: "ENOENT",
+  });
+});
+
+test("the release CLI rejects escaping source links and removes only its partial output", async (context) => {
   const { repository, temporary } = await fixture(context);
   const outside = path.join(temporary, "operator-state");
+  const sourceLink = path.join(repository, "src", "escape");
+  const outsideFile = path.join(outside, "sensitive.txt");
   await mkdir(outside);
-  await writeFile(
-    path.join(outside, "sensitive.txt"),
-    "synthetic operator state",
-  );
+  await writeFile(outsideFile, "synthetic operator state");
   try {
     await symlink(
       outside,
-      path.join(repository, "src/escape"),
+      sourceLink,
       process.platform === "win32" ? "junction" : "dir",
     );
   } catch (error) {
@@ -133,10 +151,30 @@ test("source links cannot pull files from outside the specific runtime source tr
       return context.skip("Directory-link creation unavailable.");
     throw error;
   }
-  await assert.rejects(
-    packageRelease({ repositoryRoot: repository, releaseId: "escape" }),
-    /outside its source tree/,
-  );
+
+  const command = path.join(repository, "scripts", "package-release.mjs");
+  await copyFile(new URL("./package-release.mjs", import.meta.url), command);
+  const run = () =>
+    spawnSync(process.execPath, [command, "--release=escape"], {
+      cwd: repository,
+      encoding: "utf8",
+    });
+  const output = path.join(repository, "dist", "releases", "escape");
+  const failed = run();
+  assert.equal(failed.status, 1, failed.stderr);
+  assert.match(failed.stderr, /outside its source tree/);
+  await assert.rejects(access(output), { code: "ENOENT" });
+  assert.equal(await readFile(outsideFile, "utf8"), "synthetic operator state");
+
+  await unlink(sourceLink);
+  const retried = run();
+  assert.equal(retried.status, 0, retried.stderr);
+  const manifest = path.join(output, "release.json");
+  const before = await readFile(manifest, "utf8");
+  const collision = run();
+  assert.equal(collision.status, 1, collision.stderr);
+  assert.match(collision.stderr, /EEXIST/);
+  assert.equal(await readFile(manifest, "utf8"), before);
 });
 test("internal runtime directory links become self-contained directories", async (context) => {
   const { repository, put } = await fixture(context);

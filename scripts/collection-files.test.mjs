@@ -6,6 +6,7 @@ import { before, test } from "node:test";
 import { LocalFileStorage } from "../src/infrastructure/storage/local.ts";
 import {
   collectionRoot as root,
+  readBrunoBlock,
   readCollectionJson as read,
   requireCollectionGroups,
 } from "./collection.test-support.mjs";
@@ -27,5 +28,9 @@ test("file examples follow published local contracts", async () => {
     "utf8",
   );
   assert.match(uploadRequest, /body: multipartForm/);
-  assert.match(uploadRequest, /file: @file\(\)/);
+  const uploadBody = await readBrunoBlock(
+    "files/upload/index.bru",
+    "body:multipart-form",
+  );
+  assert.match(uploadBody, /file: @file\(\)/);
 });

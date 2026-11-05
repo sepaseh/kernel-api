@@ -200,4 +200,16 @@ test("verification never writes the email before OTP consumption succeeds", asyn
   };
   await service.verifyEmail(actor, input);
   assert.deepEqual(effects, ["consume", "write"]);
+
+  effects.length = 0;
+  const writeFailure = new Error("Synthetic email write failure");
+  dependencies.persistence.verifyEmail = async () => {
+    effects.push("write");
+    throw writeFailure;
+  };
+  await assert.rejects(
+    service.verifyEmail(actor, input),
+    (error) => error === writeFailure,
+  );
+  assert.deepEqual(effects, ["consume", "write"]);
 });

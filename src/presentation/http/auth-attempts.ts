@@ -44,8 +44,8 @@ const currentWindow = (
   return window;
 };
 
-// A bounded, single-process backstop for the native API wrappers. Shared
-// deployments still need an ingress or shared-store limiter; this trusts no XFF.
+// A bounded, single-process backstop. Login uses the immediate transport
+// peer, with a shared fallback for requests without Node bindings.
 export function enforceAuthAttempt(
   context: Context<AppEnvironment>,
   scope: string,
@@ -59,7 +59,10 @@ export function enforceAuthAttempt(
     windowsByApplication.set(dependencies, windows);
   }
   const stamp = Date.now();
-  const hash = createHash("sha256").update(identity).digest("hex");
+  const peer = context.env?.incoming?.socket.remoteAddress;
+  const sourceKey =
+    scope === "login" ? JSON.stringify([identity, peer ?? null]) : identity;
+  const hash = createHash("sha256").update(sourceKey).digest("hex");
   const key = `${scope}:${hash}`;
   const window = currentWindow(windows, key, stamp, (retryAfter) =>
     context.header("Retry-After", String(retryAfter)),

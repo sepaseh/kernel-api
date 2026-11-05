@@ -319,15 +319,18 @@ test("ordinary branding saves omit language writes even after concurrent selecti
 test("settings validate complete palettes before persistence and discard unknown palette keys", async () => {
   const { service, writes } = settingsFixture();
 
-  for (const dark_theme of [
-    undefined,
-    null,
-    [],
-    {},
-    { ...palette, color_primary: "red" },
-    { ...palette, color_link: "#123" },
+  for (const [dark_theme, key] of [
+    [undefined, "fieldRequired"],
+    [null, "fieldRequired"],
+    [[], "fieldRequired"],
+    [{}, "colorInvalid"],
+    [{ ...palette, color_primary: "red" }, "colorInvalid"],
+    [{ ...palette, color_link: "#123" }, "colorInvalid"],
   ]) {
-    await assert.rejects(service.update(admin, { ...branding, dark_theme }));
+    await assert.rejects(service.update(admin, { ...branding, dark_theme }), {
+      key,
+      kind: "invalid",
+    });
   }
   assert.deepEqual(writes, []);
   await service.update(admin, {
@@ -342,6 +345,18 @@ test("settings validate complete palettes before persistence and discard unknown
     lightLogoId: "light-logo",
     lightTheme: palette,
   });
+});
+
+test("settings reject non-string logo IDs before saving", async () => {
+  const { service, writes } = settingsFixture();
+  for (const field of ["dark_logo_id", "light_logo_id"]) {
+    await assert.rejects(service.update(admin, { ...branding, [field]: 123 }), {
+      key: "fieldInvalid",
+      kind: "invalid",
+      values: { field },
+    });
+  }
+  assert.deepEqual(writes, []);
 });
 
 test("settings preserve semantic save failures and unrelated adapter errors", async () => {

@@ -35,7 +35,7 @@ inventory before an authorized commit or PR. Report actual outcomes in chat.
 Create QA reports only on explicit request under ignored `test-results/`.
 Never claim that checking an ambient working tree validates a partial PR.
 
-Every source-phase profile runs all ten required checks from the manifest, including
+The full profile runs every required check from the current manifest, including
 real source boundaries, typechecking, lint, measured published-source tests and
 audit-helper tests. Run the full profile for drafts and documentation changes
 too. Add the relevant real HTTP, database, authentication and storage tests as
@@ -44,15 +44,17 @@ those behaviors. Do not hide failed or missing checks.
 
 ## Review and main-branch protection
 
-Use ordinary GitHub, CodeRabbit and SonarQube Cloud integrations. Require CI,
+Use ordinary GitHub, CodeQL, CodeRabbit and SonarQube Cloud integrations. Require CI,
+CodeQL,
 scanner execution, the actual Sonar provider quality gate, an approving review
 and resolved conversations. Enforce rules for administrators, dismiss stale
 approvals, require the latest push to be approved, and prevent force pushes and
-deletion. Read [branch protection](docs/branch-protection.md) for bootstrap limits
-and the separate current-head CodeRabbit approval guard.
+deletion. Use the native approval count; no separate publisher or custom approval
+check is required. Read [branch protection](docs/branch-protection.md) and inspect
+the actual current-head provider evidence.
 
 Before every authorized CodeRabbit request or re-review, enforce the
-[preflight](.agents/rules/pull-requests.md#before-requesting-coderabbit): all
+[preflight](.agents/rules/pull-requests.md#coderabbit-request-preflight): all
 non-CodeRabbit required checks, scanner and actual gate must pass for the exact
 head, with zero open or unresolved Sonar issues at every severity. A new commit
 invalidates that evidence. Exclude only CodeRabbit's own native and approval
@@ -60,10 +62,10 @@ results to avoid a cycle. Respect provider quotas, one in-flight request per hea
 and at least one hour since both the latest manual request and substantive review.
 Never enable automatic reviews to bypass the order.
 
-Successive PRs may target their prerequisite branches. Full CI runs for those
-PRs; privileged trusted guards target `main` only. Their enforcement remains
-pending until the reviewed prerequisites are on
-`main` and the PR is retargeted with fresh checks. Honor an explicit instruction
+Successive PRs may target their prerequisite branches. Full CI and CodeQL run
+for every PR base. Main-branch protection applies when a PR targets `main`;
+after prerequisites merge, retarget and obtain fresh checks for the current
+head and base. Honor an explicit instruction
 to publish ready for review while disclosing pending provider results; that
 status does not authorize merging or waive any review prerequisite.
 

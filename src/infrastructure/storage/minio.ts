@@ -24,7 +24,7 @@ import {
   publicObjectUrl,
 } from "./url.ts";
 
-const endpointUrl = (config: ServerConfig["minio"]) => {
+export const minioEndpointUrl = (config: ServerConfig["minio"]) => {
   const raw = config.endPoint;
   const host =
     raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
@@ -34,8 +34,11 @@ const endpointUrl = (config: ServerConfig["minio"]) => {
     host
       .split(".")
       .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label));
+  if (!ip && (!domain || /^[\d.]+$/.test(host)))
+    throw new Error(
+      "Invalid MinIO endpoint configuration. MINIO_ENDPOINT must be a bare DNS hostname or IP address.",
+    );
   if (
-    (!ip && (!domain || /^[\d.]+$/.test(host))) ||
     !Number.isInteger(config.port) ||
     config.port < 1 ||
     config.port > 65535 ||
@@ -71,7 +74,7 @@ export class MinioObjectStorage implements ObjectStorage {
   constructor(config: ServerConfig["minio"]) {
     if (!config.accessKey.trim() || !config.secretKey.trim())
       throw new Error("Explicit MinIO credentials are required.");
-    const endpoint = endpointUrl(config);
+    const endpoint = minioEndpointUrl(config);
     this.#privateBucket = `${config.bucket}-private`;
     this.#publicBucket = `${config.bucket}-public`;
     assertStorageBucket(this.#privateBucket);
@@ -93,17 +96,19 @@ export class MinioObjectStorage implements ObjectStorage {
     });
   }
 
-  async ensureReady() {
-    await this.#ensureBucket(this.#privateBucket);
-    await this.#ensureBucket(this.#publicBucket);
+  async ensureReady(abortSignal?: AbortSignal) {
+    await this.#ensureBucket(this.#privateBucket, abortSignal);
+    await this.#ensureBucket(this.#publicBucket, abortSignal);
     await this.#client.send(
       new DeleteBucketPolicyCommand({ Bucket: this.#privateBucket }),
+      { abortSignal },
     );
     await this.#client.send(
       new PutBucketPolicyCommand({
         Bucket: this.#publicBucket,
         Policy: publicReadPolicy(this.#publicBucket),
       }),
+      { abortSignal },
     );
   }
 
@@ -163,23 +168,28 @@ export class MinioObjectStorage implements ObjectStorage {
     assertObjectKey(objectKey);
   }
 
-  async #ensureBucket(bucket: string) {
+  async #ensureBucket(bucket: string, abortSignal?: AbortSignal) {
     try {
-      await this.#client.send(new HeadBucketCommand({ Bucket: bucket }));
+      await this.#client.send(new HeadBucketCommand({ Bucket: bucket }), {
+        abortSignal,
+      });
     } catch (error) {
       if (
         !(error instanceof S3ServiceException) ||
         error.$metadata.httpStatusCode !== 404
       )
         throw error;
-      await this.#client.send(new CreateBucketCommand({ Bucket: bucket }));
+      await this.#client.send(new CreateBucketCommand({ Bucket: bucket }), {
+        abortSignal,
+      });
     }
-    await this.#assertUnversioned(bucket);
+    await this.#assertUnversioned(bucket, abortSignal);
   }
 
-  async #assertUnversioned(bucket: string) {
+  async #assertUnversioned(bucket: string, abortSignal?: AbortSignal) {
     const versioning = await this.#client.send(
       new GetBucketVersioningCommand({ Bucket: bucket }),
+      { abortSignal },
     );
     if (versioning.Status !== undefined)
       throw new Error(

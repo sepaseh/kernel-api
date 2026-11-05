@@ -44,8 +44,9 @@ storage initialization. See [HTTP transport](docs/http-transport.md) and
 Operational tooling adds owned release packaging, Docker/native deployment
 references, configuration/health checks and Drizzle generation compatibility
 tests. Synthetic recovery drills exercise matched database/object recovery and
-HTTP/log correlation. CodeQL configuration and manual release, staging, smoke
-and DAST workflows require separate provider/operator setup. See
+HTTP/log correlation. CodeQL configuration and manual release, staging and
+smoke workflows require separate provider setup. The manual DAST workflow
+stops after target validation while staging-only scanner egress is unavailable. See
 [deployment](docs/deployment.md), [release operations](docs/release-operations.md)
 and [backup/recovery](docs/backup-restore.md).
 
@@ -65,11 +66,11 @@ npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
 npm run validate -- full
 ```
 
-The [canonical manifest](.agents/validation.json) owns all ten real source-phase
+The [canonical manifest](.agents/validation.json) owns the required source-phase
 checks, including the published HTTP and local runtime suites. Their disposable
-fixtures do not establish a deployed database or MinIO service, production OTP
-delivery or deployment readiness. Native and Docker smoke commands are opt-in;
-the full profile does not execute them or prove their success.
+fixtures establish local behavior. Deployed database and MinIO integrations,
+production OTP delivery and deployment readiness require separate evidence.
+Native and Docker smoke commands are opt-in and run separately from the full profile.
 
 All eight Bruno groups are published: account, authentication, calendar, files,
 languages, roles, settings and users. Their complete saved requests, responses
