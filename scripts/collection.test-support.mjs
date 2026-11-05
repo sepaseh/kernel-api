@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import ts from "typescript";
+
 import { createLogger } from "../src/infrastructure/logging/logger.ts";
 import { createHttpApp } from "../src/presentation/http/app.ts";
 import { enforceAuthAttempt } from "../src/presentation/http/auth-attempts.ts";
@@ -109,6 +111,50 @@ export const requireCollectionGroups = async (...required) => {
 export const readCollectionJson = async (name) =>
   JSON.parse(await readFile(path.join(collectionRoot, name), "utf8"));
 
+export async function readBrunoBlock(relativePath, blockName) {
+  const source = await readFile(
+    path.join(collectionRoot, relativePath),
+    "utf8",
+  );
+  const scanner = ts.createScanner(
+    ts.ScriptTarget.Latest,
+    true,
+    ts.LanguageVariant.Standard,
+    source,
+  );
+  const parts = blockName.split(/(:|-)/);
+  let depth = 0;
+  for (
+    let token = scanner.scan();
+    token !== ts.SyntaxKind.EndOfFileToken;
+    token = scanner.scan()
+  ) {
+    if (depth === 0 && scanner.getTokenText() === parts[0]) {
+      for (const part of parts.slice(1)) {
+        scanner.scan();
+        assert.equal(scanner.getTokenText(), part);
+      }
+      assert.equal(scanner.scan(), ts.SyntaxKind.OpenBraceToken);
+      const parsed = ts.createSourceFile(
+        "bruno-script.js",
+        source.slice(scanner.getTokenPos()),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.JS,
+      );
+      const block = parsed.statements[0];
+      assert.ok(
+        ts.isBlock(block),
+        `Missing ${blockName} block in ${relativePath}`,
+      );
+      return block.getText(parsed).slice(1, -1);
+    }
+    if (token === ts.SyntaxKind.OpenBraceToken) depth++;
+    if (token === ts.SyntaxKind.CloseBraceToken) depth--;
+  }
+  throw new Error(`Missing active ${blockName} block in ${relativePath}`);
+}
+
 export async function* attemptLimitResponses(context, cases) {
   context.mock.method(Date, "now", () => 1_000);
   for (const [operation, method, route, scope, identity, maximum] of cases) {
@@ -129,17 +175,26 @@ export async function* attemptLimitResponses(context, cases) {
       },
     };
     const context = { get: () => dependencies, header: () => {} };
-    for (let index = 0; index < maximum; index++)
+    for (let index = 0; index < maximum - 1; index++)
       enforceAuthAttempt(context, scope, identity, maximum);
-    const response = await createHttpApp(dependencies).request(route, {
-      method,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        identifier: "synthetic-login",
-        mobile: "09120000001",
-        otp: "123456",
-      }),
-    });
+    const app = createHttpApp(dependencies);
+    const send = () =>
+      app.request(route, {
+        method,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          identifier: "synthetic-login",
+          mobile: "09120000001",
+          otp: "123456",
+        }),
+      });
+    const accepted = await send();
+    assert.notEqual(
+      accepted.status,
+      429,
+      `${operation} allows ${maximum} attempts`,
+    );
+    const response = await send();
     const saved = JSON.parse(
       await readFile(path.join(collectionRoot, operation, "429.json"), "utf8"),
     );
