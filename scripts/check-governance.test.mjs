@@ -1205,7 +1205,7 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
   );
   const lock = structuredClone(missingCore);
   lock.packages["node_modules/@better-auth/core"] = {
-    version: "1.7.14",
+    version: "1.7.18",
     integrity: syntheticIntegrity,
   };
   validatePackage(pkg, lock, "auth-bootstrap");
@@ -1319,7 +1319,7 @@ test("HTTP composition publishes only owned listener commands while preserving b
   pkg.overrides = overridesForPackage(pkg);
   const lock = lockForPackage(pkg);
   lock.packages["node_modules/@better-auth/core"] = {
-    version: "1.7.14",
+    version: "1.7.18",
     integrity: syntheticIntegrity,
   };
   validatePackage(pkg, lock, "http-composition");

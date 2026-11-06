@@ -87,8 +87,8 @@ const sourceToolingFiles = [
   "scripts/merge-coverage.test.mjs",
 ];
 const governanceDependencies = { prettier: "3.9.10", yaml: "2.9.1" };
-export const reviewedOverrides = { "minimatch@10.2.6": "11.0.3" };
-const reviewedAuthCoreVersion = "1.7.14";
+export const reviewedOverrides = { "minimatch@10.2.6": "11.0.5" };
+const reviewedAuthCoreVersion = "1.7.18";
 export const overridesForPackage = (pkg) => ({
   ...reviewedOverrides,
   ...(pkg.dependencies?.["better-auth"]
@@ -204,7 +204,7 @@ export const foundationDependencies = {
   "@types/node": "24.19.2",
   eslint: "10.14.0",
   "eslint-plugin-simple-import-sort": "14.0.0",
-  globals: "17.13.0",
+  globals: "17.14.0",
   ...governanceDependencies,
   typescript: "6.0.3",
   "typescript-eslint": "8.72.1",
