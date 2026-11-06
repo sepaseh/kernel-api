@@ -1158,15 +1158,28 @@ test("source packages allow only the reviewed minimatch override and require the
       ),
     /reviewed minimatch/,
   );
-  const unsafeLock = structuredClone(lock);
-  unsafeLock.packages["node_modules/minimatch"] = {
-    version: "10.2.6",
+  const reviewedLock = structuredClone(lock);
+  reviewedLock.packages["node_modules/minimatch"] = {
+    version: reviewedOverrides["minimatch@10.2.6"],
     integrity: syntheticIntegrity,
   };
-  assert.throws(
-    () => validatePackage(pkg, unsafeLock, "foundation"),
-    /reflected in the lockfile/,
-  );
+  reviewedLock.packages["node_modules/legacy/node_modules/minimatch"] = {
+    version: "3.1.2",
+    integrity: syntheticIntegrity,
+  };
+  validatePackage(pkg, reviewedLock, "foundation");
+  for (const [location, version] of [
+    ["node_modules/minimatch", "10.2.6"],
+    ["node_modules/minimatch", "11.0.3"],
+    ["node_modules/legacy/node_modules/minimatch", "10.2.6"],
+  ]) {
+    const unsafeLock = structuredClone(reviewedLock);
+    unsafeLock.packages[location].version = version;
+    assert.throws(
+      () => validatePackage(pkg, unsafeLock, "foundation"),
+      /reflected in the lockfile/,
+    );
+  }
   assert.throws(
     () =>
       validatePackage(
@@ -1188,8 +1201,8 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
   const dependencies = {
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
-    "better-auth": "1.7.14",
-    "@better-auth/drizzle-adapter": "1.7.14",
+    "better-auth": "1.7.18",
+    "@better-auth/drizzle-adapter": "1.7.18",
   };
   const pkg = {
     ...packageFixture,
@@ -1209,6 +1222,30 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
     integrity: syntheticIntegrity,
   };
   validatePackage(pkg, lock, "auth-bootstrap");
+  for (const versions of [
+    ["1.7.14", "1.7.18"],
+    ["1.7.18", "1.7.14"],
+    ["1.7.14", "1.7.14"],
+    ["1.7.18", undefined],
+    [undefined, "1.7.18"],
+  ]) {
+    const mismatched = structuredClone(pkg);
+    for (const [index, name] of [
+      "better-auth",
+      "@better-auth/drizzle-adapter",
+    ].entries()) {
+      if (versions[index] === undefined) delete mismatched.dependencies[name];
+      else mismatched.dependencies[name] = versions[index];
+    }
+    const mismatchedLock = lockForPackage(mismatched);
+    mismatchedLock.packages["node_modules/@better-auth/core"] = structuredClone(
+      lock.packages["node_modules/@better-auth/core"],
+    );
+    assert.throws(
+      () => validatePackage(mismatched, mismatchedLock, "auth-bootstrap"),
+      /provider, adapter and reviewed core must use the same version/,
+    );
+  }
   assert.equal(pkg.scripts["server:bootstrap"], "node src/bootstrap-admin.ts");
   assert.deepEqual(checksForPhase("auth-bootstrap"), sourceChecks);
   assert.throws(
@@ -1305,8 +1342,8 @@ test("HTTP composition publishes only owned listener commands while preserving b
   const dependencies = {
     hono: "4.13.14",
     "@hono/node-server": "2.1.5",
-    "better-auth": "1.7.14",
-    "@better-auth/drizzle-adapter": "1.7.14",
+    "better-auth": "1.7.18",
+    "@better-auth/drizzle-adapter": "1.7.18",
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
   };
