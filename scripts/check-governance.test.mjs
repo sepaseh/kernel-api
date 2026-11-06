@@ -12,7 +12,7 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { format } from "prettier";
 import { stringify } from "yaml";
@@ -52,6 +52,10 @@ import {
   validateRuleset,
   validateWorkflowTrust,
 } from "./check-governance.mjs";
+import {
+  guidanceAssetPaths,
+  optionalHookPaths,
+} from "./check-guidance-assets.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const readSource = (file) => readFile(path.join(repository, file), "utf8");
@@ -1411,6 +1415,182 @@ test("catalog duplication exceptions cover only the ten published literal data f
   );
   await json(".github/bootstrap-policy.json", inventory);
   await assert.rejects(inspectPolicy(root), /all ten literal catalogs/);
+});
+
+test("guidance activation requires the complete asset group and selects portable hook tests in full coverage", () => {
+  const publication = policy("local-runtime");
+  publication.allowedFiles = [
+    ...new Set([
+      ...publication.allowedFiles,
+      ...commandOwnersForPhase("local-runtime"),
+      ...guidanceAssetPaths,
+    ]),
+  ];
+  assert.throws(() => validateInventory(publication), /explicit flag/);
+  publication.guidanceAssets = true;
+  const files = validateInventory(publication);
+  const selection = coveragePlan(files, "local-runtime");
+  assert.ok(selection.node.includes("scripts/ai-hooks.portable.test.mjs"));
+  assert.ok(selection.node.includes("scripts/check-guidance-assets.test.mjs"));
+  assert.ok(selection.sources.includes("scripts/check-guidance-assets.mjs"));
+  assert.ok(!selection.node.includes(".agents/hooks/block-dangerous.mjs"));
+  publication.allowedFiles = publication.allowedFiles.filter(
+    (file) => file !== ".agents/evaluation/run-template.json",
+  );
+  assert.throws(() => validateInventory(publication), /exact ten/);
+});
+
+test("disabled publications load their isolated entrypoint without guidance assets and reject forbidden registrations", async (context) => {
+  const { root, put, json } = await fixture(context);
+  const entrypoint = path.join(root, "scripts/check-governance.mjs");
+  await put(
+    "scripts/check-governance.mjs",
+    await readSource("scripts/check-governance.mjs"),
+  );
+  await json("node_modules/yaml/package.json", {
+    name: "yaml",
+    type: "module",
+    exports: "./index.mjs",
+  });
+  await put(
+    "node_modules/yaml/index.mjs",
+    'export const parseDocument = () => { throw new Error("Unexpected YAML parsing in guidance inspection."); };\n',
+  );
+  await assert.rejects(
+    readFile(path.join(root, "scripts/check-guidance-assets.mjs")),
+    { code: "ENOENT" },
+  );
+  const isolated = await import(pathToFileURL(entrypoint).href);
+
+  for (const guidanceAssets of [undefined, false]) {
+    const publication = {
+      ...policy(),
+      ...(guidanceAssets === undefined ? {} : { guidanceAssets }),
+    };
+    assert.ok(isolated.validateInventory(publication) instanceof Set);
+    for (const invalid of [null, 0, "false", {}, []])
+      assert.throws(
+        () =>
+          isolated.validateInventory({
+            ...publication,
+            guidanceAssets: invalid,
+          }),
+        /optional boolean/,
+      );
+    for (const asset of [
+      ...guidanceAssetPaths,
+      ".agents/hooks/unpublished.sh",
+      ".agents/evaluation/unpublished.json",
+    ])
+      assert.throws(
+        () =>
+          isolated.validateInventory({
+            ...publication,
+            allowedFiles: [...publication.allowedFiles, asset],
+          }),
+        /explicit flag/,
+      );
+
+    await json(".github/bootstrap-policy.json", publication);
+    await json(".agents/settings.json", settings());
+    const result = spawnSync(process.execPath, [entrypoint, "guidance"], {
+      cwd: root,
+      env: {},
+      encoding: "utf8",
+      windowsHide: true,
+    });
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /requested validation check passed/);
+    await json(".agents/settings.json", {
+      ...settings(),
+      optionalHooks: ["README.md"],
+    });
+    await assert.rejects(
+      isolated.inspectGuidance(root),
+      /Disabled guidance assets must not register hooks/,
+    );
+    await json(".agents/settings.json", {
+      ...settings(),
+      evaluation: "README.md",
+    });
+    await assert.rejects(
+      isolated.inspectGuidance(root),
+      /Disabled guidance assets must not register evaluation/,
+    );
+  }
+});
+
+test("guidance inspection ignores unpublished drafts and reads evaluation JSON only after activation", async (context) => {
+  const { root, put, json } = await fixture(context);
+  await put(
+    ".agents/evaluation/cases.json",
+    "not JSON; unpublished drafts are not validation inputs",
+  );
+  await put(".agents/evaluation/run-template.json", "not JSON");
+  assert.deepEqual(await inspectGuidance(root), {
+    markdownFiles: 3,
+    rules: 1,
+    skills: 1,
+  });
+  const publication = policy("local-runtime");
+  publication.guidanceAssets = true;
+  publication.allowedFiles = [
+    ...new Set([
+      ...publication.allowedFiles,
+      ...commandOwnersForPhase("local-runtime"),
+      ...guidanceAssetPaths,
+    ]),
+  ];
+  await Promise.all(
+    publication.allowedFiles
+      .filter((file) => !files.includes(file))
+      .map((file) => put(file, "// Synthetic published owner.\n")),
+  );
+  await json(".github/bootstrap-policy.json", publication);
+  await json("package.json", {
+    ...packageFixture,
+    scripts: packageScripts("local-runtime"),
+    devDependencies: foundationDependencies,
+  });
+  await json(".agents/validation.json", manifestForPhase("local-runtime"));
+  const registered = {
+    ...settings("local-runtime"),
+    optionalHooks: [...optionalHookPaths],
+    evaluation: ".agents/evaluation/cases.json",
+  };
+  await json(".agents/settings.json", registered);
+  const sample = {
+    schemaVersion: 1,
+    cases: [
+      {
+        id: "synthetic-case",
+        prompt: { en: "Without editing, identify the published source owner." },
+        taskIds: [navigation().tasks[0].id],
+        checks: ["guidance"],
+        evidence: ["README.md"],
+        mustExplain: ["Identify the owner."],
+        mustNot: ["Read private state."],
+      },
+    ],
+  };
+  await json(".agents/evaluation/cases.json", sample);
+  await json(
+    ".agents/evaluation/run-template.json",
+    JSON.parse(await readSource(".agents/evaluation/run-template.json")),
+  );
+  await put(".agents/evaluation/README.md", "# Synthetic evaluation guide\n");
+  assert.deepEqual(await inspectGuidance(root), {
+    markdownFiles: 4,
+    rules: 1,
+    skills: 1,
+  });
+  await json(".agents/settings.json", { ...registered, optionalHooks: [] });
+  await assert.rejects(inspectGuidance(root), /exactly the four/);
+  await json(".agents/settings.json", registered);
+  sample.cases[0].taskIds = ["retired-task"];
+  await json(".agents/evaluation/cases.json", sample);
+  await assert.rejects(inspectGuidance(root), /live navigation/);
 });
 
 test("operations exposes only owned operator aliases and the reviewed scoped Drizzle compiler", () => {

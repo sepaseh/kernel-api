@@ -10,15 +10,23 @@
         ".agents/settings.json",
         ".agents/navigation.json",
         ".agents/validation.json",
-        "scripts/check-governance.mjs"
+        "scripts/check-governance.mjs",
+        ".agents/hooks",
+        ".agents/evaluation",
+        "scripts/check-guidance-assets.mjs"
       ],
       "contracts": [
         "docs/source-navigation.md",
         ".agents/rules/guidance.md",
         "docs/validation.md",
-        "CONTRIBUTING.md"
+        "CONTRIBUTING.md",
+        ".agents/evaluation/README.md"
       ],
-      "tests": ["scripts/check-governance.test.mjs"],
+      "tests": [
+        "scripts/check-governance.test.mjs",
+        "scripts/check-guidance-assets.test.mjs",
+        "scripts/ai-hooks.portable.test.mjs"
+      ],
       "checks": [
         "snapshot",
         "ci-policy",

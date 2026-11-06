@@ -72,12 +72,16 @@ Read actual owners and tests before making claims. Map entries, successful
 configuration parsing and installed applications do not establish that an
 assistant loaded instructions or that remote review ran.
 
-Further collection group owners will be added with their corresponding source
-phases.
+Collection group owners follow their corresponding published source.
 Do not register unpublished paths as live owners or interpret
 ambient local source as part of a checked partial publication.
 
 The collection-contracts task owns the published Bruno requests and response
 examples. Follow the inventory collectionGroups field and the registered feature
-suites; missing future groups are not part of this phase. Read the
+suites; all eight published groups are covered by the full profile. Read the
 [collection setup](../collection/README.md) and [handoff guide](collection-guide.md).
+
+The guidance task also owns the [evaluation prompts](../.agents/evaluation/README.md),
+optional hooks and their integrity/portability suites. Static checks validate
+references and blank templates; they do not execute comprehension evaluations
+or establish host instruction loading or hook installation.

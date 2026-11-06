@@ -32,3 +32,4 @@ tooling, and their disposable-fixture tests. `applicationReady` remains false.
 - [Assistant instructions](../AGENTS.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Bruno collection setup](../collection/README.md)
+- [Read-only assistant evaluation](../.agents/evaluation/README.md)

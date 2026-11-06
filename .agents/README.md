@@ -26,3 +26,9 @@ requesting review. Pending results never authorize merging.
 
 Assistant instructions and maintained human documentation are English-only.
 This index does not install hooks or prove automatic discovery by any assistant.
+
+The [read-only evaluation guide](evaluation/README.md) and its registered cases
+trace current owners and contracts. The blank template retains not-run and
+unknown observations; validation checks references without executing prompts.
+Optional hooks are registered in settings for explicit host setup only. Their
+portable tests do not install hooks or establish automatic instruction loading.

@@ -46,7 +46,7 @@ Deployment tests validate immutable packaging, placeholder/origin/persistence
 preflight, Nginx rendering, readiness and protected workflow targets with disposable
 fixtures. Optional native/Docker smoke tools verify owned synthetic resources only;
 report actual environment limits. See [testing](../../docs/testing.md),
-deployment (planned path: `docs/deployment.md`) and backup/recovery (planned path: `docs/backup-restore.md`).
+[deployment](../../docs/deployment.md) and [backup/recovery](../../docs/backup-restore.md).
 
 Prefer the scoped scripted Docker smoke. After every local Docker test, including
 manual tests, remove its exact owned containers, volumes/networks, images, builder

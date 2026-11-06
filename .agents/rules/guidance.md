@@ -48,12 +48,16 @@ review with independently released consumers.
 Maintain one canonical document per topic with alphanumeric words joined by
 hyphens or underscores and one `.md` extension. Do not add locale-specific
 discovery, compatibility paths, validators, fixtures or restoration instructions
-for documentation variants. The guide check reads admitted inventory paths;
-future application validation must cover deployment and collection guides while
-excluding generated output and private state before traversal.
+for documentation variants. The guide check reads admitted inventory paths,
+including deployment and collection guides. Generated output and private runtime
+state remain outside that inventory and must not be traversed for guidance validation.
 
 The optional [CLAUDE.md](../../CLAUDE.md) adapter references AGENTS.md; canonical
 rules remain the owners. Do not install plugins or remote services for discovery.
-Evaluation prompts and the feature-development checklist are planned for later
-publication. Use [test reliability](../../docs/test-reliability.md) for ownership,
-first failures, reproduction and bounded exceptions without weakening the gate.
+The read-only evaluation [guide](../evaluation/README.md),
+[cases](../evaluation/cases.json) and [run template](../evaluation/run-template.json)
+are published. Their static validation does not execute the prompts; the blank
+template remains not-run with instruction discovery unknown.
+Use the [feature-development checklist](../../docs/feature-development.md) for
+change acceptance and [test reliability](../../docs/test-reliability.md) for
+ownership, first failures, reproduction and bounded exceptions without weakening the gate.

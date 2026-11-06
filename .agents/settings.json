@@ -28,7 +28,12 @@
     ".agents/skills/start-issue/SKILL.md",
     ".agents/skills/validate-change/SKILL.md"
   ],
-  "optionalHooks": [],
+  "optionalHooks": [
+    ".agents/hooks/block-dangerous.mjs",
+    ".agents/hooks/block-dangerous.sh",
+    ".agents/hooks/post-edit-format.sh",
+    ".agents/hooks/quality-gate.sh"
+  ],
   "navigation": ".agents/navigation.json",
   "validation": ".agents/validation.json",
   "recommendedChecksSource": {
@@ -47,5 +52,6 @@
     "npm run check:guidance",
     "npm run test:coverage",
     "npm run test:audit"
-  ]
+  ],
+  "evaluation": ".agents/evaluation/cases.json"
 }

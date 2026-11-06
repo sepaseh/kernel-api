@@ -85,5 +85,5 @@ Source restructuring does not authorize moving runtime data, resetting users,
 running production migrations or changing deployment configuration.
 
 See [Architecture](../../docs/architecture.md),
-Feature development (planned path: `docs/feature-development.md`),
+[Feature development](../../docs/feature-development.md),
 [Testing](../../docs/testing.md) and the [API guide](../../docs/architecture.md).

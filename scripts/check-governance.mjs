@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { lstat, mkdir, readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
@@ -7,6 +8,7 @@ import { isDeepStrictEqual } from "node:util";
 import { parseDocument } from "yaml";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
+const requireModule = createRequire(import.meta.url);
 const inventoryPath = ".github/bootstrap-policy.json";
 const manifestPath = ".agents/validation.json";
 const scriptNames = {
@@ -295,6 +297,28 @@ const safePath = (value) =>
     value === ".env.example") &&
   !/\.(?:pem|key|pfx|p12|sqlite|db)$/i.test(value);
 
+const guidanceValidators = (policy) => {
+  assert(
+    !Object.hasOwn(policy, "guidanceAssets") ||
+      typeof policy.guidanceAssets === "boolean",
+    "guidanceAssets must be an optional boolean flag.",
+  );
+  // Node 24 loads this ESM synchronously only when the publication admits it.
+  if (policy.guidanceAssets === true)
+    return requireModule("./check-guidance-assets.mjs");
+
+  assert(
+    policy.allowedFiles.every(
+      (file) =>
+        !/^\.agents\/(?:hooks|evaluation)(?:\/|$)/.test(file) &&
+        !/^scripts\/(?:ai-hooks\.portable\.test|check-guidance-assets(?:\.test)?)\.mjs$/.test(
+          file,
+        ),
+    ),
+    "Guidance assets cannot be published without the explicit flag.",
+  );
+};
+
 export const validateInventory = (policy) => {
   assert(
     policy?.schemaVersion === 1 &&
@@ -304,6 +328,7 @@ export const validateInventory = (policy) => {
       policy.allowedFiles.length > 0,
     "Declare an explicit publication scope without application readiness.",
   );
+  guidanceValidators(policy)?.validateGuidanceInventory(policy);
   const files = new Set(policy.allowedFiles);
   assert(
     files.size === policy.allowedFiles.length && [...files].every(safePath),
@@ -1061,11 +1086,6 @@ export const inspectGuidance = async (root) => {
       "Settings must register only unique published guidance paths.",
     );
   equal(
-    settings.optionalHooks,
-    [],
-    "No uninstalled hooks are part of governance evidence.",
-  );
-  equal(
     settings.recommendedChecks,
     manifest.checks.map(({ command }) => command),
     "Recommended commands must project the canonical full profile.",
@@ -1081,11 +1101,32 @@ export const inspectGuidance = async (root) => {
     "Identify the published task map.",
   );
   equal(settings.validation, manifestPath, "Identify the canonical manifest.");
-  assert(
-    !Object.hasOwn(settings, "evaluation"),
-    "Do not register unpublished evaluation prompts.",
-  );
   validateNavigation(navigation, files, checksForPhase(policy.phase));
+  const validators = guidanceValidators(policy);
+  if (validators) {
+    const [cases, template] = await Promise.all([
+      readJson(root, ".agents/evaluation/cases.json"),
+      readJson(root, ".agents/evaluation/run-template.json"),
+    ]);
+    validators.validateGuidanceAssets({
+      policy,
+      settings,
+      navigation,
+      manifest,
+      cases,
+      template,
+    });
+  } else {
+    equal(
+      settings.optionalHooks,
+      [],
+      "Disabled guidance assets must not register hooks.",
+    );
+    assert(
+      !Object.hasOwn(settings, "evaluation"),
+      "Disabled guidance assets must not register evaluation cases.",
+    );
+  }
   const markdown = [...files].filter((file) => /\.md$/i.test(file));
   await Promise.all(
     markdown.map(async (file) =>

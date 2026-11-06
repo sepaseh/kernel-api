@@ -1,13 +1,12 @@
 # Bruno and HTTP contracts
 
-The runtime-operations phase publishes the HTTP API and this contract handoff
-guide. Bruno requests are introduced in later collection publications; the
-current standalone upload/415 response fixture is not a complete collection.
-Consult the publication inventory for availability. Collection phases explicitly
-declare their published `collectionGroups`.
+The API-owned Bruno collection records requests and response examples for the
+published HTTP features. The publication inventory explicitly declares the
+available `collectionGroups`; feature suites verify those saved contracts
+against the owning routes and DTOs.
 
-When the owning group is published, open `collection/` in Bruno with a synthetic
-local environment; its setup guide is the planned `collection/README.md`.
+Open `collection/` in Bruno with a synthetic local environment; follow the
+[collection setup guide](../collection/README.md).
 Operations use `index.bru` for method, path, authentication, input and contract
 notes, with status-named JSON examples where applicable. Bodyless successes may
 omit a JSON example. Hono routes and application services implement the wire
@@ -60,8 +59,8 @@ For a branding/logo/language screen, [settings routes](../src/presentation/http/
 expose public `GET /settings` with `Cache-Control: no-store`, authenticated
 `GET /languages`, and protected `PUT /settings`. Read the
 [settings service](../src/application/settings.ts),
-[response DTO](../src/contracts/settings.ts) and HTTP tests. The saved update
-operation is planned at `collection/settings/update/index.bru`. Both complete palettes
+[response DTO](../src/contracts/settings.ts), HTTP tests and the
+[saved update operation](../collection/settings/update/index.bru). Both complete palettes
 are required; logo IDs are optional public-file IDs. This PUT replaces both palettes
 and logo selections: preserve the existing `dark_logo.id`/`light_logo.id` as
 `dark_logo_id`/`light_logo_id` on unrelated saves, because omitted logo IDs clear

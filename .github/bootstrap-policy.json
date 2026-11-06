@@ -4,6 +4,13 @@
   "applicationReady": false,
   "allowedFiles": [
     ".agents/README.md",
+    ".agents/evaluation/README.md",
+    ".agents/evaluation/cases.json",
+    ".agents/evaluation/run-template.json",
+    ".agents/hooks/block-dangerous.mjs",
+    ".agents/hooks/block-dangerous.sh",
+    ".agents/hooks/post-edit-format.sh",
+    ".agents/hooks/quality-gate.sh",
     ".agents/navigation.json",
     ".agents/rules/api-collection.md",
     ".agents/rules/backend.md",
@@ -291,6 +298,7 @@
     "package-lock.json",
     "package.json",
     "release-please-config.json",
+    "scripts/ai-hooks.portable.test.mjs",
     "scripts/auth-bootstrap-integration.test.mjs",
     "scripts/auth-identity-integration.test.mjs",
     "scripts/check-boundaries.mjs",
@@ -300,6 +308,8 @@
     "scripts/check-deployed-api.test.mjs",
     "scripts/check-governance.mjs",
     "scripts/check-governance.test.mjs",
+    "scripts/check-guidance-assets.mjs",
+    "scripts/check-guidance-assets.test.mjs",
     "scripts/check-operations-policy.mjs",
     "scripts/check-operations-policy.test.mjs",
     "scripts/ci-evidence.mjs",
@@ -470,5 +480,6 @@
     "roles",
     "settings",
     "users"
-  ]
+  ],
+  "guidanceAssets": true
 }
