@@ -444,6 +444,21 @@ const publishEvidence = async (filename, evidence, { environment, output }) => {
     );
 };
 
+const currentEvidence = async (
+  root,
+  identity,
+  { recorded, environment, event, git },
+) => {
+  if (identity.suite !== "combined") return suiteEvidence(root, identity);
+  const inputs = recorded
+    ? recorded.value.inputs
+    : await verifiedInputs(root, environment, event, git);
+  const bytes = await readCoverage(root, "coverage/lcov.info");
+  return evidenceManifest(identity, bytes, undefined, {
+    inputs: validateInputAttestations(inputs, identity),
+  });
+};
+
 export const runEvidence = async (
   mode,
   { root = repository, environment = process.env, event, git, output } = {},
@@ -480,18 +495,15 @@ export const runEvidence = async (
   const recorded = verifying
     ? await readManifest(root, identity.suite)
     : undefined;
-  let expected;
-  if (phase !== "local-runtime")
-    expected = await legacyEvidence(root, identity);
-  else if (identity.suite === "combined") {
-    const inputs = verifying
-      ? recorded.value.inputs
-      : await verifiedInputs(root, environment, payload, readGit);
-    const bytes = await readCoverage(root, "coverage/lcov.info");
-    expected = evidenceManifest(identity, bytes, undefined, {
-      inputs: validateInputAttestations(inputs, identity),
-    });
-  } else expected = await suiteEvidence(root, identity);
+  const expected =
+    phase === "local-runtime"
+      ? await currentEvidence(root, identity, {
+          recorded,
+          environment,
+          event: payload,
+          git: readGit,
+        })
+      : await legacyEvidence(root, identity);
   const manifestPath = suiteManifestPath(identity.suite);
   if (!verifying)
     await mkdir(path.join(root, `coverage/${identity.suite}`), {
