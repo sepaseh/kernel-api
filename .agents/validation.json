@@ -67,17 +67,31 @@
       "scopes": ["local-runtime"]
     },
     {
-      "id": "coverage-tests",
-      "command": "npm run test:coverage",
+      "id": "unit-tests",
+      "command": "npm run test:unit",
+      "kind": "required",
+      "ciJobs": ["unit"],
+      "scopes": ["local-runtime"]
+    },
+    {
+      "id": "integration-tests",
+      "command": "npm run test:integration",
+      "kind": "required",
+      "ciJobs": ["integration"],
+      "scopes": ["local-runtime"]
+    },
+    {
+      "id": "governance-tests",
+      "command": "npm run test:governance",
       "kind": "required",
       "ciJobs": ["governance"],
       "scopes": ["local-runtime"]
     },
     {
-      "id": "audit-helper-tests",
-      "command": "npm run test:audit",
+      "id": "coverage-summary",
+      "command": "npm run check:coverage",
       "kind": "required",
-      "ciJobs": ["governance"],
+      "ciJobs": ["check"],
       "scopes": ["local-runtime"]
     }
   ],
@@ -92,8 +106,10 @@
       "lint",
       "format",
       "guidance",
-      "coverage-tests",
-      "audit-helper-tests"
+      "unit-tests",
+      "integration-tests",
+      "governance-tests",
+      "coverage-summary"
     ],
     "ci-quality": [
       "snapshot",
@@ -106,7 +122,10 @@
       "guidance"
     ],
     "ci-audit": ["audit"],
-    "ci-governance": ["coverage-tests", "audit-helper-tests"]
+    "ci-unit": ["unit-tests"],
+    "ci-integration": ["integration-tests"],
+    "ci-governance": ["governance-tests"],
+    "ci-check": ["coverage-summary"]
   },
   "externalWorkflows": [
     {

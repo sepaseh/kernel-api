@@ -314,6 +314,7 @@
     "scripts/check-operations-policy.test.mjs",
     "scripts/ci-evidence.mjs",
     "scripts/ci-evidence.test.mjs",
+    "scripts/ci-governance.test.yml",
     "scripts/collection-account-auth.test.mjs",
     "scripts/collection-files.test.mjs",
     "scripts/collection-management.test.mjs",

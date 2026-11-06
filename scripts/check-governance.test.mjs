@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rename,
   rm,
@@ -39,7 +40,9 @@ import {
   runFull,
   runProfile,
   sourceChecks,
+  splitChecks,
   testFiles,
+  testSuite,
   validateAuditResult,
   validateCiWorkflow,
   validateCodeqlWorkflow,
@@ -105,6 +108,19 @@ const checkScripts = {
   guidance: "check:guidance",
   "coverage-tests": "test:coverage",
   "audit-helper-tests": "test:audit",
+  "unit-tests": "test:unit",
+  "integration-tests": "test:integration",
+  "governance-tests": "test:governance",
+  "coverage-summary": "check:coverage",
+};
+const checkOwners = {
+  audit: "audit",
+  "coverage-tests": "governance",
+  "audit-helper-tests": "governance",
+  "unit-tests": "unit",
+  "integration-tests": "integration",
+  "governance-tests": "governance",
+  "coverage-summary": "check",
 };
 const manifestForPhase = (phase) => ({
   schemaVersion: 1,
@@ -114,20 +130,15 @@ const manifestForPhase = (phase) => ({
     id,
     command: `npm run ${checkScripts[id]}`,
     kind: "required",
-    ciJobs: [
-      id === "audit"
-        ? "audit"
-        : ["coverage-tests", "audit-helper-tests"].includes(id)
-          ? "governance"
-          : "quality",
-    ],
+    ciJobs: [checkOwners[id] ?? "quality"],
     scopes: [phase],
   })),
   profiles: { full: [...checksForPhase(phase)], ...ciProfilesForPhase(phase) },
   externalWorkflows: structuredClone(externalWorkflows),
 });
 const manifestFixture = manifestForPhase("governance");
-const ciText = await readSource(".github/workflows/ci.yml");
+const ciText = await readSource("scripts/ci-governance.test.yml");
+const activeCiText = await readSource(".github/workflows/ci.yml");
 const codeqlText = await readSource(".github/workflows/codeql.yml");
 const files = [
   ".github/bootstrap-policy.json",
@@ -145,6 +156,9 @@ const files = [
   "package-lock.json",
   "sonar-project.properties",
   "README.md",
+  "scripts/merge-coverage.mjs",
+  "scripts/merge-coverage.test.mjs",
+  "scripts/ci-governance.test.yml",
   ...testFiles,
   ...testFiles.map((file) => file.replace(".test.mjs", ".mjs")),
 ];
@@ -156,8 +170,6 @@ const extraSourceFiles = [
   "scripts/check-boundaries.test.mjs",
   "scripts/run-audit.mjs",
   "scripts/run-audit.test.mjs",
-  "scripts/merge-coverage.mjs",
-  "scripts/merge-coverage.test.mjs",
 ];
 const policy = (phase = "governance") => ({
   schemaVersion: 1,
@@ -211,7 +223,7 @@ const ruleset = () => ({
     },
   ],
 });
-const navigation = () => ({
+const navigation = (phase = "governance") => ({
   schemaVersion: 1,
   tasks: [
     {
@@ -221,7 +233,7 @@ const navigation = () => ({
       contracts: [".github/bootstrap-policy.json"],
       tests: ["scripts/check-governance.test.mjs"],
       rules: [".agents/rules/safety.md"],
-      checks: [...requiredChecks],
+      checks: [...checksForPhase(phase)],
     },
   ],
 });
@@ -259,6 +271,10 @@ const fixture = async (context, phase = "governance") => {
   await Promise.all(
     published.map((file) => put(file, "// Synthetic fixture.\n")),
   );
+  await put(
+    "scripts/merge-coverage.mjs",
+    await readSource("scripts/merge-coverage.mjs"),
+  );
   const pkg =
     phase === "governance"
       ? packageFixture
@@ -272,11 +288,12 @@ const fixture = async (context, phase = "governance") => {
   await json("package.json", pkg);
   await json("package-lock.json", lockForPackage(pkg));
   await json(".agents/validation.json", manifestForPhase(phase));
-  await json(".agents/navigation.json", navigation());
+  await json(".agents/navigation.json", navigation(phase));
   await json(".agents/settings.json", settings(phase));
   await json(".github/rulesets/main.json", ruleset());
   await json(".prettierrc.json", {});
   await put(".github/workflows/ci.yml", ciText);
+  await put("scripts/ci-governance.test.yml", ciText);
   await put(".github/workflows/codeql.yml", codeqlText);
   await put(".coderabbit.yaml", stringify(rabbit()));
   await put(
@@ -299,6 +316,107 @@ const fixture = async (context, phase = "governance") => {
     "# Synthetic governance\n\nRead the [safety rule](.agents/rules/safety.md).\n",
   );
   return { root, put, json };
+};
+
+const coverageDispatchFixture = async (context, sourceMaps = false) => {
+  const value = await fixture(context, "local-runtime");
+  const { root, put, json } = value;
+  const inventory = policy("local-runtime");
+  const additions = [
+    ...commandOwnersForPhase("local-runtime"),
+    ".nvmrc",
+    "src/application/dispatch.ts",
+    "src/application/dispatch.test.ts",
+    "src/test/integration/dispatch.test.ts",
+    "scripts/dispatch.test.mjs",
+  ];
+  for (const file of additions)
+    if (!inventory.allowedFiles.includes(file)) {
+      inventory.allowedFiles.push(file);
+      await put(file, "// Synthetic fixture.\n");
+    }
+  await json(".github/bootstrap-policy.json", inventory);
+  await put(".nvmrc", process.version.slice(1) + "\n");
+  await put(
+    "src/application/dispatch.ts",
+    (sourceMaps ? "enum Offset { Zero = 0 }\n" : "") +
+      "export function record(value: string): number {\n" +
+      `  return value.length${sourceMaps ? " + Offset.Zero" : ""};\n}\n`,
+  );
+  const selected = {
+    unit: ["src/application/dispatch.test.ts", "./dispatch.ts", "../../"],
+    integration: [
+      "src/test/integration/dispatch.test.ts",
+      "../../application/dispatch.ts",
+      "../../../",
+    ],
+    governance: [
+      "scripts/dispatch.test.mjs",
+      "../src/application/dispatch.ts",
+      "../",
+    ],
+  };
+  for (const [suite, [file, owner, parent]] of Object.entries(selected))
+    await put(
+      file,
+      "import assert from 'node:assert/strict';\n" +
+        "import { appendFileSync } from 'node:fs';\n" +
+        "import { test } from 'node:test';\n" +
+        `import { record } from '${owner}';\n` +
+        `test('${suite}', () => {\n` +
+        `  appendFileSync(new URL('${parent}executed.log', import.meta.url), '${suite}\\n');\n` +
+        `  assert.equal(record('${suite}'), ${suite.length});\n});\n`,
+    );
+  await put(
+    "scripts/run-audit.mjs",
+    "import { appendFileSync } from 'node:fs';\n" +
+      "export function audit() {\n" +
+      "  appendFileSync(new URL('../executed.log', import.meta.url), 'audit\\n');\n" +
+      "  return true;\n}\n",
+  );
+  const auditTest = (calls) =>
+    "import assert from 'node:assert/strict';\n" +
+    "import { test } from 'node:test';\n" +
+    "import { audit } from './run-audit.mjs';\n" +
+    `test('audit', () => { ${"assert.equal(audit(), true); ".repeat(calls)}});\n`;
+  await put("scripts/run-audit.test.mjs", auditTest(1));
+  const run = (mode) => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import { runCheck } from ${JSON.stringify(pathToFileURL(path.join(repository, "scripts/check-governance.mjs")).href)}; await runCheck(${JSON.stringify(mode)}, ${JSON.stringify(root)});`,
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        windowsHide: true,
+        env: {
+          SystemRoot: process.env.SystemRoot,
+          TEMP: root,
+          TMP: root,
+          GIT_CEILING_DIRECTORIES: root,
+          NODE_OPTIONS: sourceMaps
+            ? "--enable-source-maps --experimental-transform-types"
+            : "--no-enable-source-maps",
+        },
+      },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+  };
+  const executed = async () =>
+    (await readFile(path.join(root, "executed.log"), "utf8"))
+      .trim()
+      .split("\n");
+  const captures = async (directory) =>
+    Promise.all(
+      (await readdir(path.join(root, directory))).map(async (file) =>
+        JSON.parse(await readFile(path.join(root, directory, file), "utf8")),
+      ),
+    );
+  return { ...value, run, executed, captures, auditTest };
 };
 
 test("inventory permits explicit governance paths without a file-count limit", () => {
@@ -361,6 +479,41 @@ test("snapshot validates owned inventory while leaving ambient unpublished API s
     /outside the declared/,
   );
   await rm(path.join(root, "scripts/ci-evidence.mjs"));
+  await assert.rejects(inspectSnapshot(root), { code: "ENOENT" });
+});
+
+test("every publication phase requires the historical CI test fixture", async (context) => {
+  for (const phase of [
+    "governance",
+    "foundation",
+    "application-services",
+    "localization-data",
+    "infrastructure-support",
+    "storage-local",
+    "storage-adapters",
+    "configured-storage",
+    "database-persistence",
+    "auth-bootstrap",
+    "http-transport",
+    "http-composition",
+    "runtime-operations",
+    "collection-core",
+    "collection-account-auth",
+    "collection-management",
+    "local-runtime",
+  ]) {
+    const inventory = policy(phase);
+    inventory.allowedFiles = [
+      ...new Set([...inventory.allowedFiles, ...commandOwnersForPhase(phase)]),
+    ];
+    validateInventory(inventory);
+    inventory.allowedFiles = inventory.allowedFiles.filter(
+      (file) => file !== "scripts/ci-governance.test.yml",
+    );
+    assert.throws(() => validateInventory(inventory), /cannot omit/, phase);
+  }
+  const { root } = await fixture(context);
+  await rm(path.join(root, "scripts/ci-governance.test.yml"));
   await assert.rejects(inspectSnapshot(root), { code: "ENOENT" });
 });
 
@@ -537,7 +690,361 @@ test("CI profiles partition the canonical full gate and execute each check once"
   assert.deepEqual(failed, ["check:snapshot", "check:ci"]);
 });
 
-test("the actual aggregate rejects missing, failed, skipped and cancelled suites", () => {
+test("local-runtime profiles retain every source check and execute separate suites and coverage once", async (context) => {
+  const { root } = await fixture(context, "local-runtime");
+  const manifest = manifestForPhase("local-runtime");
+  const scripts = packageScripts("local-runtime");
+  assert.deepEqual(checksForPhase("local-runtime"), splitChecks);
+  assert.deepEqual(manifest.profiles["ci-unit"], ["unit-tests"]);
+  assert.deepEqual(manifest.profiles["ci-integration"], ["integration-tests"]);
+  assert.deepEqual(manifest.profiles["ci-governance"], ["governance-tests"]);
+  assert.deepEqual(manifest.profiles["ci-check"], ["coverage-summary"]);
+  assert.deepEqual(manifest.profiles.full.slice(-4), [
+    "unit-tests",
+    "integration-tests",
+    "governance-tests",
+    "coverage-summary",
+  ]);
+  assert.equal(manifest.profiles.full.length, 13);
+  assert.equal(
+    scripts["test:coverage"],
+    "node scripts/check-governance.mjs coverage-tests",
+  );
+  assert.equal(
+    scripts["test:audit"],
+    "node scripts/check-governance.mjs audit-helper-tests",
+  );
+  const executed = [];
+  for (const profile of Object.keys(ciProfilesForPhase("local-runtime")))
+    await runProfile(profile, root, async (name) => {
+      executed.push(name);
+      return { status: 0 };
+    });
+  assert.equal(executed.length, 13);
+  assert.equal(new Set(executed).size, 13);
+  assert.deepEqual(
+    new Set(executed),
+    new Set(manifest.checks.map(({ id }) => checkScripts[id])),
+  );
+  const ordered = [];
+  await runFull(root, async (name) => {
+    ordered.push(name);
+    return { status: 0 };
+  });
+  assert.deepEqual(
+    ordered,
+    manifest.profiles.full.map((id) => checkScripts[id]),
+  );
+  const failed = [];
+  await assert.rejects(
+    runFull(root, async (name) => {
+      failed.push(name);
+      return { status: name === "test:integration" ? 1 : 0 };
+    }),
+    /integration-tests/,
+  );
+  assert.equal(failed.at(-1), "test:integration");
+  assert.ok(!failed.includes("check:coverage"));
+  for (const mutate of [
+    (value) => value.profiles["ci-unit"].push("integration-tests"),
+    (value) => value.profiles["ci-check"].splice(0),
+    (value) => {
+      value.checks.find(({ id }) => id === "coverage-summary").ciJobs = [
+        "analysis",
+      ];
+    },
+    (value) => {
+      value.checks.find(({ id }) => id === "integration-tests").kind =
+        "advisory";
+    },
+  ]) {
+    const changed = structuredClone(manifest);
+    mutate(changed);
+    assert.throws(() => validateManifest(changed, { scripts }));
+  }
+});
+
+test("published runtime tests have disjoint behavior owners and preserve standalone audit coverage", async () => {
+  const publication = JSON.parse(
+    await readSource(".github/bootstrap-policy.json"),
+  );
+  const files = validateInventory(publication);
+  const plan = coveragePlan(files, publication.phase);
+  const publishedTests = [...files].filter((file) =>
+    /\.test\.(?:mjs|ts)$/.test(file),
+  );
+  const suites = Object.fromEntries(
+    ["unit", "integration", "governance"].map((suite) => [
+      suite,
+      plan.node.filter((file) => testSuite(file) === suite),
+    ]),
+  );
+  const selected = [...Object.values(suites).flat(), ...plan.audit];
+  assert.equal(selected.length, new Set(selected).size);
+  assert.deepEqual(new Set(selected), new Set(publishedTests));
+  assert.deepEqual(plan.audit, ["scripts/run-audit.test.mjs"]);
+  assert.ok(
+    !Object.values(suites).flat().includes("scripts/run-audit.test.mjs"),
+  );
+  assert.ok(!plan.sources.includes("scripts/run-audit.mjs"));
+  assert.ok(
+    !plan.sources.some(
+      (file) => file.includes(".test.") || file.startsWith("src/test/"),
+    ),
+  );
+  for (const file of [
+    "src/application/auth.test.ts",
+    "src/infrastructure/auth/gateway.test.ts",
+    "src/infrastructure/logging/logger.test.ts",
+  ])
+    assert.ok(suites.unit.includes(file), file);
+  for (const file of [
+    "src/test/integration/recovery-drill.test.ts",
+    "src/infrastructure/storage/minio.test.ts",
+    "scripts/auth-bootstrap-integration.test.mjs",
+    "scripts/runtime-integration.test.mjs",
+  ])
+    assert.ok(suites.integration.includes(file), file);
+  for (const file of [
+    "scripts/collection-account-auth.test.mjs",
+    "scripts/package-release.integration.test.mjs",
+    "src/test/architecture/drizzle-toolchain.test.ts",
+  ])
+    assert.ok(suites.governance.includes(file), file);
+  for (const file of [
+    "scripts/test-native-release.mjs",
+    "scripts/test-docker-release.mjs",
+  ])
+    assert.ok(!selected.includes(file) && !plan.sources.includes(file));
+});
+
+test("real split dispatch runs only its selected tests and preserves the active source-map mode", async (context) => {
+  for (const sourceMaps of [false, true]) {
+    const { root, run, executed, captures } = await coverageDispatchFixture(
+      context,
+      sourceMaps,
+    );
+    run("unit-tests");
+    assert.deepEqual(await executed(), ["unit"]);
+    run("integration-tests");
+    assert.deepEqual(await executed(), ["unit", "integration"]);
+    run("governance-tests");
+    const once = ["unit", "integration", "governance", "audit"];
+    assert.deepEqual(await executed(), once);
+    for (const directory of [
+      "coverage/unit/v8",
+      "coverage/integration/v8",
+      "coverage/governance/v8",
+      "coverage/governance/audit-v8",
+    ])
+      for (const capture of await captures(directory))
+        assert.equal(capture.sourceMaps, sourceMaps, directory);
+    run("coverage-summary");
+    assert.deepEqual(await executed(), once);
+    assert.match(
+      await readFile(path.join(root, "coverage/lcov.info"), "utf8"),
+      /SF:src\/application\/dispatch\.ts/,
+    );
+  }
+});
+
+test("focused audit dispatch refreshes the aggregate input without rerunning other suites", async (context) => {
+  const { root, put, run, executed, auditTest } =
+    await coverageDispatchFixture(context);
+  for (const mode of ["unit-tests", "integration-tests", "governance-tests"])
+    run(mode);
+  const auditReport = path.join(root, "coverage/governance/audit-lcov.info");
+  let previous = await readFile(auditReport, "utf8");
+  for (const removePrevious of [false, true]) {
+    if (removePrevious) {
+      await rm(path.join(root, "coverage/governance/audit-v8"), {
+        recursive: true,
+      });
+      await rm(auditReport);
+    }
+    await put("scripts/run-audit.test.mjs", auditTest(removePrevious ? 3 : 2));
+    const before = await executed();
+    run("audit-helper-tests");
+    const fresh = await readFile(auditReport, "utf8");
+    assert.notEqual(fresh, previous);
+    const expected = [
+      ...before,
+      ...Array(removePrevious ? 3 : 2).fill("audit"),
+    ];
+    assert.deepEqual(await executed(), expected);
+    run("coverage-summary");
+    assert.deepEqual(await executed(), expected);
+    const combined = await readFile(
+      path.join(root, "coverage/lcov.info"),
+      "utf8",
+    );
+    const freshCalls = /^FNDA:(\d+),audit$/m.exec(fresh)?.[1];
+    assert.notEqual(freshCalls, undefined);
+    assert.equal(/^FNDA:(\d+),audit$/m.exec(combined)?.[1], freshCalls);
+    previous = fresh;
+  }
+});
+
+test("active API CI exposes seven actual jobs and preserves a required combined coverage gate", () => {
+  const workflow = parseYaml(activeCiText);
+  validateCiWorkflow(workflow);
+  validateCiWorkflow(workflow, { split: true });
+  assert.throws(() => validateCiWorkflow(parseYaml(ciText), { split: true }));
+  assert.deepEqual(Object.keys(workflow.jobs).sort(), [
+    "analysis",
+    "audit",
+    "check",
+    "governance",
+    "integration",
+    "quality",
+    "unit",
+  ]);
+  assert.equal(workflow.jobs.unit.name, "Unit tests");
+  assert.equal(workflow.jobs.integration.name, "API integration tests");
+  assert.equal(workflow.jobs.governance.name, "Governance tests");
+  assert.deepEqual(workflow.jobs.check.needs, [
+    "quality",
+    "audit",
+    "unit",
+    "integration",
+    "governance",
+  ]);
+  assert.equal(workflow.jobs.check.if, "always()");
+  assert.deepEqual(workflow.jobs.analysis.needs, ["check"]);
+  const checkRuns = workflow.jobs.check.steps.flatMap((step) =>
+    step.run ? [step.run] : [],
+  );
+  assert.ok(checkRuns.includes("npm run check:coverage"));
+  assert.ok(
+    !checkRuns.some((run) => /npm (?:ci|test)|npm run test:/.test(run)),
+  );
+  const scanRuns = workflow.jobs.analysis.steps.flatMap((step) =>
+    step.run ? [step.run] : [],
+  );
+  assert.ok(
+    !scanRuns.some((run) => /ci-check|coverage-summary|test:/.test(run)),
+  );
+});
+
+test("active API aggregate rejects every unsuccessful or absent suite before coverage work", () => {
+  const check = parseYaml(activeCiText).jobs.check;
+  const script = /^node -e "(.*)"$/.exec(check.steps[0].run)?.[1];
+  assert.ok(script);
+  const healthy = Object.fromEntries(
+    check.needs.map((job) => [job, { result: "success" }]),
+  );
+  const execute = (needs) =>
+    spawnSync(process.execPath, ["-e", script], {
+      env: { CI_NEEDS: JSON.stringify(needs) },
+      windowsHide: true,
+    }).status;
+  assert.equal(execute(healthy), 0);
+  for (const job of check.needs) {
+    for (const result of [
+      undefined,
+      "failure",
+      "skipped",
+      "cancelled",
+      "pending",
+    ])
+      assert.equal(
+        execute({ ...healthy, [job]: { result } }),
+        1,
+        job + ":" + result,
+      );
+    const missing = structuredClone(healthy);
+    delete missing[job];
+    assert.equal(execute(missing), 1, job);
+  }
+});
+
+test("active API CI rejects skipped suites, repeated tests and substituted coverage producers", () => {
+  const healthy = parseYaml(activeCiText);
+  const findRun = (workflow, job, run) =>
+    workflow.jobs[job].steps.find((step) => step.run === run);
+  const changes = [
+    (ci) => {
+      ci.jobs.unit.if = "false";
+    },
+    (ci) => {
+      ci.jobs.integration["continue-on-error"] = true;
+    },
+    (ci) => {
+      ci.jobs.governance.steps.push({ run: "npm run test:coverage" });
+    },
+    (ci) => {
+      findRun(ci, "unit", "npm run validate -- ci-unit").run =
+        "npm run validate -- ci-governance";
+    },
+    (ci) => {
+      ci.jobs.unit.outputs.attempt = "${{ github.run_attempt }}";
+    },
+    (ci) => {
+      findRun(
+        ci,
+        "integration",
+        "node scripts/ci-evidence.mjs --record",
+      ).env.CI_EVIDENCE_SUITE = "unit";
+    },
+    (ci) => {
+      ci.jobs.governance.steps.at(-1).with.path =
+        "coverage/governance/lcov.info";
+    },
+    (ci) => {
+      ci.jobs.check.needs.pop();
+    },
+    (ci) => {
+      ci.jobs.check.if = "success()";
+    },
+    (ci) => {
+      findRun(ci, "check", "npm run check:coverage")["continue-on-error"] =
+        true;
+    },
+    (ci) => {
+      ci.jobs.check.steps.push({ run: "npm run test:unit" });
+    },
+    (ci) => {
+      ci.jobs.check.steps.find(
+        (step) =>
+          step.env?.CI_EVIDENCE_SUITE === "unit" &&
+          step.run?.includes("--verify-coverage"),
+      ).env.CI_EVIDENCE_PRODUCER_ATTEMPT = "${{ github.run_attempt }}";
+    },
+    (ci) => {
+      ci.jobs.check.steps.find((step) => step.uses === actions.download).with[
+        "digest-mismatch"
+      ] = "warn";
+    },
+    (ci) => {
+      ci.jobs.check.steps.at(-1).with.overwrite = true;
+    },
+    (ci) => {
+      ci.jobs.analysis.needs = ["governance"];
+    },
+    (ci) => {
+      ci.jobs.analysis.steps.find(
+        (step) => step.uses === actions.download,
+      ).with.name = "${{ needs.governance.outputs.artifact }}";
+    },
+    (ci) => {
+      findRun(
+        ci,
+        "analysis",
+        "node scripts/ci-evidence.mjs --verify-coverage",
+      ).env.CI_EVIDENCE_SUITE = "governance";
+    },
+    (ci) => {
+      ci.jobs.analysis.steps.push({ run: "npm run validate -- ci-check" });
+    },
+  ];
+  for (const [index, mutate] of changes.entries()) {
+    const changed = structuredClone(healthy);
+    mutate(changed);
+    assert.throws(() => validateCiWorkflow(changed), "mutation " + index);
+  }
+});
+
+test("the historical aggregate rejects missing, failed, skipped and cancelled suites", () => {
   const command = parseYaml(ciText).jobs.check.steps[0].run;
   const script = /^node -e "(.*)"$/.exec(command)?.[1];
   assert.ok(script);
@@ -1086,6 +1593,7 @@ test("coverage selects every published Node suite once and keeps audit records s
   const published = validateInventory(policy("foundation"));
   const plan = coveragePlan(published, "foundation");
   assert.equal(plan.node.length, 7);
+  assert.ok(plan.node.includes("scripts/merge-coverage.test.mjs"));
   assert.deepEqual(plan.audit, ["scripts/run-audit.test.mjs"]);
   assert.ok(plan.node.includes("src/application/foundation.test.ts"));
   assert.ok(!plan.node.includes("scripts/run-audit.test.mjs"));
@@ -1591,6 +2099,7 @@ test("guidance inspection ignores unpublished drafts and reads evaluation JSON o
     devDependencies: foundationDependencies,
   });
   await json(".agents/validation.json", manifestForPhase("local-runtime"));
+  await json(".agents/navigation.json", navigation("local-runtime"));
   const registered = {
     ...settings("local-runtime"),
     optionalHooks: [...optionalHookPaths],
@@ -1676,7 +2185,6 @@ test("operations exposes only owned operator aliases and the reviewed scoped Dri
     "collection-core",
     "collection-account-auth",
     "collection-management",
-    "local-runtime",
   ])
     assert.deepEqual(packageScripts(phase), scripts);
   assert.equal(packageScripts("http-composition")["deploy:package"], undefined);

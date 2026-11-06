@@ -17,29 +17,57 @@ authentication adapter, storage and HTTP behavior.
 
 CI displays each real suite separately and partitions the canonical full gate:
 
-| Job              | Manifest profile | Required work                                                                     |
-| ---------------- | ---------------- | --------------------------------------------------------------------------------- |
-| Static checks    | `ci-quality`     | Snapshot, CI policy, actionlint, boundaries, types, lint, formatting and guidance |
-| Dependency audit | `ci-audit`       | Locked dependency audit                                                           |
-| Governance tests | `ci-governance`  | Measured published-source and tooling coverage, and audit-helper tests            |
+| Job                   | Manifest profile | Required work                                                                             |
+| --------------------- | ---------------- | ----------------------------------------------------------------------------------------- |
+| Static checks         | `ci-quality`     | Snapshot, CI policy, actionlint, boundaries, types, lint, formatting and guidance         |
+| Dependency audit      | `ci-audit`       | Locked dependency audit                                                                   |
+| Unit tests            | `ci-unit`        | Application policy, validation, configuration, localization and isolated adapter behavior |
+| API integration tests | `ci-integration` | Owned database, authentication, storage, HTTP, runtime and recovery fixtures              |
+| Governance tests      | `ci-governance`  | Policy, tooling, hooks, collections, synthetic operations and audit-helper tests          |
 
-Each check belongs to one CI job and runs once. The required `check` context only
-aggregates these jobs: missing, failed, skipped or cancelled work fails the result.
-It does not install dependencies or rerun tests. Local `full` validation runs
-the complete canonical profile in its declared order. The coverage check runs
-the published foundation, service, catalog, adapter, HTTP, local runtime and
-operations suites. Operations fixtures exercise migration tooling, packaging,
+Each published test belongs to one suite and runs once. The required `check`
+context first rejects missing, failed, skipped or cancelled jobs. It then verifies
+all three test artifacts and computes the combined coverage without rerunning
+tests or installing dependencies. Coverage must satisfy the original independent
+minimums of 80% lines, branches and functions for the non-audit sources and 80%
+for the audit helper. Both groups must pass independently.
+
+Each test producer publishes its measured LCOV, raw V8 coverage and provenance
+under `coverage/<suite>/` in an immutable
+`coverage-<suite>-<run>-<attempt>` artifact. Governance also preserves the audit
+helper's separately measured LCOV and raw V8 data. Verification binds every
+input to the same source, workflow run and actual producing attempt. The
+coverage merger uses the raw measurements to preserve function and branch
+identity across suites.
+
+`check` publishes `coverage/lcov.info` and
+`coverage/combined/ci-evidence.json` as
+`coverage-combined-<run>-<attempt>`. This attestation includes the identities and
+hashes of all three verified input manifests. Sonar consumes that successful
+check's report and verifies its provenance and measured bytes before scanning.
+An analysis-only rerun uses the successful check's original attempt. A rerun of
+`check` verifies the current producer outputs and publishes a new combined
+artifact. Sonar imports the existing result without rerunning tests or coverage
+aggregation. Scanner execution and the provider's quality-gate result are
+separate evidence. Missing configuration, failed audit requests, absent reports,
+stale source or provider skips must remain visible.
+
+Local `full` validation runs the same required checks and coverage summary in
+the manifest's declared order. `test:coverage` remains a convenience coordinator
+for the three test suites and coverage summary; `test:audit` retains its focused
+audit-helper check. Run the selected command once for the intended scope. The
+suites include foundation, service, catalog, adapter, HTTP, local runtime and
+operations tests. Operations fixtures exercise migration tooling, packaging,
 deployment configuration, recovery and target validation. Native and Docker
 smoke commands run separately on request. Browser checks belong to the API's
 consumers, and local execution uses the TypeScript entry point directly.
 
-The Sonar job waits for successful validation and consumes the governance job's
-measured report directly, bound to its suite, source, workflow run and producing
-attempt. An analysis-only rerun must use the successful producer's original
-attempt; a new governance attempt produces a different immutable artifact.
-Scanner execution and the provider's quality-gate result are separate evidence.
-Missing configuration, failed audit requests, absent reports, stale source or
-provider skips must remain visible.
+Coverage aggregation requires the exact pinned Node runtime and its supported
+native coverage interfaces. The merger fails when that runtime or interface
+changes. When updating Node, update the coverage compatibility guard and its
+regressions, then run the complete gate with the proposed runtime. The
+[coverage merger](../scripts/merge-coverage.mjs) and
+[its tests](../scripts/merge-coverage.test.mjs) own this boundary.
 
 `npm run check:actions` runs the official actionlint binary over the actual
 `.github/workflows` files. The runner pins its version and verifies the release

@@ -258,10 +258,50 @@ test("Bash safety wrapper fails closed when Node.js is unavailable", (context) =
   assert.match(result.stderr, /requires Node\.js on PATH/);
 });
 
-async function ownedHookFixture(context, hookName) {
-  const root = await mkdtemp(path.join(tmpdir(), "kernel-hook-fixture-"));
+const hookFixtureParents = () => {
+  const configured = path.resolve(tmpdir());
+  const parents = [configured];
+  for (
+    let parent = path.dirname(configured);
+    parent !== path.dirname(parent);
+    parent = path.dirname(parent)
+  )
+    parents.push(parent);
+  if (process.platform === "win32") {
+    const windowsRoot = process.env.SystemRoot || process.env.WINDIR;
+    if (windowsRoot) parents.push(path.join(windowsRoot, "Temp"));
+  } else parents.push("/tmp");
+  return parents;
+};
+
+const allocateHookDirectory = async (parents, create = mkdtemp) => {
+  const failures = [];
+  for (const candidate of new Set(parents)) {
+    try {
+      const parent = await realpath(candidate);
+      if (parent.includes(path.delimiter)) continue;
+
+      const root = await create(path.join(parent, "kernel-hook-fixture-"));
+      return { root, parent };
+    } catch (error) {
+      failures.push(error);
+      if (!["EACCES", "EPERM", "EROFS", "ENOENT"].includes(error.code)) break;
+    }
+  }
+  throw new AggregateError(
+    failures,
+    "No writable hook fixture parent is representable as one Git ceiling entry.",
+  );
+};
+
+async function ownedHookFixture(
+  context,
+  hookName,
+  { parents = hookFixtureParents(), create = mkdtemp } = {},
+) {
+  const { root, parent } = await allocateHookDirectory(parents, create);
   context.after(async () => {
-    assert.equal(path.dirname(await realpath(root)), await realpath(tmpdir()));
+    assert.equal(path.dirname(await realpath(root)), parent);
     assert.ok(path.basename(root).startsWith("kernel-hook-fixture-"));
     await rm(root, { recursive: true, force: true });
   });
@@ -617,11 +657,135 @@ test("post-edit and quality hooks report invalid input or repository", async (co
       cwd: root,
       encoding: "utf8",
       windowsHide: true,
-      env: childEnvironment({ AI_PROJECT_DIR: root }),
+      env: childEnvironment({
+        AI_PROJECT_DIR: root,
+        GIT_CEILING_DIRECTORIES: path.dirname(root),
+      }),
     },
   );
   assert.equal(noRepository.status, 2);
   assert.match(noRepository.stderr, /cannot identify the Git repository/);
+});
+
+test("hook fixture isolation supports relative and separator-containing temporary directories", async (context) => {
+  if (!bash) return context.skip("No usable Bash found.");
+  const root = await ownedHookFixture(context, "quality-gate.sh");
+  const initialized = spawnSync("git", ["init", "--quiet"], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true,
+    env: childEnvironment({
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_GLOBAL: path.join(root, "no-user-git-config"),
+    }),
+  });
+  assert.equal(initialized.error, undefined);
+  assert.equal(initialized.status, 0, initialized.stderr);
+  for (const temporary of [
+    "relative-temp",
+    path.join(root, `separator${path.delimiter}temp`),
+  ]) {
+    await mkdir(path.resolve(root, temporary));
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^post-edit and quality hooks report invalid input or repository$",
+        fileURLToPath(import.meta.url),
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        windowsHide: true,
+        env: childEnvironment({
+          TEMP: temporary,
+          TMP: temporary,
+          TMPDIR: temporary,
+        }),
+      },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /# pass 1\b/);
+  }
+});
+
+test("hook fixtures probe writable parents and preserve allocation failures", async (context) => {
+  if (!bash) return context.skip("No usable Bash found.");
+
+  const outer = await ownedHookFixture(context, "quality-gate.sh");
+  const parents = [path.join(outer, "denied"), path.join(outer, "fallback")];
+  await Promise.all(parents.map((parent) => mkdir(parent)));
+  for (const code of ["EACCES", "EROFS"]) {
+    let root;
+    await context.test(code, async (child) => {
+      const attempts = [];
+      root = await ownedHookFixture(child, "quality-gate.sh", {
+        parents,
+        create: async (prefix) => {
+          attempts.push(path.dirname(prefix));
+          if (attempts.length === 1)
+            throw Object.assign(new Error("Synthetic unavailable parent"), {
+              code,
+            });
+          return mkdtemp(prefix);
+        },
+      });
+      assert.deepEqual(attempts, parents);
+      assert.equal(path.dirname(root), parents[1]);
+      const result = spawnSync(
+        bash,
+        [
+          "--noprofile",
+          "--norc",
+          path.join(root, ".agents/hooks/quality-gate.sh"),
+        ],
+        {
+          cwd: root,
+          encoding: "utf8",
+          windowsHide: true,
+          env: childEnvironment({
+            AI_PROJECT_DIR: root,
+            GIT_CEILING_DIRECTORIES: parents[1],
+          }),
+        },
+      );
+      assert.equal(result.status, 2, result.stderr);
+      assert.match(result.stderr, /cannot identify the Git repository/);
+    });
+    assert.equal(existsSync(root), false);
+  }
+
+  const denied = Object.assign(new Error("Synthetic denied parent"), {
+    code: "EACCES",
+  });
+  const readonly = Object.assign(new Error("Synthetic read-only parent"), {
+    code: "EROFS",
+  });
+  const failures = [denied, readonly];
+  await assert.rejects(
+    allocateHookDirectory(parents, async () => {
+      throw failures.shift();
+    }),
+    (error) => {
+      assert.deepEqual(error.errors, [denied, readonly]);
+      return true;
+    },
+  );
+  const unexpected = new Error("Synthetic unexpected allocation failure");
+  let attempts = 0;
+  await assert.rejects(
+    allocateHookDirectory(parents, async () => {
+      attempts++;
+      throw unexpected;
+    }),
+    (error) => {
+      assert.deepEqual(error.errors, [unexpected]);
+      return true;
+    },
+  );
+  assert.equal(attempts, 1);
 });
 
 test("quality hook fails when Git cannot inspect tracked changes", async (context) => {
