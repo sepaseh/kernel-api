@@ -50,8 +50,10 @@
     "npm run lint",
     "npm run format:check",
     "npm run check:guidance",
-    "npm run test:coverage",
-    "npm run test:audit"
+    "npm run test:unit",
+    "npm run test:integration",
+    "npm run test:governance",
+    "npm run check:coverage"
   ],
   "evaluation": ".agents/evaluation/cases.json"
 }

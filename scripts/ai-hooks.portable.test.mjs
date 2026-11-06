@@ -617,7 +617,10 @@ test("post-edit and quality hooks report invalid input or repository", async (co
       cwd: root,
       encoding: "utf8",
       windowsHide: true,
-      env: childEnvironment({ AI_PROJECT_DIR: root }),
+      env: childEnvironment({
+        AI_PROJECT_DIR: root,
+        GIT_CEILING_DIRECTORIES: path.dirname(root),
+      }),
     },
   );
   assert.equal(noRepository.status, 2);

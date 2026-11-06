@@ -32,6 +32,26 @@ const head = "d".repeat(40);
 const base = "e".repeat(40);
 const lcov = (source = "src/example.ts") =>
   `TN:\nSF:${source}\nDA:1,1\nLF:1\nLH:1\nend_of_record\n`;
+const sourceText = "export const value = 1;\n";
+const auditText = "export const audit = 1;\n";
+const rawCoverage = (source = "src/example.ts", text = sourceText) => ({
+  schemaVersion: 1,
+  nodeVersion: process.version,
+  sourceMaps: false,
+  result: [
+    {
+      scriptId: "1",
+      url: `file:///kernel-api-source/${source}`,
+      functions: [
+        {
+          functionName: "",
+          isBlockCoverage: true,
+          ranges: [{ startOffset: 0, endOffset: text.length, count: 1 }],
+        },
+      ],
+    },
+  ],
+});
 const identityOptions = () => ({
   environment: {
     CI_EVIDENCE_SUITE: "governance",
@@ -68,12 +88,43 @@ const fixture = async (context) => {
     await rm(root, { recursive: true, force: true });
   });
   await mkdir(path.join(root, "src"));
-  await mkdir(path.join(root, "coverage/governance"), { recursive: true });
+  await mkdir(path.join(root, ".github"));
+  await mkdir(path.join(root, "scripts"));
+  await writeFile(path.join(root, ".nvmrc"), process.version.slice(1) + "\n");
   await writeFile(
-    path.join(root, "src/example.ts"),
-    "export const value = 1;\n",
+    path.join(root, ".github/bootstrap-policy.json"),
+    JSON.stringify({
+      allowedFiles: [
+        "src/example.ts",
+        "src/another.ts",
+        "src/missing.ts",
+        "src/link/example.ts",
+        "scripts/run-audit.mjs",
+      ],
+    }),
   );
-  await writeFile(path.join(root, "coverage/lcov.info"), lcov());
+  await Promise.all(
+    ["unit", "integration", "governance"].map(async (suite) => {
+      await mkdir(path.join(root, `coverage/${suite}/v8`), { recursive: true });
+      await writeFile(path.join(root, `coverage/${suite}/lcov.info`), lcov());
+      await writeFile(
+        path.join(root, `coverage/${suite}/v8/coverage-1.json`),
+        JSON.stringify(rawCoverage()),
+      );
+    }),
+  );
+  await mkdir(path.join(root, "coverage/governance/audit-v8"));
+  await writeFile(path.join(root, "scripts/run-audit.mjs"), auditText);
+  await writeFile(
+    path.join(root, "coverage/governance/audit-lcov.info"),
+    lcov("scripts/run-audit.mjs"),
+  );
+  await writeFile(
+    path.join(root, "coverage/governance/audit-v8/coverage-1.json"),
+    JSON.stringify(rawCoverage("scripts/run-audit.mjs", auditText)),
+  );
+  await writeFile(path.join(root, "src/example.ts"), sourceText);
+  await writeFile(path.join(root, "coverage/governance/lcov.info"), lcov());
   const outputs = [];
   return {
     root,
@@ -82,10 +133,10 @@ const fixture = async (context) => {
     outputs,
   };
 };
-const readManifest = async (root) =>
+const readManifest = async (root, suite = "governance") =>
   JSON.parse(
     await readFile(
-      path.join(root, "coverage/governance/ci-evidence.json"),
+      path.join(root, `coverage/${suite}/ci-evidence.json`),
       "utf8",
     ),
   );
@@ -94,6 +145,11 @@ const putManifest = (root, value) =>
     path.join(root, "coverage/governance/ci-evidence.json"),
     JSON.stringify(value),
   );
+const fileReport = (path, bytes) => ({
+  path,
+  bytes: Buffer.byteLength(bytes),
+  sha256: createHash("sha256").update(bytes).digest("hex"),
+});
 
 test("records measured bytes and verifies the exact same-run source identity", async (context) => {
   const options = await fixture(context);
@@ -114,7 +170,25 @@ test("records measured bytes and verifies the exact same-run source identity", a
   ]);
   assert.deepEqual(
     await readManifest(options.root),
-    evidenceManifest(identity, Buffer.from(lcov())),
+    evidenceManifest(
+      identity,
+      Buffer.from(lcov()),
+      Buffer.from(lcov("scripts/run-audit.mjs")),
+      {
+        rawCoverage: [
+          fileReport(
+            "coverage/governance/v8/coverage-1.json",
+            JSON.stringify(rawCoverage()),
+          ),
+        ],
+        auditRawCoverage: [
+          fileReport(
+            "coverage/governance/audit-v8/coverage-1.json",
+            JSON.stringify(rawCoverage("scripts/run-audit.mjs", auditText)),
+          ),
+        ],
+      },
+    ),
   );
   await runEvidence("--verify-coverage", options);
   assert.equal(options.outputs.length, 1);
@@ -123,7 +197,7 @@ test("records measured bytes and verifies the exact same-run source identity", a
 test("rejects a missing or different coverage suite before recording or consuming evidence", async (context) => {
   const options = await fixture(context);
   await runEvidence("--record", options);
-  for (const suite of [undefined, "unit", "governance/../unit"]) {
+  for (const suite of [undefined, "other", "governance/../unit"]) {
     const environment = { ...options.environment, CI_EVIDENCE_SUITE: suite };
     await assert.rejects(
       runEvidence("--record", { ...options, environment }),
@@ -136,10 +210,289 @@ test("rejects a missing or different coverage suite before recording or consumin
   }
 });
 
+test("unit and integration publish independent source-bound reports and reject another suite's manifest", async (context) => {
+  const options = await fixture(context);
+  await runEvidence("--record", options);
+  const governance = await readManifest(options.root);
+  for (const suite of ["unit", "integration"]) {
+    const selected = {
+      ...options,
+      environment: { ...options.environment, CI_EVIDENCE_SUITE: suite },
+    };
+    await runEvidence("--record", selected);
+    const manifest = await readManifest(options.root, suite);
+    assert.equal(manifest.identity.suite, suite);
+    assert.equal(manifest.coverage.path, `coverage/${suite}/lcov.info`);
+    assert.equal(manifest.rawCoverage.length, 1);
+    assert.equal(Object.hasOwn(manifest, "auditCoverage"), false);
+    await runEvidence("--verify-coverage", selected);
+    await writeFile(
+      path.join(options.root, `coverage/${suite}/ci-evidence.json`),
+      JSON.stringify(governance),
+    );
+    await assert.rejects(
+      runEvidence("--verify-coverage", selected),
+      /does not match/,
+    );
+  }
+  assert.deepEqual(
+    options.outputs.map((value) => value.artifact),
+    [
+      "coverage-governance-123-1",
+      "coverage-unit-123-1",
+      "coverage-integration-123-1",
+    ],
+  );
+});
+
+test("governance requires independent audit-helper LCOV and raw evidence", async (context) => {
+  const options = await fixture(context);
+  const auditPath = path.join(
+    options.root,
+    "coverage/governance/audit-lcov.info",
+  );
+  await rm(auditPath);
+  await assert.rejects(runEvidence("--record", options), { code: "ENOENT" });
+  await writeFile(auditPath, lcov());
+  await assert.rejects(
+    runEvidence("--record", options),
+    /only scripts\/run-audit/,
+  );
+  await writeFile(auditPath, lcov("scripts/run-audit.mjs"));
+  await runEvidence("--record", options);
+  const manifest = await readManifest(options.root);
+  assert.equal(
+    manifest.auditCoverage.path,
+    "coverage/governance/audit-lcov.info",
+  );
+  assert.equal(manifest.auditRawCoverage.length, 1);
+  await writeFile(
+    auditPath,
+    lcov("scripts/run-audit.mjs").replace("DA:1,1", "DA:1,0"),
+  );
+  await assert.rejects(
+    runEvidence("--verify-coverage", options),
+    /does not match/,
+  );
+});
+
+test("raw coverage inventory rejects changed, missing, additional and linked entries", async (context) => {
+  const options = await fixture(context);
+  await runEvidence("--record", options);
+  const directory = path.join(options.root, "coverage/governance/v8");
+  const filename = path.join(directory, "coverage-1.json");
+  const original = await readFile(filename);
+  const changed = rawCoverage();
+  changed.result[0].functions[0].ranges[0].count = 0;
+  await writeFile(filename, JSON.stringify(changed));
+  await assert.rejects(
+    runEvidence("--verify-coverage", options),
+    /does not match/,
+  );
+  await rm(filename);
+  await assert.rejects(runEvidence("--verify-coverage", options), /inventory/);
+  await writeFile(filename, original);
+  const extra = path.join(directory, "extra.json");
+  await writeFile(extra, original);
+  await assert.rejects(
+    runEvidence("--verify-coverage", options),
+    /does not match/,
+  );
+  await rm(extra);
+  await symlink(
+    path.join(options.root, "coverage/integration/v8"),
+    path.join(directory, "linked"),
+    process.platform === "win32" ? "junction" : "dir",
+  );
+  await assert.rejects(runEvidence("--verify-coverage", options), /inventory/);
+});
+
+test("coverage rejects unadmitted source URLs, altered source maps and incompatible raw runtime", async (context) => {
+  const options = await fixture(context);
+  const filename = path.join(
+    options.root,
+    "coverage/governance/v8/coverage-1.json",
+  );
+  for (const change of [
+    (value) => {
+      value.result[0].url = "file:///private/operator.env";
+    },
+    (value) => {
+      value.result[0].url = "file:///kernel-api-source/src/unadmitted.ts";
+    },
+    (value) => {
+      value.nodeVersion = "v0.0.0";
+    },
+  ]) {
+    const value = rawCoverage();
+    change(value);
+    await writeFile(filename, JSON.stringify(value));
+    await assert.rejects(runEvidence("--record", options));
+  }
+  const mapped = rawCoverage();
+  const url = mapped.result[0].url;
+  mapped["source-map-cache"] = {
+    [url]: {
+      data: {
+        version: 3,
+        sources: [url],
+        sourcesContent: ["unrelated source\n"],
+        names: [],
+        mappings: "",
+      },
+      lineLengths: [sourceText.trimEnd().length],
+    },
+  };
+  await writeFile(filename, JSON.stringify(mapped));
+  await assert.rejects(runEvidence("--record", options), /source maps/);
+  mapped["source-map-cache"][url].data.sourcesContent = [sourceText];
+  await writeFile(filename, JSON.stringify(mapped));
+  await runEvidence("--record", options);
+  await writeFile(filename, JSON.stringify(rawCoverage()));
+  await writeFile(path.join(options.root, "src/unadmitted.ts"), sourceText);
+  await writeFile(
+    path.join(options.root, "coverage/governance/lcov.info"),
+    lcov("src/unadmitted.ts"),
+  );
+  await assert.rejects(runEvidence("--record", options), /not admitted/);
+});
+
+const recordProducers = async (options) => {
+  for (const [suite, attempt] of [
+    ["unit", "1"],
+    ["integration", "2"],
+    ["governance", "3"],
+  ]) {
+    await runEvidence("--record", {
+      ...options,
+      environment: {
+        ...options.environment,
+        CI_EVIDENCE_SUITE: suite,
+        GITHUB_RUN_ATTEMPT: attempt,
+      },
+    });
+  }
+  await writeFile(
+    path.join(options.root, "coverage/lcov.info"),
+    lcov() + lcov("scripts/run-audit.mjs"),
+  );
+  return {
+    ...options,
+    environment: {
+      ...options.environment,
+      CI_EVIDENCE_SUITE: "combined",
+      GITHUB_RUN_ATTEMPT: "4",
+      CI_EVIDENCE_PRODUCER_ATTEMPT: "4",
+    },
+  };
+};
+
+test("combined evidence binds all producer attempts and verifies without original suite files", async (context) => {
+  const options = await fixture(context);
+  const combined = await recordProducers(options);
+  await runEvidence("--record", combined);
+  assert.deepEqual(options.outputs.at(-1), {
+    artifact: "coverage-combined-123-4",
+    attempt: "4",
+  });
+  const manifest = await readManifest(options.root, "combined");
+  assert.deepEqual(
+    manifest.inputs.map((input) => [input.suite, input.identity.attempt]),
+    [
+      ["unit", "1"],
+      ["integration", "2"],
+      ["governance", "3"],
+    ],
+  );
+  for (const input of manifest.inputs) {
+    const path = `coverage/${input.suite}/ci-evidence.json`;
+    assert.deepEqual(
+      input.manifest,
+      fileReport(path, await readFile(`${options.root}/${path}`)),
+    );
+  }
+  for (const suite of ["unit", "integration", "governance"]) {
+    const directory = path.join(options.root, "coverage", suite);
+    assert.equal(path.dirname(directory), path.join(options.root, "coverage"));
+    await rm(directory, { recursive: true });
+  }
+  await runEvidence("--verify-coverage", {
+    ...combined,
+    environment: {
+      ...combined.environment,
+      GITHUB_RUN_ATTEMPT: "5",
+    },
+  });
+});
+
+test("combined recording revalidates original measured files and rejects missing producers", async (context) => {
+  const options = await fixture(context);
+  const combined = await recordProducers(options);
+  await writeFile(
+    path.join(options.root, "coverage/integration/lcov.info"),
+    lcov().replace("DA:1,1", "DA:1,0"),
+  );
+  await assert.rejects(runEvidence("--record", combined), /does not match/);
+  await writeFile(
+    path.join(options.root, "coverage/integration/lcov.info"),
+    lcov(),
+  );
+  await rm(path.join(options.root, "coverage/unit/ci-evidence.json"));
+  await assert.rejects(runEvidence("--record", combined), { code: "ENOENT" });
+});
+
+test("combined verification rejects a changed report and foreign, missing or future producer attestations", async (context) => {
+  const options = await fixture(context);
+  const combined = await recordProducers(options);
+  await runEvidence("--record", combined);
+  const original = await readManifest(options.root, "combined");
+  const filename = path.join(
+    options.root,
+    "coverage/combined/ci-evidence.json",
+  );
+  for (const change of [
+    (value) => {
+      value.inputs.pop();
+    },
+    (value) => {
+      value.inputs[0].identity.repository = "foreign/repo";
+    },
+    (value) => {
+      value.inputs[0].identity.attempt = "5";
+    },
+    (value) => {
+      value.inputs[0].manifest.path = "../foreign.json";
+    },
+    (value) => {
+      value.identity.attempt = "3";
+    },
+    (value) => {
+      value.nodeVersion = "v0.0.0";
+    },
+  ]) {
+    const changed = structuredClone(original);
+    change(changed);
+    await writeFile(filename, JSON.stringify(changed));
+    await assert.rejects(runEvidence("--verify-coverage", combined));
+  }
+  await writeFile(filename, JSON.stringify(original));
+  await writeFile(
+    path.join(options.root, "coverage/lcov.info"),
+    lcov().replace("DA:1,1", "DA:1,0"),
+  );
+  await assert.rejects(
+    runEvidence("--verify-coverage", combined),
+    /does not match/,
+  );
+});
+
 test("hashes report bytes without rewriting CRLF or Windows source separators", async (context) => {
   const options = await fixture(context);
   const report = Buffer.from(lcov("src\\example.ts").replaceAll("\n", "\r\n"));
-  await writeFile(path.join(options.root, "coverage/lcov.info"), report);
+  await writeFile(
+    path.join(options.root, "coverage/governance/lcov.info"),
+    report,
+  );
   await runEvidence("--record", options);
   const manifest = await readManifest(options.root);
   assert.equal(manifest.coverage.bytes, report.length);
@@ -259,7 +612,7 @@ test("rejects tampered identity, report metadata and measured bytes", async (con
   }
   await putManifest(options.root, original);
   await writeFile(
-    path.join(options.root, "coverage/lcov.info"),
+    path.join(options.root, "coverage/governance/lcov.info"),
     lcov().replace("DA:1,1", "DA:1,0"),
   );
   await assert.rejects(
@@ -346,7 +699,10 @@ test("rejects empty, truncated and malformed LCOV", async (context) => {
     lcov().replace("end_of_record", "SF:src/example.ts"),
     Buffer.from([255]),
   ]) {
-    await writeFile(path.join(options.root, "coverage/lcov.info"), bytes);
+    await writeFile(
+      path.join(options.root, "coverage/governance/lcov.info"),
+      bytes,
+    );
     await assert.rejects(readCoverage(options.root));
   }
 });
@@ -354,7 +710,7 @@ test("rejects empty, truncated and malformed LCOV", async (context) => {
 test("rejects oversized coverage before reading report contents", async (context) => {
   const options = await fixture(context);
   await truncate(
-    path.join(options.root, "coverage/lcov.info"),
+    path.join(options.root, "coverage/governance/lcov.info"),
     maximumCoverageBytes + 1,
   );
   await assert.rejects(readCoverage(options.root), /at most 32 MiB/);
@@ -364,11 +720,14 @@ test("validates every source in a report containing multiple records", async (co
   const options = await fixture(context);
   await writeFile(path.join(options.root, "src/another.ts"), "export {};\n");
   const report = lcov() + lcov("src/another.ts");
-  await writeFile(path.join(options.root, "coverage/lcov.info"), report);
+  await writeFile(
+    path.join(options.root, "coverage/governance/lcov.info"),
+    report,
+  );
   assert.equal((await readCoverage(options.root)).toString(), report);
 
   await writeFile(
-    path.join(options.root, "coverage/lcov.info"),
+    path.join(options.root, "coverage/governance/lcov.info"),
     report + lcov("src/missing.ts"),
   );
   await assert.rejects(readCoverage(options.root), { code: "ENOENT" });
@@ -388,7 +747,7 @@ test("rejects absolute, escaping, ambiguous and missing source paths", async (co
     "src/missing.ts",
   ]) {
     await writeFile(
-      path.join(options.root, "coverage/lcov.info"),
+      path.join(options.root, "coverage/governance/lcov.info"),
       lcov(source),
     );
     await assert.rejects(readCoverage(options.root));
@@ -408,7 +767,7 @@ test("rejects linked coverage and source directories without following their con
     process.platform === "win32" ? "junction" : "dir",
   );
   await writeFile(
-    path.join(options.root, "coverage/lcov.info"),
+    path.join(options.root, "coverage/governance/lcov.info"),
     lcov("src/link/example.ts"),
   );
   await assert.rejects(readCoverage(options.root), /must not contain links/);
@@ -434,7 +793,7 @@ test("fails closed for missing, oversized, invalid or non-file manifests", async
   );
   await writeFile(filename, "invalid JSON");
   await assert.rejects(runEvidence("--verify-coverage", options), SyntaxError);
-  await truncate(filename, 16 * 1024 + 1);
+  await truncate(filename, 1024 * 1024 + 1);
   await assert.rejects(runEvidence("--verify-coverage", options), /too large/);
   await rm(filename);
   await mkdir(filename);
@@ -477,7 +836,7 @@ test("CLI handler publishes the artifact and rejects tampering in an isolated su
   );
   assert.equal(run("--verify-coverage").status, 0);
   await writeFile(
-    path.join(options.root, "coverage/lcov.info"),
+    path.join(options.root, "coverage/governance/lcov.info"),
     lcov().replace("DA:1,1", "DA:1,0"),
   );
   const failed = run("--verify-coverage");
@@ -502,13 +861,17 @@ test(
   async (context) => {
     const { root } = await fixture(context);
     await mkdir(path.join(root, ".github/workflows"), { recursive: true });
-    await mkdir(path.join(root, "scripts"));
+    await mkdir(path.join(root, "scripts"), { recursive: true });
     await writeFile(
       path.join(root, ".github/workflows/ci.yml"),
       "name: Synthetic CI\non: push\njobs: {}\n",
     );
     const scriptPath = path.join(root, "scripts/ci-evidence.mjs");
     await copyFile(new URL("./ci-evidence.mjs", import.meta.url), scriptPath);
+    await copyFile(
+      new URL("./merge-coverage.mjs", import.meta.url),
+      path.join(root, "scripts/merge-coverage.mjs"),
+    );
     const git = (...args) => {
       const result = spawnSync("/usr/bin/git", args, {
         cwd: root,
@@ -527,8 +890,11 @@ test(
     git(
       "add",
       ".github/workflows/ci.yml",
+      ".github/bootstrap-policy.json",
+      ".nvmrc",
       "src/example.ts",
-      "coverage/lcov.info",
+      "scripts/run-audit.mjs",
+      "coverage/governance/lcov.info",
     );
     git("commit", "-m", "test: create synthetic CI evidence fixture");
     const fixtureCommit = git("rev-parse", "HEAD");

@@ -1,11 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { lstat, mkdir, readFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
 import { parseDocument } from "yaml";
+
+import { coverageSourceFiles } from "./merge-coverage.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const requireModule = createRequire(import.meta.url);
@@ -23,6 +25,10 @@ const scriptNames = {
   guidance: "check:guidance",
   "coverage-tests": "test:coverage",
   "audit-helper-tests": "test:audit",
+  "unit-tests": "test:unit",
+  "integration-tests": "test:integration",
+  "governance-tests": "test:governance",
+  "coverage-summary": "check:coverage",
 };
 export const requiredChecks = [
   "snapshot",
@@ -33,7 +39,24 @@ export const requiredChecks = [
   "guidance",
   "coverage-tests",
 ];
-export const sourceChecks = Object.keys(scriptNames);
+export const sourceChecks = Object.keys(scriptNames).filter(
+  (id) =>
+    ![
+      "unit-tests",
+      "integration-tests",
+      "governance-tests",
+      "coverage-summary",
+    ].includes(id),
+);
+export const splitChecks = [
+  ...sourceChecks.filter(
+    (id) => !["coverage-tests", "audit-helper-tests"].includes(id),
+  ),
+  "unit-tests",
+  "integration-tests",
+  "governance-tests",
+  "coverage-summary",
+];
 const sourcePhases = new Set([
   "foundation",
   "application-services",
@@ -57,6 +80,7 @@ export const checksForPhase = (phase) => {
     phase === "governance" || sourcePhases.has(phase),
     "A known explicit publication phase is required.",
   );
+  if (phase === "local-runtime") return splitChecks;
   return phase === "governance" ? requiredChecks : sourceChecks;
 };
 export const foundationFiles = [
@@ -211,6 +235,8 @@ export const foundationDependencies = {
 };
 const scriptCommand = (id, phase) => {
   if (id === "actions-lint") return "node scripts/run-actionlint.mjs";
+  if (id === "coverage-summary")
+    return "node scripts/merge-coverage.mjs --aggregate";
   if (phase !== "governance") {
     if (id === "audit") return "node scripts/run-audit.mjs";
     if (id === "boundaries") return "node scripts/check-boundaries.mjs";
@@ -227,6 +253,12 @@ export const packageScripts = (phase) => ({
       scriptCommand(id, phase),
     ]),
   ),
+  ...(phase === "local-runtime"
+    ? {
+        "test:coverage": "node scripts/check-governance.mjs coverage-tests",
+        "test:audit": "node scripts/check-governance.mjs audit-helper-tests",
+      }
+    : {}),
   ...Object.fromEntries(
     Object.entries(ownedCommands(phase)).map(([name, { command }]) => [
       name,
@@ -236,19 +268,28 @@ export const packageScripts = (phase) => ({
 });
 const ciOwner = (id) => {
   if (id === "audit") return "audit";
+  if (id === "unit-tests") return "unit";
+  if (id === "integration-tests") return "integration";
+  if (id === "coverage-summary") return "check";
+  if (id === "governance-tests") return "governance";
   if (["coverage-tests", "audit-helper-tests"].includes(id))
     return "governance";
   return "quality";
 };
 export const ciProfilesForPhase = (phase) =>
   Object.fromEntries(
-    ["quality", "audit", "governance"].map((job) => [
+    (phase === "local-runtime"
+      ? ["quality", "audit", "unit", "integration", "governance", "check"]
+      : ["quality", "audit", "governance"]
+    ).map((job) => [
       `ci-${job}`,
       checksForPhase(phase).filter((id) => ciOwner(id) === job),
     ]),
   );
-export const aggregateCheckCommand =
+export const legacyAggregateCheckCommand =
   "node -e \"const needs = JSON.parse(process.env.CI_NEEDS); if (!['quality', 'audit', 'governance'].every(job => needs[job]?.result === 'success')) process.exit(1)\"";
+export const aggregateCheckCommand =
+  "node -e \"const needs = JSON.parse(process.env.CI_NEEDS); if (!['quality', 'audit', 'unit', 'integration', 'governance'].every(job => needs[job]?.result === 'success')) process.exit(1)\"";
 export const externalWorkflows = [
   {
     path: ".github/workflows/ci.yml",
@@ -264,11 +305,11 @@ export const testFiles = [
   "scripts/ci-evidence.test.mjs",
   "scripts/run-actionlint.test.mjs",
 ];
-const sourceFiles = testFiles.map((file) => file.replace(".test.mjs", ".mjs"));
-const optInTestFiles = new Set([
-  "scripts/test-native-release.mjs",
-  "scripts/test-docker-release.mjs",
-]);
+const sourceFiles = [
+  ...testFiles.map((file) => file.replace(".test.mjs", ".mjs")),
+  "scripts/merge-coverage.mjs",
+  "scripts/merge-coverage.test.mjs",
+];
 export const actions = {
   checkout: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
   node: "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
@@ -676,7 +717,7 @@ const setupNode = (cache = true) => ({
 });
 const sonarConfiguration = `if [[ "$SONAR_TOKEN_CONFIGURED" != 'true' || -z "$SONAR_PROJECT_KEY" ]]; then\n  echo '::error::Configure SONAR_TOKEN and SONAR_PROJECT_KEY before analysis. No Sonar analysis was performed.'\n  exit 1\nfi\n`;
 
-export const validateCiWorkflow = (workflow) => {
+const validateCiEnvelope = (workflow) => {
   equal(
     Object.keys(workflow ?? {}).sort((left, right) =>
       left.localeCompare(right),
@@ -719,6 +760,10 @@ export const validateCiWorkflow = (workflow) => {
     },
     "Queue verification by event and ref without cancelling active evidence.",
   );
+};
+
+const validateLegacyCiWorkflow = (workflow) => {
+  validateCiEnvelope(workflow);
   equal(
     Object.keys(workflow.jobs ?? {}).sort((left, right) =>
       left.localeCompare(right),
@@ -800,7 +845,7 @@ export const validateCiWorkflow = (workflow) => {
     [
       {
         env: { CI_NEEDS: expression("toJSON(needs)") },
-        run: aggregateCheckCommand,
+        run: legacyAggregateCheckCommand,
       },
     ],
     "The aggregate must require exact success without repeating validation.",
@@ -868,6 +913,214 @@ export const validateCiWorkflow = (workflow) => {
     ],
     "Sonar must verify the same run's measured coverage and execute a real scanner without rerunning tests.",
   );
+};
+
+const suiteNames = {
+  quality: "Static checks",
+  audit: "Dependency audit",
+  unit: "Unit tests",
+  integration: "API integration tests",
+  governance: "Governance tests",
+};
+const suiteOutputs = {
+  artifact: expression("steps.evidence.outputs.artifact"),
+  attempt: expression("steps.evidence.outputs.attempt"),
+};
+const coverageSuites = ["unit", "integration", "governance"];
+const installValidation = {
+  run: "npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund",
+};
+const evidenceRecord = (suite) => ({
+  id: "evidence",
+  env: { CI_EVIDENCE_SUITE: suite },
+  run: "node scripts/ci-evidence.mjs --record",
+});
+const evidenceUpload = (paths) => ({
+  uses: actions.upload,
+  with: {
+    name: expression("steps.evidence.outputs.artifact"),
+    path: paths,
+    "if-no-files-found": "error",
+    "retention-days": 3,
+    overwrite: false,
+    "include-hidden-files": false,
+  },
+});
+const evidenceDownload = (suite) => [
+  {
+    uses: actions.download,
+    with: {
+      name: expression(`needs.${suite}.outputs.artifact`),
+      path: `coverage/${suite}`,
+      "digest-mismatch": "error",
+    },
+  },
+  {
+    env: {
+      CI_EVIDENCE_SUITE: suite,
+      CI_EVIDENCE_PRODUCER_ATTEMPT: expression(
+        `needs.${suite}.outputs.attempt`,
+      ),
+    },
+    run: "node scripts/ci-evidence.mjs --verify-coverage",
+  },
+];
+const validateSplitSuite = (workflow, id) => {
+  const { steps, ...job } = workflow.jobs[id];
+  const measured = coverageSuites.includes(id);
+  equal(
+    job,
+    {
+      name: suiteNames[id],
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 20,
+      ...(measured ? { outputs: suiteOutputs } : {}),
+    },
+    "Every real CI suite must execute unconditionally with its fixed scope.",
+  );
+  const expected = [
+    checkout(),
+    setupNode(),
+    installValidation,
+    { run: `npm run validate -- ci-${id}` },
+  ];
+  if (measured) {
+    const audit =
+      id === "governance"
+        ? "coverage/governance/audit-lcov.info\ncoverage/governance/audit-v8/\n"
+        : "";
+    expected.push(
+      evidenceRecord(id),
+      evidenceUpload(
+        `coverage/${id}/lcov.info\ncoverage/${id}/ci-evidence.json\ncoverage/${id}/v8/\n` +
+          audit,
+      ),
+    );
+  }
+  equal(
+    stepsWithoutNames(steps),
+    expected,
+    "Each suite must execute its disjoint profile once and attest all measured files.",
+  );
+};
+const validateSplitAggregate = (workflow) => {
+  const { steps, ...job } = workflow.jobs.check;
+  equal(
+    job,
+    {
+      permissions: { contents: "read" },
+      needs: ["quality", "audit", ...coverageSuites],
+      if: "always()",
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 20,
+      outputs: suiteOutputs,
+    },
+    "The required check must aggregate all suites and enforce measured coverage.",
+  );
+  equal(
+    stepsWithoutNames(steps),
+    [
+      {
+        env: { CI_NEEDS: expression("toJSON(needs)") },
+        run: aggregateCheckCommand,
+      },
+      checkout(),
+      setupNode(false),
+      ...coverageSuites.flatMap(evidenceDownload),
+      { run: "npm run check:coverage" },
+      evidenceRecord("combined"),
+      evidenceUpload(
+        "coverage/lcov.info\ncoverage/combined/ci-evidence.json\n",
+      ),
+    ],
+    "Check must verify every producer and aggregate coverage once without installing dependencies or rerunning tests.",
+  );
+};
+const validateSplitAnalysis = (workflow) => {
+  const { steps, ...job } = workflow.jobs.analysis;
+  equal(
+    job,
+    {
+      name: "SonarQube Cloud analysis",
+      needs: ["check"],
+      if: "needs.check.result == 'success' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)",
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 15,
+    },
+    "Sonar requires the successful combined producer and must retain secret isolation.",
+  );
+  equal(
+    stepsWithoutNames(steps),
+    [
+      checkout(true),
+      setupNode(),
+      {
+        env: {
+          SONAR_TOKEN_CONFIGURED: expression("secrets.SONAR_TOKEN != ''"),
+          SONAR_PROJECT_KEY: expression("vars.SONAR_PROJECT_KEY"),
+        },
+        run: sonarConfiguration,
+      },
+      {
+        uses: actions.download,
+        with: {
+          name: expression("needs.check.outputs.artifact"),
+          path: "coverage",
+          "digest-mismatch": "error",
+        },
+      },
+      {
+        env: {
+          CI_EVIDENCE_SUITE: "combined",
+          CI_EVIDENCE_PRODUCER_ATTEMPT: expression(
+            "needs.check.outputs.attempt",
+          ),
+        },
+        run: "node scripts/ci-evidence.mjs --verify-coverage",
+      },
+      installValidation,
+      {
+        uses: actions.sonar,
+        env: {
+          SONAR_HOST_URL: expression(
+            "vars.SONAR_HOST_URL || 'https://sonarcloud.io'",
+          ),
+          SONAR_TOKEN: expression("secrets.SONAR_TOKEN"),
+        },
+        with: {
+          args:
+            "-Dsonar.projectKey=" +
+            expression("vars.SONAR_PROJECT_KEY") +
+            " -Dsonar.scm.revision=" +
+            expression("github.event.pull_request.head.sha || github.sha"),
+        },
+      },
+    ],
+    "Sonar must verify and import combined measured coverage without repeating tests or aggregation.",
+  );
+};
+export const validateCiWorkflow = (
+  workflow,
+  { split = Object.hasOwn(workflow.jobs ?? {}, "unit") } = {},
+) => {
+  if (!split) return validateLegacyCiWorkflow(workflow);
+  validateCiEnvelope(workflow);
+  equal(
+    Object.keys(workflow.jobs ?? {}).sort((a, b) => a.localeCompare(b)),
+    [
+      "analysis",
+      "audit",
+      "check",
+      "governance",
+      "integration",
+      "quality",
+      "unit",
+    ],
+    "Keep all five real work jobs, coverage aggregate and scanner explicit.",
+  );
+  for (const id of Object.keys(suiteNames)) validateSplitSuite(workflow, id);
+  validateSplitAggregate(workflow);
+  validateSplitAnalysis(workflow);
 };
 
 export const validateCodeqlWorkflow = (workflow) => {
@@ -1315,7 +1568,9 @@ export const inspectPolicy = async (root) => {
     readText(root, "sonar-project.properties"),
     Promise.all(workflowFiles.map((file) => readText(root, file))),
   ]);
-  validateCiWorkflow(parseYaml(ci));
+  validateCiWorkflow(parseYaml(ci), {
+    split: policy.phase === "local-runtime",
+  });
   validateCodeRabbit(parseYaml(rabbit));
   const parsedWorkflows = Object.fromEntries(
     workflowFiles.map((file, index) => [file, parseYaml(workflows[index])]),
@@ -1444,18 +1699,39 @@ const trackedFiles = async (root) => {
   return result.stdout.split("\0").filter(Boolean);
 };
 
+export const testSuite = (file) => {
+  if (
+    file.startsWith("src/application/") ||
+    [
+      "src/infrastructure/config.test.ts",
+      "src/infrastructure/auth/gateway.test.ts",
+      "src/infrastructure/localization/catalogs.test.ts",
+      "src/infrastructure/localization/i18n.test.ts",
+      "src/infrastructure/logging/logger.test.ts",
+    ].includes(file)
+  )
+    return "unit";
+  if (
+    file.startsWith("src/test/integration/") ||
+    [
+      "src/infrastructure/lifecycle.test.ts",
+      "src/infrastructure/storage/local.test.ts",
+      "src/infrastructure/storage/minio.test.ts",
+      "scripts/auth-bootstrap-integration.test.mjs",
+      "scripts/auth-identity-integration.test.mjs",
+      "scripts/http-upload-loopback.test.mjs",
+      "scripts/runtime-integration.test.mjs",
+      "scripts/runtime-seed.test.mjs",
+    ].includes(file)
+  )
+    return "integration";
+  return "governance";
+};
 export const coveragePlan = (files, phase) => {
   const tests = [...files].filter((file) => /\.test\.(?:mjs|ts)$/.test(file));
   const audit = phase === "governance" ? [] : ["scripts/run-audit.test.mjs"];
   const node = tests.filter((file) => !audit.includes(file));
-  const sources = [...files].filter(
-    (file) =>
-      /^(?:scripts|src)\/.+\.(?:mjs|ts)$/.test(file) &&
-      !/\.test(?:-support)?\.(?:mjs|ts)$/.test(file) &&
-      !file.startsWith("src/test/") &&
-      file !== "scripts/run-audit.mjs" &&
-      !optInTestFiles.has(file),
-  );
+  const sources = coverageSourceFiles(files);
   assert(
     node.length > 0 && sources.length > 0,
     "Published tests and measured owners must be present.",
@@ -1467,15 +1743,25 @@ export const coveragePlan = (files, phase) => {
   return { node, audit, sources };
 };
 
-const nodeCoverage = async (root, tests, sources, report) => {
+const nodeCoverage = async (
+  root,
+  tests,
+  sources,
+  report,
+  { raw, threshold = true } = {},
+) => {
   await mkdir(path.dirname(path.join(root, report)), { recursive: true });
   const result = spawnSync(
     process.execPath,
     [
       "--experimental-test-coverage",
-      "--test-coverage-lines=80",
-      "--test-coverage-branches=80",
-      "--test-coverage-functions=80",
+      ...(threshold
+        ? [
+            "--test-coverage-lines=80",
+            "--test-coverage-branches=80",
+            "--test-coverage-functions=80",
+          ]
+        : []),
       ...sources.map((file) => `--test-coverage-include=${file}`),
       "--test",
       "--test-reporter=spec",
@@ -1484,7 +1770,14 @@ const nodeCoverage = async (root, tests, sources, report) => {
       `--test-reporter-destination=${report}`,
       ...tests,
     ],
-    { cwd: root, stdio: "inherit", windowsHide: true },
+    {
+      cwd: root,
+      stdio: "inherit",
+      windowsHide: true,
+      ...(raw
+        ? { env: { ...process.env, NODE_V8_COVERAGE: path.join(root, raw) } }
+        : {}),
+    },
   );
   assert(
     result.status === 0 && !result.error,
@@ -1534,11 +1827,135 @@ const runCoverage = async (root, files, phase, auditOnly) => {
   return plan.node.length;
 };
 
+const ownedCoverageDirectory = async (root, suite, create = true) => {
+  let directory = path.resolve(root);
+  for (const segment of ["coverage", suite]) {
+    directory = path.join(directory, segment);
+    if (create) {
+      try {
+        await mkdir(directory);
+      } catch (error) {
+        if (error.code !== "EEXIST") throw error;
+      }
+    }
+    const info = await lstat(directory);
+    assert(
+      info.isDirectory() && !info.isSymbolicLink(),
+      "Coverage paths must remain ordinary owned directories.",
+    );
+  }
+  return directory;
+};
+const captureSuiteCoverage = async (
+  root,
+  tests,
+  sources,
+  report,
+  raw,
+  threshold,
+) => {
+  const suite = path.posix.dirname(raw).split("/")[1];
+  const parent = await ownedCoverageDirectory(root, suite);
+  const capture = await mkdtemp(path.join(parent, ".capture-"));
+  const relativeCapture = path
+    .relative(root, capture)
+    .split(path.sep)
+    .join("/");
+  let failure;
+  try {
+    await nodeCoverage(root, tests, sources, report, {
+      raw: relativeCapture,
+      threshold,
+    });
+    const { prepareCoverage } = await import("./merge-coverage.mjs");
+    await prepareCoverage(root, relativeCapture, sources, raw);
+  } catch (error) {
+    failure = error;
+  }
+  try {
+    await ownedCoverageDirectory(root, suite, false);
+    assert(
+      path.dirname(capture) === parent &&
+        path.basename(capture).startsWith(".capture-"),
+      "Only the owned coverage capture may be removed.",
+    );
+    const info = await lstat(capture);
+    assert(
+      info.isDirectory() && !info.isSymbolicLink(),
+      "Coverage capture must remain an ordinary directory.",
+    );
+    await rm(capture, { recursive: true });
+  } catch (error) {
+    failure = failure
+      ? new AggregateError(
+          [failure, error],
+          "Coverage capture and cleanup both failed.",
+        )
+      : error;
+  }
+  if (failure) throw failure;
+};
+const runSuiteCoverage = async (root, files, phase, suite) => {
+  const plan = coveragePlan(files, phase);
+  const tests = plan.node.filter((file) => testSuite(file) === suite);
+  assert(
+    tests.length > 0,
+    "Each declared test suite must contain published tests.",
+  );
+  const raw = `coverage/${suite}/v8`;
+  await captureSuiteCoverage(
+    root,
+    tests,
+    plan.sources,
+    `coverage/${suite}/lcov.info`,
+    raw,
+    false,
+  );
+  if (suite === "governance") {
+    const auditRaw = "coverage/governance/audit-v8";
+    await captureSuiteCoverage(
+      root,
+      plan.audit,
+      ["scripts/run-audit.mjs"],
+      "coverage/governance/audit-lcov.info",
+      auditRaw,
+      true,
+    );
+  }
+  return tests.length + (suite === "governance" ? plan.audit.length : 0);
+};
+
+const coverageModes = new Set([
+  "unit-tests",
+  "integration-tests",
+  "governance-tests",
+  "coverage-summary",
+  "coverage-tests",
+]);
+const runCurrentCoverage = async (mode, root, files, phase) => {
+  const suites = {
+    "unit-tests": "unit",
+    "integration-tests": "integration",
+    "governance-tests": "governance",
+  };
+  if (suites[mode]) return runSuiteCoverage(root, files, phase, suites[mode]);
+  if (mode === "coverage-tests") {
+    await runSuiteCoverage(root, files, phase, "unit");
+    await runSuiteCoverage(root, files, phase, "integration");
+    await runSuiteCoverage(root, files, phase, "governance");
+  }
+  const { aggregateCoverage } = await import("./merge-coverage.mjs");
+  return aggregateCoverage(root, coveragePlan(files, phase).sources);
+};
+
 export const runCheck = async (mode, root = repository) => {
   const { policy, files } = await readInventory(root);
   assert(
     [
       ...checksForPhase(policy.phase),
+      ...(policy.phase === "local-runtime"
+        ? ["coverage-tests", "audit-helper-tests"]
+        : []),
       "full",
       ...Object.keys(ciProfilesForPhase(policy.phase)),
     ].includes(mode),
@@ -1557,6 +1974,8 @@ export const runCheck = async (mode, root = repository) => {
       npm(["audit", "--audit-level=high", "--json"], root, true),
     );
   if (mode === "format") return inspectFormatting(root);
+  if (policy.phase === "local-runtime" && coverageModes.has(mode))
+    return runCurrentCoverage(mode, root, files, policy.phase);
   if (["coverage-tests", "audit-helper-tests"].includes(mode))
     return runCoverage(
       root,

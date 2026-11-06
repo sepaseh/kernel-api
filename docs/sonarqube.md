@@ -14,17 +14,27 @@ Set `SONAR_PROJECT_KEY` to the actual imported key; `SONAR_HOST_URL` defaults
 to `https://sonarcloud.io`. Inspect names only, never secret values.
 
 The current source phase analyzes its published `src` and `scripts` and imports
-real `coverage/lcov.info` measured once by the **Governance tests** job. The job
-runs the published owner suites and tooling and audit-helper tests. Its
-provenance manifest at `coverage/governance/ci-evidence.json` binds coverage to
-the tested commit and tree, PR head and base, workflow and producing attempt.
-Analysis downloads the immutable
-`coverage-governance-<run>-<attempt>` artifact directly from that producer and
-verifies its identity and report bytes before scanning. Do not reuse another
-head's report or attribute it to owners outside the inventory or to deployed
-service behavior. The scanner sets the SCM revision to the PR head or the
-triggering commit while coverage remains bound to the exact tested checkout and
-merge base.
+`coverage/lcov.info` produced by the successful **check** job. **Unit tests**,
+**API integration tests** and **Governance tests** each execute their own tests
+once and publish measured LCOV, raw V8 coverage and provenance. Governance also
+publishes the audit helper's separately measured coverage.
+
+`check` requires every job to succeed, verifies the three suite artifacts using
+their actual producer attempts, and computes the native coverage summary. It
+retains the independent 80% line, branch and function gates for non-audit sources
+and the audit helper. Its combined attestation at
+`coverage/combined/ci-evidence.json` binds the measured report to the tested
+commit and tree, PR head and base, workflow, producing attempt, and the identities
+and hashes of all three input manifests.
+
+Analysis downloads `coverage-combined-<run>-<attempt>` directly from that
+successful check and verifies its identity and report bytes before installing
+analysis dependencies. It imports the existing report without executing tests
+or recomputing coverage. An analysis-only rerun uses the check producer's
+original attempt. Do not reuse another head's report or attribute it to owners
+outside the inventory or to deployed service behavior. The scanner sets the SCM
+revision to the PR head or triggering commit while coverage remains bound to the
+exact tested checkout and merge base.
 
 Require both **SonarQube Cloud analysis** from GitHub Actions and the actual
 **SonarCloud Code Analysis** provider gate from the verified Sonar application.

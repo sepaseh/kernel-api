@@ -29,7 +29,13 @@
         "Read actual environment files or user data.",
         "Move auth services into Next or copy the admin bearer store into the website."
       ],
-      "checks": ["typecheck", "coverage-tests"]
+      "checks": [
+        "typecheck",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "persisted-language",
@@ -61,7 +67,13 @@
         "Reset existing settings or use real owner data to demonstrate the flow.",
         "Grant language administration through settings.update or allow an ordinary branding save to write a stale language code."
       ],
-      "checks": ["boundaries", "coverage-tests"]
+      "checks": [
+        "boundaries",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "api-message",
@@ -88,7 +100,14 @@
         "Use English fallback spreads, blanks or duplicate aliases to fill missing translations.",
         "Restore npm workspaces, shared package aliases or source imports from another checkout."
       ],
-      "checks": ["boundaries", "typecheck", "coverage-tests"]
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "administrator-concurrency",
@@ -127,7 +146,14 @@
         "Introduce a generic repository, CQRS or a DI container.",
         "Mutate the real database to demonstrate the invariant."
       ],
-      "checks": ["boundaries", "typecheck", "coverage-tests"]
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "private-media",
@@ -159,7 +185,13 @@
         "Claim multipart is bounded before parsing by the application service.",
         "Read or reset server/data, real buckets or actual environment files."
       ],
-      "checks": ["coverage-tests", "boundaries"]
+      "checks": [
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary",
+        "boundaries"
+      ]
     },
     {
       "id": "client-screen-contract",
@@ -209,7 +241,14 @@
         "Read real environment/state, start a service or edit files for this read-only task.",
         "Treat CLAUDE.md, a settings index, a template, a correct answer or passing static guidance checks as proof of actual host loading or a completed cross-assistant run."
       ],
-      "checks": ["guidance", "boundaries", "coverage-tests"]
+      "checks": [
+        "guidance",
+        "boundaries",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "recovery-boundary",
@@ -228,7 +267,12 @@
         "Read or change real state.",
         "Claim that an operator backup was executed."
       ],
-      "checks": ["coverage-tests"]
+      "checks": [
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     }
   ]
 }

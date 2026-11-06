@@ -32,7 +32,10 @@
         "ci-policy",
         "guidance",
         "format",
-        "coverage-tests"
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
       ]
     },
     {
@@ -63,7 +66,10 @@
         "actions-lint",
         "guidance",
         "format",
-        "coverage-tests"
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
       ]
     },
     {
@@ -92,7 +98,15 @@
         "src/application/validation.test.ts",
         "scripts/check-boundaries.test.mjs"
       ],
-      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "services-and-catalogs",
@@ -142,7 +156,15 @@
         "src/application/users.test.ts",
         "src/infrastructure/localization/catalogs.test.ts"
       ],
-      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "configuration-and-storage",
@@ -169,7 +191,15 @@
         "src/infrastructure/storage/local.test.ts",
         "src/infrastructure/storage/minio.test.ts"
       ],
-      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "database-auth",
@@ -198,7 +228,15 @@
         "src/test/support/fixture-cleanup.test.ts",
         "scripts/runtime-seed.test.mjs"
       ],
-      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "http-contract",
@@ -229,7 +267,15 @@
         "src/test/integration/upload-body-limit.test.ts",
         "src/infrastructure/lifecycle.test.ts"
       ],
-      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     },
     {
       "id": "deployment",
@@ -283,7 +329,10 @@
         "boundaries",
         "typecheck",
         "lint",
-        "coverage-tests"
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
       ]
     },
     {
@@ -304,7 +353,15 @@
         "scripts/collection-files.test.mjs",
         "scripts/collection-users.test.mjs"
       ],
-      "checks": ["boundaries", "typecheck", "lint", "coverage-tests"]
+      "checks": [
+        "boundaries",
+        "typecheck",
+        "lint",
+        "unit-tests",
+        "integration-tests",
+        "governance-tests",
+        "coverage-summary"
+      ]
     }
   ]
 }
