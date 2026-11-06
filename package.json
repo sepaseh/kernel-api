@@ -40,7 +40,7 @@
     "@types/node": "24.19.2",
     "eslint": "10.14.0",
     "eslint-plugin-simple-import-sort": "14.0.0",
-    "globals": "17.13.0",
+    "globals": "17.14.0",
     "prettier": "3.9.10",
     "yaml": "2.9.1",
     "typescript": "6.0.3",
@@ -49,21 +49,21 @@
     "drizzle-kit": "0.31.11"
   },
   "overrides": {
-    "minimatch@10.2.6": "11.0.3",
-    "@better-auth/core": "1.7.14",
+    "minimatch@10.2.6": "11.0.5",
+    "@better-auth/core": "1.7.18",
     "@esbuild-kit/core-utils@3.3.2": {
       "esbuild": "0.28.2"
     }
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.1161.0",
-    "i18next": "26.5.12",
+    "@aws-sdk/client-s3": "3.1163.0",
+    "i18next": "26.7.2",
     "pino": "10.4.0",
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
-    "better-auth": "1.7.14",
-    "@better-auth/drizzle-adapter": "1.7.14",
-    "hono": "4.13.14",
-    "@hono/node-server": "2.1.5"
+    "better-auth": "1.7.18",
+    "@better-auth/drizzle-adapter": "1.7.18",
+    "hono": "4.13.16",
+    "@hono/node-server": "2.1.6"
   }
 }

@@ -87,8 +87,8 @@ const sourceToolingFiles = [
   "scripts/merge-coverage.test.mjs",
 ];
 const governanceDependencies = { prettier: "3.9.10", yaml: "2.9.1" };
-export const reviewedOverrides = { "minimatch@10.2.6": "11.0.3" };
-const reviewedAuthCoreVersion = "1.7.14";
+export const reviewedOverrides = { "minimatch@10.2.6": "11.0.5" };
+const reviewedAuthCoreVersion = "1.7.18";
 export const overridesForPackage = (pkg) => ({
   ...reviewedOverrides,
   ...(pkg.dependencies?.["better-auth"]
@@ -204,7 +204,7 @@ export const foundationDependencies = {
   "@types/node": "24.19.2",
   eslint: "10.14.0",
   "eslint-plugin-simple-import-sort": "14.0.0",
-  globals: "17.13.0",
+  globals: "17.14.0",
   ...governanceDependencies,
   typescript: "6.0.3",
   "typescript-eslint": "8.72.1",
@@ -480,6 +480,16 @@ const validatePackageDefinition = (pkg, phase) => {
         "Published dependencies must use literal registry versions, never local or workspace protocols.",
       );
   }
+  if (
+    pkg.dependencies?.["better-auth"] ||
+    pkg.dependencies?.["@better-auth/drizzle-adapter"]
+  )
+    for (const name of ["better-auth", "@better-auth/drizzle-adapter"])
+      equal(
+        pkg.dependencies[name],
+        reviewedAuthCoreVersion,
+        "The authentication provider, adapter and reviewed core must use the same version.",
+      );
   const expected = packageScripts(phase);
   equal(
     pkg.scripts,
@@ -531,7 +541,9 @@ const validateLockfile = (pkg, lock, phase) => {
     );
     if (phase !== "governance" && location.endsWith("/minimatch"))
       assert(
-        entry.version !== "10.2.6",
+        entry.version !== "10.2.6" &&
+          (location !== "node_modules/minimatch" ||
+            entry.version === reviewedOverrides["minimatch@10.2.6"]),
         "The reviewed minimatch security override must be reflected in the lockfile.",
       );
     if (
