@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   lstat,
   mkdir,
@@ -28,6 +29,7 @@ const rawDirectories = new Set([
 const isRecord = (value) =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const integer = (value) => Number.isSafeInteger(value) && value >= 0;
+const sourceHash = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const insist = (condition, message) => {
   if (!condition) throw new Error(message);
 };
@@ -185,7 +187,7 @@ const validateSourceMap = (mapping, url) => {
   );
 };
 
-export const validateCoverageData = (data, sourceFiles) => {
+const validateCaptureData = (data, sourceFiles, legacyOwnership = false) => {
   const files = sourceNames(sourceFiles);
   exactKeys(
     data,
@@ -199,7 +201,8 @@ export const validateCoverageData = (data, sourceFiles) => {
     "Invalid portable V8 coverage data",
   );
   insist(
-    data.schemaVersion === 1 &&
+    (data.schemaVersion === 2 ||
+      (legacyOwnership && data.schemaVersion === 1)) &&
       data.nodeVersion === supportedVersion &&
       process.version === supportedVersion &&
       typeof data.sourceMaps === "boolean" &&
@@ -211,7 +214,7 @@ export const validateCoverageData = (data, sourceFiles) => {
   for (const script of data.result) {
     exactKeys(
       script,
-      ["scriptId", "url", "functions"],
+      ["scriptId", "url", "functions", "sourceHash"],
       "Invalid V8 script coverage",
     );
     portableSource(script.url, files);
@@ -223,6 +226,12 @@ export const validateCoverageData = (data, sourceFiles) => {
       "Coverage scripts must have unique source URLs and measured functions",
     );
     urls.add(script.url);
+    insist(
+      (legacyOwnership && data.schemaVersion === 1) ||
+        (typeof script.sourceHash === "string" &&
+          /^[a-f\d]{64}$/.test(script.sourceHash)),
+      "Coverage scripts require their exact source byte hash",
+    );
     script.functions.forEach(validateFunction);
   }
   if (data["source-map-cache"] !== undefined) {
@@ -237,6 +246,9 @@ export const validateCoverageData = (data, sourceFiles) => {
   }
   return data;
 };
+
+export const validateCoverageData = (data, sourceFiles) =>
+  validateCaptureData(data, sourceFiles);
 
 const ordinary = async (root, relative, optional = false) => {
   insist(
@@ -304,7 +316,7 @@ const nativeSource = (url, root, files) => {
   );
   return relative;
 };
-const prepareMap = async (mapping, originalUrl, filename, root) => {
+const prepareMap = (mapping, originalUrl, filename, content) => {
   insist(
     isRecord(mapping) && isRecord(mapping.data),
     "Invalid native source map cache",
@@ -317,7 +329,6 @@ const prepareMap = async (mapping, originalUrl, filename, root) => {
       new URL(data.sources[0], originalUrl).href === originalUrl,
     "Native source maps must reference their same admitted source",
   );
-  const content = await readFile(await ordinary(root, filename), "utf8");
   insist(
     data.sourcesContent === undefined ||
       isDeepStrictEqual(data.sourcesContent, [content]),
@@ -346,28 +357,41 @@ const prepareData = async (data, root, files, sourceMaps) => {
     })
     .sort((left, right) => compareText(left.filename, right.filename));
   if (!scripts.length) return;
+  const entries = await completedValues(
+    scripts.map(async ({ script, filename }) => {
+      const bytes = await readFile(await ordinary(root, filename));
+      const mapping = data["source-map-cache"]?.[script.url];
+      return {
+        sourceHash: sourceHash(bytes),
+        mapping:
+          mapping === undefined
+            ? undefined
+            : [
+                portableUrl(filename),
+                prepareMap(
+                  mapping,
+                  script.url,
+                  filename,
+                  bytes.toString("utf8"),
+                ),
+              ],
+      };
+    }),
+  );
   const result = scripts.map(({ script, filename }, index) => ({
     scriptId: String(index + 1),
     url: portableUrl(filename),
     functions: script.functions,
+    sourceHash: entries[index].sourceHash,
   }));
-  const entries = await completedValues(
-    scripts.map(async ({ script, filename }) => {
-      await ordinary(root, filename);
-      const mapping = data["source-map-cache"]?.[script.url];
-      if (mapping === undefined) return;
-      return [
-        portableUrl(filename),
-        await prepareMap(mapping, script.url, filename, root),
-      ];
-    }),
-  );
   const maps = Object.fromEntries(
-    entries.filter((entry) => entry !== undefined),
+    entries
+      .map(({ mapping }) => mapping)
+      .filter((entry) => entry !== undefined),
   );
   return validateCoverageData(
     {
-      schemaVersion: 1,
+      schemaVersion: 2,
       nodeVersion: process.version,
       sourceMaps,
       result,
@@ -440,7 +464,7 @@ const priorCapture = async (root, relative) => {
       const sources = data.result.map(({ url }) =>
         decodeURIComponent(url.slice(portableRoot.length)),
       );
-      validateCoverageData(data, [...new Set(sources)]);
+      validateCaptureData(data, [...new Set(sources)], true);
     }),
   );
   return true;
@@ -661,6 +685,7 @@ const nativeData = (data, root, files) => {
     pathToFileURL(path.join(root, portableSource(url, files))).href;
   actual.result.forEach((script) => {
     script.url = rebase(script.url);
+    delete script.sourceHash;
   });
   if (actual["source-map-cache"] !== undefined) {
     actual["source-map-cache"] = Object.fromEntries(
@@ -673,36 +698,41 @@ const nativeData = (data, root, files) => {
   return actual;
 };
 
-const loadCaptures = async (root, relative, sourceFiles) => {
+export const validateCoverageSources = async (data, root, sourceFiles) => {
+  validateCoverageData(data, sourceFiles);
   const files = sourceNames(sourceFiles);
+  await completedValues(
+    data.result.map(async (script) => {
+      const source = await readFile(
+        await ordinary(root, portableSource(script.url, files)),
+      );
+      insist(
+        sourceHash(source) === script.sourceHash,
+        "Coverage capture differs from current admitted source bytes",
+      );
+      const mapping = data["source-map-cache"]?.[script.url];
+      if (mapping !== undefined)
+        insist(
+          isDeepStrictEqual(mapping.data.sourcesContent, [
+            source.toString("utf8"),
+          ]),
+          "Coverage source map differs from current admitted source bytes",
+        );
+    }),
+  );
+  return data;
+};
+
+const loadCaptures = async (root, relative, sourceFiles) => {
   const captures = await coverageFiles(root, relative);
   return completedValues(
-    captures.map(async (filename) => {
-      const data = validateCoverageData(
+    captures.map(async (filename) =>
+      validateCoverageSources(
         await readJson(root, filename),
+        root,
         sourceFiles,
-      );
-      await completedValues(
-        data.result.map((script) =>
-          ordinary(root, portableSource(script.url, files)),
-        ),
-      );
-      await completedValues(
-        Object.entries(data["source-map-cache"] ?? {}).map(
-          async ([url, mapping]) => {
-            const source = await readFile(
-              await ordinary(root, portableSource(url, files)),
-              "utf8",
-            );
-            insist(
-              isDeepStrictEqual(mapping.data.sourcesContent, [source]),
-              "Coverage source map differs from current admitted source bytes",
-            );
-          },
-        ),
-      );
-      return data;
-    }),
+      ),
+    ),
   );
 };
 

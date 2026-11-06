@@ -259,9 +259,21 @@ test("Bash safety wrapper fails closed when Node.js is unavailable", (context) =
 });
 
 async function ownedHookFixture(context, hookName) {
-  const root = await mkdtemp(path.join(tmpdir(), "kernel-hook-fixture-"));
+  const configuredParent = await realpath(path.resolve(tmpdir()));
+  const parent = configuredParent.includes(path.delimiter)
+    ? await realpath(
+        process.platform === "win32"
+          ? path.join(process.env.SystemRoot, "Temp")
+          : "/tmp",
+      )
+    : configuredParent;
+  assert.ok(
+    !parent.includes(path.delimiter),
+    "Hook fixture parents must be representable as one Git ceiling entry.",
+  );
+  const root = await mkdtemp(path.join(parent, "kernel-hook-fixture-"));
   context.after(async () => {
-    assert.equal(path.dirname(await realpath(root)), await realpath(tmpdir()));
+    assert.equal(path.dirname(await realpath(root)), parent);
     assert.ok(path.basename(root).startsWith("kernel-hook-fixture-"));
     await rm(root, { recursive: true, force: true });
   });
@@ -625,6 +637,50 @@ test("post-edit and quality hooks report invalid input or repository", async (co
   );
   assert.equal(noRepository.status, 2);
   assert.match(noRepository.stderr, /cannot identify the Git repository/);
+});
+
+test("hook fixture isolation supports relative and separator-containing temporary directories", async (context) => {
+  if (!bash) return context.skip("No usable Bash found.");
+  const root = await ownedHookFixture(context, "quality-gate.sh");
+  const initialized = spawnSync("git", ["init", "--quiet"], {
+    cwd: root,
+    encoding: "utf8",
+    windowsHide: true,
+    env: childEnvironment({
+      GIT_CONFIG_NOSYSTEM: "1",
+      GIT_CONFIG_GLOBAL: path.join(root, "no-user-git-config"),
+    }),
+  });
+  assert.equal(initialized.error, undefined);
+  assert.equal(initialized.status, 0, initialized.stderr);
+  for (const temporary of [
+    "relative-temp",
+    path.join(root, `separator${path.delimiter}temp`),
+  ]) {
+    await mkdir(path.resolve(root, temporary));
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--test",
+        "--test-reporter=tap",
+        "--test-name-pattern=^post-edit and quality hooks report invalid input or repository$",
+        fileURLToPath(import.meta.url),
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        windowsHide: true,
+        env: childEnvironment({
+          TEMP: temporary,
+          TMP: temporary,
+          TMPDIR: temporary,
+        }),
+      },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /# pass 1\b/);
+  }
 });
 
 test("quality hook fails when Git cannot inspect tracked changes", async (context) => {

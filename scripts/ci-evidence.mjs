@@ -14,12 +14,30 @@ import { isDeepStrictEqual } from "node:util";
 
 import {
   coverageSourceFiles,
-  validateCoverageData,
+  validateCoverageSources,
 } from "./merge-coverage.mjs";
 
 const repository = fileURLToPath(new URL("../", import.meta.url));
 const testSuites = ["unit", "integration", "governance"];
 const suites = new Set([...testSuites, "combined"]);
+const legacyPhases = new Set([
+  "governance",
+  "foundation",
+  "application-services",
+  "localization-data",
+  "infrastructure-support",
+  "storage-local",
+  "storage-adapters",
+  "configured-storage",
+  "database-persistence",
+  "auth-bootstrap",
+  "http-transport",
+  "http-composition",
+  "runtime-operations",
+  "collection-core",
+  "collection-account-auth",
+  "collection-management",
+]);
 const auditReportPath = "coverage/governance/audit-lcov.info";
 const suiteReportPath = (suite) =>
   suite === "combined" ? "coverage/lcov.info" : `coverage/${suite}/lcov.info`;
@@ -175,19 +193,25 @@ const coverageSources = (bytes) => {
   return record.sources;
 };
 
-const admittedFiles = async (root) => {
+const publicationInventory = async (root) => {
   const { filename } = await regularFile(root, ".github/bootstrap-policy.json");
   const inventory = JSON.parse(await readFile(filename, "utf8"));
   if (
+    (inventory.phase !== "local-runtime" &&
+      !legacyPhases.has(inventory.phase)) ||
     !Array.isArray(inventory.allowedFiles) ||
     new Set(inventory.allowedFiles).size !== inventory.allowedFiles.length ||
     inventory.allowedFiles.some(
       (file) => typeof file !== "string" || safeRelative(file) !== file,
     )
   )
-    throw new Error("Coverage requires a safe admitted source inventory");
-  return inventory.allowedFiles;
+    throw new Error(
+      "Coverage requires a known phase and safe admitted source inventory",
+    );
+  return inventory;
 };
+const admittedFiles = async (root) =>
+  (await publicationInventory(root)).allowedFiles;
 
 export const readCoverage = async (
   root,
@@ -277,28 +301,6 @@ const readMeasuredFile = async (root, relative) => {
   return bytes;
 };
 
-const verifySourceMaps = async (root, data, sourceFiles) => {
-  const sources = new Map(
-    sourceFiles.map((file) => [
-      `file:///kernel-api-source/${file.split("/").map(encodeURIComponent).join("/")}`,
-      file,
-    ]),
-  );
-  const results = await Promise.allSettled(
-    Object.values(data["source-map-cache"] ?? {}).map(async (entry) => {
-      const source = sources.get(entry.data.sources[0]);
-      const { filename } = await regularFile(root, source);
-      const bytes = await readFile(filename);
-      if (!bytes.equals(Buffer.from(entry.data.sourcesContent[0], "utf8")))
-        throw new Error(
-          "Raw coverage source maps do not match admitted source bytes",
-        );
-    }),
-  );
-  const failure = results.find((result) => result.status === "rejected");
-  if (failure) throw failure.reason;
-};
-
 const readRawEvidence = async (root, directory, sourceFiles) => {
   const { filename } = await regularFile(root, directory, false, true);
   const entries = (await readdir(filename, { withFileTypes: true })).sort(
@@ -324,8 +326,7 @@ const readRawEvidence = async (root, directory, sourceFiles) => {
     entries.map(async (entry) => {
       const relative = `${directory}/${entry.name}`;
       const bytes = await readMeasuredFile(root, relative);
-      const data = validateCoverageData(JSON.parse(bytes), sourceFiles);
-      await verifySourceMaps(root, data, sourceFiles);
+      await validateCoverageSources(JSON.parse(bytes), root, sourceFiles);
       return reportEvidence(relative, bytes);
     }),
   );
@@ -355,6 +356,19 @@ const suiteEvidence = async (root, identity) => {
     rawCoverage,
     auditRawCoverage,
   });
+};
+
+const legacyEvidence = async (root, identity) => {
+  if (identity.suite !== "governance")
+    throw new Error("Legacy coverage requires the governance producer");
+  const bytes = await readCoverage(root, "coverage/lcov.info");
+  return {
+    schemaVersion: 1,
+    protocol: "legacy",
+    identity,
+    nodeVersion: process.version,
+    coverage: reportEvidence("coverage/lcov.info", bytes),
+  };
 };
 
 const verifiedInputs = async (root, environment, event, git) => {
@@ -461,12 +475,15 @@ export const runEvidence = async (
       ? environment.CI_EVIDENCE_PRODUCER_ATTEMPT
       : undefined,
   });
-  await requirePinnedRuntime(root);
+  const { phase } = await publicationInventory(root);
+  if (phase === "local-runtime") await requirePinnedRuntime(root);
   const recorded = verifying
     ? await readManifest(root, identity.suite)
     : undefined;
   let expected;
-  if (identity.suite === "combined") {
+  if (phase !== "local-runtime")
+    expected = await legacyEvidence(root, identity);
+  else if (identity.suite === "combined") {
     const inputs = verifying
       ? recorded.value.inputs
       : await verifiedInputs(root, environment, payload, readGit);

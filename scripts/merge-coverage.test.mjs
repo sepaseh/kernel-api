@@ -166,11 +166,25 @@ test("report write and staging cleanup failures are both retained", async (conte
   assert.equal(await readFile(output, "utf8"), node);
 });
 
-const capture = (root, tests, report, raw, sources) => {
+const capture = (
+  root,
+  tests,
+  report,
+  raw,
+  sources,
+  { threshold = false, expectedStatus = 0 } = {},
+) => {
   const result = spawnSync(
     process.execPath,
     [
       "--experimental-test-coverage",
+      ...(threshold
+        ? [
+            "--test-coverage-lines=80",
+            "--test-coverage-branches=80",
+            "--test-coverage-functions=80",
+          ]
+        : []),
       ...sources.map((source) => `--test-coverage-include=${source}`),
       "--test",
       "--test-reporter=lcov",
@@ -191,10 +205,28 @@ const capture = (root, tests, report, raw, sources) => {
     },
   );
   assert.equal(result.error, undefined);
-  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.equal(result.status, expectedStatus, result.stdout + result.stderr);
 };
 
-const aggregateFixture = async (context) => {
+const recaptureSuite = async (root, suite, sources) => {
+  const directory = await mkdtemp(
+    path.join(root, `coverage/${suite}/.capture-`),
+  );
+  const raw = path.relative(root, directory).split(path.sep).join("/");
+  capture(
+    root,
+    [`${suite}.test.mjs`],
+    `coverage/${suite}/lcov.info`,
+    raw,
+    sources,
+  );
+  await prepareCoverage(root, raw, sources, `coverage/${suite}/v8`);
+};
+
+const aggregateFixture = async (
+  context,
+  { extraSource = "", partialBranches = false } = {},
+) => {
   const value = await fixture(context);
   const { root } = value;
   await mkdir(path.join(root, "src"));
@@ -204,11 +236,14 @@ const aggregateFixture = async (context) => {
     path.join(root, "src/example.mjs"),
     [
       "export function choose(value) {",
-      "  if (value) return 1;",
+      partialBranches
+        ? "  if (value === 'uncovered') return 0; if (value) return 1;"
+        : "  if (value) return 1;",
       "  return 2;",
       "}",
       "export const duplicate = [value => value ? 1 : 2, value => value ? 3 : 4];",
       "export const anonymous = [() => 1, () => 2];",
+      extraSource,
       "",
     ].join("\n"),
   );
@@ -308,6 +343,105 @@ test("native union matches the actual Node CLI for overlapping branches, typed s
   assert.ok(!JSON.stringify(unitData).includes(root));
 });
 
+test("partially covered unions match native LCOV and retain native threshold decisions", async (context) => {
+  const partial = await aggregateFixture(context, {
+    extraSource: "export const missed = () => 0;",
+    partialBranches: true,
+  });
+  const tests = [
+    "unit.test.mjs",
+    "integration.test.mjs",
+    "governance.test.mjs",
+  ];
+  capture(
+    partial.root,
+    tests,
+    "coverage/reference.info",
+    undefined,
+    partial.sources,
+    { threshold: true },
+  );
+  const reference = await readFile(
+    path.join(partial.root, "coverage/reference.info"),
+    "utf8",
+  );
+  assert.match(reference, /FNDA:0,missed\n/);
+  assert.match(reference, /FNDA:[1-9]\d*,choose\n/);
+  assert.match(reference, /BRDA:\d+,\d+,\d+,0\n/);
+  const result = await aggregateCoverage(partial.root, partial.sources);
+  assert.ok(result.source.totals.coveredFunctionPercent >= 80);
+  assert.ok(result.source.totals.coveredFunctionPercent < 100);
+  assert.ok(result.source.totals.coveredBranchPercent >= 80);
+  assert.ok(result.source.totals.coveredBranchPercent < 100);
+  assert.equal(
+    await readFile(partial.output, "utf8"),
+    mergeCoverageReports(
+      reference,
+      await readFile(
+        path.join(partial.root, "coverage/governance/audit-lcov.info"),
+        "utf8",
+      ),
+    ),
+  );
+
+  const below = await aggregateFixture(context, {
+    extraSource:
+      "export const missed = () => 0; export const alsoMissed = () => 0;",
+    partialBranches: true,
+  });
+  const previous = await readFile(below.output);
+  capture(
+    below.root,
+    tests,
+    "coverage/reference.info",
+    undefined,
+    below.sources,
+    { threshold: true, expectedStatus: 1 },
+  );
+  const belowReference = await readFile(
+    path.join(below.root, "coverage/reference.info"),
+    "utf8",
+  );
+  assert.match(belowReference, /FNDA:0,missed\n/);
+  assert.match(belowReference, /FNDA:0,alsoMissed\n/);
+  assert.match(belowReference, /FNDA:[1-9]\d*,choose\n/);
+  await assert.rejects(
+    aggregateCoverage(below.root, below.sources),
+    /non-audit source .*at least 80%/,
+  );
+  assert.deepEqual(await readFile(below.output), previous);
+});
+
+test("unmapped source edits require every stale suite to be recaptured before replacing coverage", async (context) => {
+  const { root, sources, output } = await aggregateFixture(context);
+  await aggregateCoverage(root, sources);
+  const previous = await readFile(output);
+  const owner = path.join(root, "src/example.mjs");
+  const source = await readFile(owner, "utf8");
+  await writeFile(owner, source.replace("return 2;", "return 9;"));
+  await recaptureSuite(root, "unit", sources);
+
+  await assert.rejects(aggregateCoverage(root, sources), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.equal(error.errors.length, 2);
+    for (const cause of error.errors)
+      assert.match(
+        cause.message,
+        /capture differs from current admitted source bytes/,
+      );
+    return true;
+  });
+  assert.deepEqual(await readFile(output), previous);
+
+  await Promise.all(
+    ["integration", "governance"].map((suite) =>
+      recaptureSuite(root, suite, sources),
+    ),
+  );
+  const result = await aggregateCoverage(root, sources);
+  assert.equal(result.source.totals.coveredFunctionPercent, 100);
+});
+
 test("separate non-audit and audit coverage floors cannot mask each other and failures preserve the previous report", async (context) => {
   const { root, sources, output } = await aggregateFixture(context);
   const old = await readFile(output);
@@ -358,13 +492,14 @@ test("separate non-audit and audit coverage floors cannot mask each other and fa
 });
 
 const portableCapture = () => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   nodeVersion: process.version,
   sourceMaps: false,
   result: [
     {
       scriptId: "1",
       url: "file:///kernel-api-source/src/example.mjs",
+      sourceHash: "0".repeat(64),
       functions: [
         {
           functionName: "",
@@ -381,6 +516,15 @@ test("portable captures reject foreign sources, malformed counters, runtime drif
   const source = portableCapture();
   assert.equal(validateCoverageData(source, sources), source);
   for (const mutate of [
+    (data) => {
+      data.schemaVersion = 1;
+    },
+    (data) => {
+      delete data.result[0].sourceHash;
+    },
+    (data) => {
+      data.result[0].sourceHash = "not-a-source-hash";
+    },
     (data) => {
       data.nodeVersion = "v24.18.1";
     },
@@ -470,6 +614,7 @@ test("fresh capture publication replaces only recognized owned reports and prese
   delete native.schemaVersion;
   delete native.nodeVersion;
   delete native.sourceMaps;
+  delete native.result[0].sourceHash;
   native.result[0].url = new URL(
     "file:///kernel-api-source/src/example.mjs",
   ).href;
@@ -491,6 +636,13 @@ test("fresh capture publication replaces only recognized owned reports and prese
     "coverage/unit/v8",
   );
   assert.equal((await readdir(captureDirectory)).length, 1);
+  const legacyFile = path.join(parent, "v8/coverage-1-1-0.json");
+  const legacy = JSON.parse(await readFile(legacyFile, "utf8"));
+  legacy.schemaVersion = 1;
+  legacy.result.forEach((script) => {
+    delete script.sourceHash;
+  });
+  await writeFile(legacyFile, JSON.stringify(legacy));
   await prepareCoverage(
     root,
     relative,

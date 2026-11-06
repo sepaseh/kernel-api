@@ -17,6 +17,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { parseDocument } from "yaml";
+
 import {
   evidenceManifest,
   maximumCoverageBytes,
@@ -35,13 +37,14 @@ const lcov = (source = "src/example.ts") =>
 const sourceText = "export const value = 1;\n";
 const auditText = "export const audit = 1;\n";
 const rawCoverage = (source = "src/example.ts", text = sourceText) => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   nodeVersion: process.version,
   sourceMaps: false,
   result: [
     {
       scriptId: "1",
       url: `file:///kernel-api-source/${source}`,
+      sourceHash: createHash("sha256").update(text).digest("hex"),
       functions: [
         {
           functionName: "",
@@ -80,7 +83,7 @@ const identityOptions = () => ({
     return commands[args.join(" ")];
   },
 });
-const fixture = async (context) => {
+const fixture = async (context, phase = "local-runtime") => {
   const root = await mkdtemp(path.join(tmpdir(), "kernel-ci-evidence-"));
   context.after(async () => {
     assert.equal(path.dirname(path.resolve(root)), path.resolve(tmpdir()));
@@ -94,6 +97,7 @@ const fixture = async (context) => {
   await writeFile(
     path.join(root, ".github/bootstrap-policy.json"),
     JSON.stringify({
+      phase,
       allowedFiles: [
         "src/example.ts",
         "src/another.ts",
@@ -103,28 +107,35 @@ const fixture = async (context) => {
       ],
     }),
   );
-  await Promise.all(
-    ["unit", "integration", "governance"].map(async (suite) => {
-      await mkdir(path.join(root, `coverage/${suite}/v8`), { recursive: true });
-      await writeFile(path.join(root, `coverage/${suite}/lcov.info`), lcov());
-      await writeFile(
-        path.join(root, `coverage/${suite}/v8/coverage-1.json`),
-        JSON.stringify(rawCoverage()),
-      );
-    }),
-  );
-  await mkdir(path.join(root, "coverage/governance/audit-v8"));
   await writeFile(path.join(root, "scripts/run-audit.mjs"), auditText);
-  await writeFile(
-    path.join(root, "coverage/governance/audit-lcov.info"),
-    lcov("scripts/run-audit.mjs"),
-  );
-  await writeFile(
-    path.join(root, "coverage/governance/audit-v8/coverage-1.json"),
-    JSON.stringify(rawCoverage("scripts/run-audit.mjs", auditText)),
-  );
   await writeFile(path.join(root, "src/example.ts"), sourceText);
-  await writeFile(path.join(root, "coverage/governance/lcov.info"), lcov());
+  if (phase !== "local-runtime") {
+    await mkdir(path.join(root, "coverage"));
+    await writeFile(path.join(root, "coverage/lcov.info"), lcov());
+  } else {
+    await Promise.all(
+      ["unit", "integration", "governance"].map(async (suite) => {
+        await mkdir(path.join(root, `coverage/${suite}/v8`), {
+          recursive: true,
+        });
+        await writeFile(path.join(root, `coverage/${suite}/lcov.info`), lcov());
+        await writeFile(
+          path.join(root, `coverage/${suite}/v8/coverage-1.json`),
+          JSON.stringify(rawCoverage()),
+        );
+      }),
+    );
+    await mkdir(path.join(root, "coverage/governance/audit-v8"));
+    await writeFile(
+      path.join(root, "coverage/governance/audit-lcov.info"),
+      lcov("scripts/run-audit.mjs"),
+    );
+    await writeFile(
+      path.join(root, "coverage/governance/audit-v8/coverage-1.json"),
+      JSON.stringify(rawCoverage("scripts/run-audit.mjs", auditText)),
+    );
+    await writeFile(path.join(root, "coverage/governance/lcov.info"), lcov());
+  }
   const outputs = [];
   return {
     root,
@@ -149,6 +160,98 @@ const fileReport = (path, bytes) => ({
   path,
   bytes: Buffer.byteLength(bytes),
   sha256: createHash("sha256").update(bytes).digest("hex"),
+});
+
+test("retained legacy workflow records and verifies its LCOV-only artifact", async (context) => {
+  const workflow = parseDocument(
+    await readFile(
+      new URL("./ci-governance.test.yml", import.meta.url),
+      "utf8",
+    ),
+  ).toJS();
+  const upload = workflow.jobs.governance.steps.find((step) =>
+    step.uses?.startsWith("actions/upload-artifact@"),
+  );
+  const download = workflow.jobs.analysis.steps.find((step) =>
+    step.uses?.startsWith("actions/download-artifact@"),
+  );
+  assert.deepEqual(upload.with.path.trim().split("\n"), [
+    "coverage/lcov.info",
+    "coverage/governance/ci-evidence.json",
+  ]);
+  assert.equal(download.with.path, "coverage");
+  for (const phase of ["governance", "foundation", "collection-management"]) {
+    const options = await fixture(context, phase);
+    const identity = await runEvidence("--record", options);
+    assert.deepEqual(await readManifest(options.root), {
+      schemaVersion: 1,
+      protocol: "legacy",
+      identity,
+      nodeVersion: process.version,
+      coverage: fileReport("coverage/lcov.info", lcov()),
+    });
+    assert.equal(
+      existsSync(path.join(options.root, "coverage/governance/v8")),
+      false,
+    );
+    await runEvidence("--verify-coverage", options);
+    await writeFile(
+      path.join(options.root, "coverage/lcov.info"),
+      lcov().replace("DA:1,1", "DA:1,0"),
+    );
+    await assert.rejects(
+      runEvidence("--verify-coverage", options),
+      /does not match/,
+    );
+    for (const suite of ["unit", "integration", "combined"]) {
+      await assert.rejects(
+        runEvidence("--record", {
+          ...options,
+          environment: { ...options.environment, CI_EVIDENCE_SUITE: suite },
+        }),
+        /governance producer/,
+      );
+    }
+  }
+});
+
+test("local-runtime cannot downgrade to legacy evidence or omit its phase", async (context) => {
+  const options = await fixture(context, "foundation");
+  const policyPath = path.join(options.root, ".github/bootstrap-policy.json");
+  const policy = JSON.parse(await readFile(policyPath, "utf8"));
+  policy.phase = "local-runtime";
+  await writeFile(policyPath, JSON.stringify(policy));
+  await assert.rejects(runEvidence("--record", options), { code: "ENOENT" });
+  await mkdir(path.join(options.root, "coverage/governance"));
+  await writeFile(
+    path.join(options.root, "coverage/governance/lcov.info"),
+    lcov(),
+  );
+  await assert.rejects(runEvidence("--record", options), { code: "ENOENT" });
+  for (const phase of [undefined, "unknown-phase"]) {
+    policy.phase = phase;
+    await writeFile(policyPath, JSON.stringify(policy));
+    await assert.rejects(runEvidence("--record", options), /known phase/);
+  }
+});
+
+test("recording rejects stale unmapped owner bytes before publishing evidence", async (context) => {
+  const options = await fixture(context);
+  await runEvidence("--record", options);
+  const before = await readFile(
+    path.join(options.root, "coverage/governance/ci-evidence.json"),
+  );
+  await writeFile(
+    path.join(options.root, "src/example.ts"),
+    "export const value = 2;\n",
+  );
+  await assert.rejects(runEvidence("--record", options), /source bytes/);
+  assert.deepEqual(
+    await readFile(
+      path.join(options.root, "coverage/governance/ci-evidence.json"),
+    ),
+    before,
+  );
 });
 
 test("records measured bytes and verifies the exact same-run source identity", async (context) => {
@@ -344,7 +447,7 @@ test("coverage rejects unadmitted source URLs, altered source maps and incompati
     },
   };
   await writeFile(filename, JSON.stringify(mapped));
-  await assert.rejects(runEvidence("--record", options), /source maps/);
+  await assert.rejects(runEvidence("--record", options), /source map/);
   mapped["source-map-cache"][url].data.sourcesContent = [sourceText];
   await writeFile(filename, JSON.stringify(mapped));
   await runEvidence("--record", options);

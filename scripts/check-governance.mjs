@@ -309,6 +309,7 @@ const sourceFiles = [
   ...testFiles.map((file) => file.replace(".test.mjs", ".mjs")),
   "scripts/merge-coverage.mjs",
   "scripts/merge-coverage.test.mjs",
+  "scripts/ci-governance.test.yml",
 ];
 export const actions = {
   checkout: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
@@ -1754,6 +1755,9 @@ const nodeCoverage = async (
   const result = spawnSync(
     process.execPath,
     [
+      process.sourceMapsEnabled
+        ? "--enable-source-maps"
+        : "--no-enable-source-maps",
       "--experimental-test-coverage",
       ...(threshold
         ? [
@@ -1873,7 +1877,9 @@ const captureSuiteCoverage = async (
       threshold,
     });
     const { prepareCoverage } = await import("./merge-coverage.mjs");
-    await prepareCoverage(root, relativeCapture, sources, raw);
+    await prepareCoverage(root, relativeCapture, sources, raw, {
+      sourceMaps: process.sourceMapsEnabled,
+    });
   } catch (error) {
     failure = error;
   }
@@ -1900,6 +1906,15 @@ const captureSuiteCoverage = async (
   }
   if (failure) throw failure;
 };
+const runAuditCoverage = async (root, tests) =>
+  captureSuiteCoverage(
+    root,
+    tests,
+    ["scripts/run-audit.mjs"],
+    "coverage/governance/audit-lcov.info",
+    "coverage/governance/audit-v8",
+    true,
+  );
 const runSuiteCoverage = async (root, files, phase, suite) => {
   const plan = coveragePlan(files, phase);
   const tests = plan.node.filter((file) => testSuite(file) === suite);
@@ -1916,17 +1931,7 @@ const runSuiteCoverage = async (root, files, phase, suite) => {
     raw,
     false,
   );
-  if (suite === "governance") {
-    const auditRaw = "coverage/governance/audit-v8";
-    await captureSuiteCoverage(
-      root,
-      plan.audit,
-      ["scripts/run-audit.mjs"],
-      "coverage/governance/audit-lcov.info",
-      auditRaw,
-      true,
-    );
-  }
+  if (suite === "governance") await runAuditCoverage(root, plan.audit);
   return tests.length + (suite === "governance" ? plan.audit.length : 0);
 };
 
@@ -1936,6 +1941,7 @@ const coverageModes = new Set([
   "governance-tests",
   "coverage-summary",
   "coverage-tests",
+  "audit-helper-tests",
 ]);
 const runCurrentCoverage = async (mode, root, files, phase) => {
   const suites = {
@@ -1944,6 +1950,11 @@ const runCurrentCoverage = async (mode, root, files, phase) => {
     "governance-tests": "governance",
   };
   if (suites[mode]) return runSuiteCoverage(root, files, phase, suites[mode]);
+  if (mode === "audit-helper-tests") {
+    const { audit } = coveragePlan(files, phase);
+    await runAuditCoverage(root, audit);
+    return audit.length;
+  }
   if (mode === "coverage-tests") {
     await runSuiteCoverage(root, files, phase, "unit");
     await runSuiteCoverage(root, files, phase, "integration");

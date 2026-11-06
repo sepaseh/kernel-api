@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import {
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rename,
   rm,
@@ -157,6 +158,7 @@ const files = [
   "README.md",
   "scripts/merge-coverage.mjs",
   "scripts/merge-coverage.test.mjs",
+  "scripts/ci-governance.test.yml",
   ...testFiles,
   ...testFiles.map((file) => file.replace(".test.mjs", ".mjs")),
 ];
@@ -291,6 +293,7 @@ const fixture = async (context, phase = "governance") => {
   await json(".github/rulesets/main.json", ruleset());
   await json(".prettierrc.json", {});
   await put(".github/workflows/ci.yml", ciText);
+  await put("scripts/ci-governance.test.yml", ciText);
   await put(".github/workflows/codeql.yml", codeqlText);
   await put(".coderabbit.yaml", stringify(rabbit()));
   await put(
@@ -313,6 +316,107 @@ const fixture = async (context, phase = "governance") => {
     "# Synthetic governance\n\nRead the [safety rule](.agents/rules/safety.md).\n",
   );
   return { root, put, json };
+};
+
+const coverageDispatchFixture = async (context, sourceMaps = false) => {
+  const value = await fixture(context, "local-runtime");
+  const { root, put, json } = value;
+  const inventory = policy("local-runtime");
+  const additions = [
+    ...commandOwnersForPhase("local-runtime"),
+    ".nvmrc",
+    "src/application/dispatch.ts",
+    "src/application/dispatch.test.ts",
+    "src/test/integration/dispatch.test.ts",
+    "scripts/dispatch.test.mjs",
+  ];
+  for (const file of additions)
+    if (!inventory.allowedFiles.includes(file)) {
+      inventory.allowedFiles.push(file);
+      await put(file, "// Synthetic fixture.\n");
+    }
+  await json(".github/bootstrap-policy.json", inventory);
+  await put(".nvmrc", process.version.slice(1) + "\n");
+  await put(
+    "src/application/dispatch.ts",
+    (sourceMaps ? "enum Offset { Zero = 0 }\n" : "") +
+      "export function record(value: string): number {\n" +
+      `  return value.length${sourceMaps ? " + Offset.Zero" : ""};\n}\n`,
+  );
+  const selected = {
+    unit: ["src/application/dispatch.test.ts", "./dispatch.ts", "../../"],
+    integration: [
+      "src/test/integration/dispatch.test.ts",
+      "../../application/dispatch.ts",
+      "../../../",
+    ],
+    governance: [
+      "scripts/dispatch.test.mjs",
+      "../src/application/dispatch.ts",
+      "../",
+    ],
+  };
+  for (const [suite, [file, owner, parent]] of Object.entries(selected))
+    await put(
+      file,
+      "import assert from 'node:assert/strict';\n" +
+        "import { appendFileSync } from 'node:fs';\n" +
+        "import { test } from 'node:test';\n" +
+        `import { record } from '${owner}';\n` +
+        `test('${suite}', () => {\n` +
+        `  appendFileSync(new URL('${parent}executed.log', import.meta.url), '${suite}\\n');\n` +
+        `  assert.equal(record('${suite}'), ${suite.length});\n});\n`,
+    );
+  await put(
+    "scripts/run-audit.mjs",
+    "import { appendFileSync } from 'node:fs';\n" +
+      "export function audit() {\n" +
+      "  appendFileSync(new URL('../executed.log', import.meta.url), 'audit\\n');\n" +
+      "  return true;\n}\n",
+  );
+  const auditTest = (calls) =>
+    "import assert from 'node:assert/strict';\n" +
+    "import { test } from 'node:test';\n" +
+    "import { audit } from './run-audit.mjs';\n" +
+    `test('audit', () => { ${"assert.equal(audit(), true); ".repeat(calls)}});\n`;
+  await put("scripts/run-audit.test.mjs", auditTest(1));
+  const run = (mode) => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import { runCheck } from ${JSON.stringify(pathToFileURL(path.join(repository, "scripts/check-governance.mjs")).href)}; await runCheck(${JSON.stringify(mode)}, ${JSON.stringify(root)});`,
+      ],
+      {
+        cwd: root,
+        encoding: "utf8",
+        windowsHide: true,
+        env: {
+          SystemRoot: process.env.SystemRoot,
+          TEMP: root,
+          TMP: root,
+          GIT_CEILING_DIRECTORIES: root,
+          NODE_OPTIONS: sourceMaps
+            ? "--enable-source-maps --experimental-transform-types"
+            : "--no-enable-source-maps",
+        },
+      },
+    );
+    assert.equal(result.error, undefined);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+  };
+  const executed = async () =>
+    (await readFile(path.join(root, "executed.log"), "utf8"))
+      .trim()
+      .split("\n");
+  const captures = async (directory) =>
+    Promise.all(
+      (await readdir(path.join(root, directory))).map(async (file) =>
+        JSON.parse(await readFile(path.join(root, directory, file), "utf8")),
+      ),
+    );
+  return { ...value, run, executed, captures, auditTest };
 };
 
 test("inventory permits explicit governance paths without a file-count limit", () => {
@@ -375,6 +479,41 @@ test("snapshot validates owned inventory while leaving ambient unpublished API s
     /outside the declared/,
   );
   await rm(path.join(root, "scripts/ci-evidence.mjs"));
+  await assert.rejects(inspectSnapshot(root), { code: "ENOENT" });
+});
+
+test("every publication phase requires the historical CI test fixture", async (context) => {
+  for (const phase of [
+    "governance",
+    "foundation",
+    "application-services",
+    "localization-data",
+    "infrastructure-support",
+    "storage-local",
+    "storage-adapters",
+    "configured-storage",
+    "database-persistence",
+    "auth-bootstrap",
+    "http-transport",
+    "http-composition",
+    "runtime-operations",
+    "collection-core",
+    "collection-account-auth",
+    "collection-management",
+    "local-runtime",
+  ]) {
+    const inventory = policy(phase);
+    inventory.allowedFiles = [
+      ...new Set([...inventory.allowedFiles, ...commandOwnersForPhase(phase)]),
+    ];
+    validateInventory(inventory);
+    inventory.allowedFiles = inventory.allowedFiles.filter(
+      (file) => file !== "scripts/ci-governance.test.yml",
+    );
+    assert.throws(() => validateInventory(inventory), /cannot omit/, phase);
+  }
+  const { root } = await fixture(context);
+  await rm(path.join(root, "scripts/ci-governance.test.yml"));
   await assert.rejects(inspectSnapshot(root), { code: "ENOENT" });
 });
 
@@ -677,6 +816,73 @@ test("published runtime tests have disjoint behavior owners and preserve standal
     "scripts/test-docker-release.mjs",
   ])
     assert.ok(!selected.includes(file) && !plan.sources.includes(file));
+});
+
+test("real split dispatch runs only its selected tests and preserves the active source-map mode", async (context) => {
+  for (const sourceMaps of [false, true]) {
+    const { root, run, executed, captures } = await coverageDispatchFixture(
+      context,
+      sourceMaps,
+    );
+    run("unit-tests");
+    assert.deepEqual(await executed(), ["unit"]);
+    run("integration-tests");
+    assert.deepEqual(await executed(), ["unit", "integration"]);
+    run("governance-tests");
+    const once = ["unit", "integration", "governance", "audit"];
+    assert.deepEqual(await executed(), once);
+    for (const directory of [
+      "coverage/unit/v8",
+      "coverage/integration/v8",
+      "coverage/governance/v8",
+      "coverage/governance/audit-v8",
+    ])
+      for (const capture of await captures(directory))
+        assert.equal(capture.sourceMaps, sourceMaps, directory);
+    run("coverage-summary");
+    assert.deepEqual(await executed(), once);
+    assert.match(
+      await readFile(path.join(root, "coverage/lcov.info"), "utf8"),
+      /SF:src\/application\/dispatch\.ts/,
+    );
+  }
+});
+
+test("focused audit dispatch refreshes the aggregate input without rerunning other suites", async (context) => {
+  const { root, put, run, executed, auditTest } =
+    await coverageDispatchFixture(context);
+  for (const mode of ["unit-tests", "integration-tests", "governance-tests"])
+    run(mode);
+  const auditReport = path.join(root, "coverage/governance/audit-lcov.info");
+  let previous = await readFile(auditReport, "utf8");
+  for (const removePrevious of [false, true]) {
+    if (removePrevious) {
+      await rm(path.join(root, "coverage/governance/audit-v8"), {
+        recursive: true,
+      });
+      await rm(auditReport);
+    }
+    await put("scripts/run-audit.test.mjs", auditTest(removePrevious ? 3 : 2));
+    const before = await executed();
+    run("audit-helper-tests");
+    const fresh = await readFile(auditReport, "utf8");
+    assert.notEqual(fresh, previous);
+    const expected = [
+      ...before,
+      ...Array(removePrevious ? 3 : 2).fill("audit"),
+    ];
+    assert.deepEqual(await executed(), expected);
+    run("coverage-summary");
+    assert.deepEqual(await executed(), expected);
+    const combined = await readFile(
+      path.join(root, "coverage/lcov.info"),
+      "utf8",
+    );
+    const freshCalls = /^FNDA:(\d+),audit$/m.exec(fresh)?.[1];
+    assert.notEqual(freshCalls, undefined);
+    assert.equal(/^FNDA:(\d+),audit$/m.exec(combined)?.[1], freshCalls);
+    previous = fresh;
+  }
 });
 
 test("active API CI exposes seven actual jobs and preserves a required combined coverage gate", () => {
