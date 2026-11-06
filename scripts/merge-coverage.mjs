@@ -852,11 +852,13 @@ const runNativeSummary = (root, stage, sources, sourceMaps) => {
 };
 
 const enforceThresholds = (summary, label) => {
-  for (const kind of ["Line", "Branch", "Function"])
+  for (const kind of ["Line", "Branch", "Function"]) {
+    const percent = summary.totals[`covered${kind}Percent`];
     insist(
-      summary.totals[`covered${kind}Percent`] >= 80,
-      `${label} ${kind.toLowerCase()} coverage must be at least 80% (received ${summary.totals[`covered${kind}Percent`]}%)`,
+      percent >= 80,
+      `${label} ${kind.toLowerCase()} coverage must be at least 80% (received ${percent}%)`,
     );
+  }
 };
 
 const nativeLcov = async (summary) => {
@@ -867,7 +869,7 @@ const nativeLcov = async (summary) => {
   return content;
 };
 
-export const aggregateCoverage = async (root = repository, sourceFiles) => {
+export const aggregateCoverage = async (root, sourceFiles) => {
   root = path.resolve(root);
   await pinnedRuntime(root);
   sourceNames(sourceFiles);
@@ -946,7 +948,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       coverageSourceFiles(policy.allowedFiles),
     );
   } else {
-    insist(mode === undefined, "Usage: merge-coverage.mjs [--aggregate]");
+    insist(
+      process.argv.length === 2,
+      "Usage: merge-coverage.mjs [--aggregate]",
+    );
     await mergeCoverage();
   }
 }

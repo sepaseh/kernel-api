@@ -502,7 +502,7 @@ test("fresh capture publication replaces only recognized owned reports and prese
   ]);
   const published = path.join(parent, "v8/coverage-1-1-0.json");
   const previous = await readFile(published);
-  const probe = await open(published, "r");
+  const probe = await open(path.join(root, "file-handle-probe"), "wx");
   const prototype = Object.getPrototypeOf(probe);
   await probe.close();
   const write = prototype.writeFile;

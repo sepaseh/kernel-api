@@ -1827,24 +1827,29 @@ const runCoverage = async (root, files, phase, auditOnly) => {
   return plan.node.length;
 };
 
-const ownedCoverageDirectory = async (root, suite, create = true) => {
-  let directory = path.resolve(root);
-  for (const segment of ["coverage", suite]) {
-    directory = path.join(directory, segment);
-    if (create) {
-      try {
-        await mkdir(directory);
-      } catch (error) {
-        if (error.code !== "EEXIST") throw error;
-      }
+const ownedCoverageChild = async (parent, segment, create) => {
+  const directory = path.join(parent, segment);
+  if (create) {
+    try {
+      await mkdir(directory);
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
     }
-    const info = await lstat(directory);
-    assert(
-      info.isDirectory() && !info.isSymbolicLink(),
-      "Coverage paths must remain ordinary owned directories.",
-    );
   }
+  const info = await lstat(directory);
+  assert(
+    info.isDirectory() && !info.isSymbolicLink(),
+    "Coverage paths must remain ordinary owned directories.",
+  );
   return directory;
+};
+const ownedCoverageDirectory = async (root, suite, create = true) => {
+  const coverage = await ownedCoverageChild(
+    path.resolve(root),
+    "coverage",
+    create,
+  );
+  return ownedCoverageChild(coverage, suite, create);
 };
 const captureSuiteCoverage = async (
   root,
