@@ -61,7 +61,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1163.0",
-    "i18next": "26.7.2",
+    "i18next": "27.1.1",
     "pino": "10.4.0",
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
