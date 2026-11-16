@@ -60,14 +60,14 @@
     }
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.1163.0",
+    "@aws-sdk/client-s3": "3.1168.0",
     "i18next": "26.7.2",
     "pino": "10.4.0",
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
-    "better-auth": "1.7.18",
-    "@better-auth/drizzle-adapter": "1.7.18",
-    "hono": "4.13.16",
-    "@hono/node-server": "2.1.6"
+    "better-auth": "1.7.22",
+    "@better-auth/drizzle-adapter": "1.7.22",
+    "hono": "4.13.18",
+    "@hono/node-server": "2.1.8"
   }
 }
