@@ -95,9 +95,8 @@ transaction and must not be reported as ready after a failure.
 overwriting the existing bytes; concurrent writers must handle that failure.
 `get` buffers the complete SDK response into a `Uint8Array` and propagates stream
 failures. This is not an unbounded-file streaming interface. Deleting an absent
-object follows S3's idempotent delete behavior, unlike the local adapter's
-missing-file failure. `storage/operations.ts` can provide safe diagnostics
-without replacing the original operation failure.
+object follows S3's idempotent delete behavior. `storage/operations.ts` can
+provide safe diagnostics without replacing the original operation failure.
 
 ## Hard deletion and public references
 
