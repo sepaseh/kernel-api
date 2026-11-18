@@ -1719,6 +1719,42 @@ test("source packages allow the reviewed glob overrides and require the locked f
   }
 });
 
+test("the reviewed Picomatch policy distinguishes installed and registry names", () => {
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts("foundation"),
+    devDependencies: foundationDependencies,
+    overrides: reviewedOverrides,
+  };
+  const lock = lockForPackage(pkg);
+  const unrelated = { version: "1.0.0", integrity: syntheticIntegrity };
+  lock.packages["node_modules/@fixture/picomatch"] = unrelated;
+  lock.packages["node_modules/glob-tool/node_modules/@fixture/picomatch"] =
+    unrelated;
+  validatePackage(pkg, lock, "foundation");
+
+  const { dev, version, integrity } = lockedPicomatch;
+  for (const [location, backport] of [
+    ["node_modules/glob-backport", lockedPicomatch],
+    ["node_modules/@ryotsu/picomatch", { dev, version, integrity }],
+  ]) {
+    lock.packages[location] = backport;
+    validatePackage(pkg, lock, "foundation");
+    for (const fields of [
+      { dev: false },
+      { version: "4.0.6" },
+      { integrity: syntheticIntegrity },
+    ]) {
+      lock.packages[location] = { ...backport, ...fields };
+      assert.throws(
+        () => validatePackage(pkg, lock, "foundation"),
+        /reviewed development-only security backport/,
+      );
+    }
+    delete lock.packages[location];
+  }
+});
+
 test("the reviewed Picomatch backport must satisfy required package resolutions", () => {
   const pkg = {
     ...packageFixture,
@@ -1753,8 +1789,19 @@ test("the reviewed Picomatch backport must satisfy required package resolutions"
   lock.packages[consumer] = {
     dependencies: range,
     optionalDependencies: range,
+    peerDependencies: range,
   };
   validatePackage(pkg, lock, "foundation");
+  lock.packages[ownResolution] = lockedPicomatch;
+  validatePackage(pkg, lock, "foundation");
+
+  lock.packages[consumer] = {
+    dependencies: range,
+    peerDependencies: range,
+  };
+  validatePackage(pkg, lock, "foundation");
+  delete lock.packages[ownResolution];
+  assert.throws(() => validatePackage(pkg, lock, "foundation"), missing);
 
   lock.packages[consumer] = {
     peerDependencies: range,

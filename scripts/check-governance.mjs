@@ -566,19 +566,26 @@ const findLockedPicomatch = (packages, location) => {
 };
 
 const validateLockedPicomatch = (packages, location, entry) => {
-  if (location.endsWith("/picomatch"))
+  const installName = location.split(/(?:^|\/)node_modules\//).at(-1);
+  const registryName = entry.name ?? installName;
+  if (
+    installName === "picomatch" ||
+    installName === reviewedPicomatch.name ||
+    registryName === reviewedPicomatch.name
+  )
     assert(
       entry.dev === true &&
-        entry.name === reviewedPicomatch.name &&
+        registryName === reviewedPicomatch.name &&
         entry.version === reviewedPicomatch.version &&
         entry.integrity === reviewedPicomatch.integrity,
       "Picomatch must resolve to the reviewed development-only security backport.",
     );
 
-  const requiresDependency =
-    entry.dependencies?.picomatch !== undefined &&
-    entry.optionalDependencies?.picomatch === undefined;
+  if (entry.optionalDependencies?.picomatch !== undefined) return;
+
+  const requiresDependency = entry.dependencies?.picomatch !== undefined;
   const requiresPeer =
+    !requiresDependency &&
     entry.peerDependencies?.picomatch !== undefined &&
     entry.peerDependenciesMeta?.picomatch?.optional !== true;
   if (!requiresDependency && !requiresPeer) return;
