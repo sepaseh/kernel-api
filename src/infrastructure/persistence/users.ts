@@ -219,7 +219,7 @@ export const createDrizzleUsersRepository = (
         .select()
         .from(user)
         .where(where)
-        .orderBy(asc(user.createdAt))
+        .orderBy(asc(user.createdAt), asc(user.id))
         .limit(query.size)
         .offset(query.offset),
       database.select({ total: count() }).from(user).where(where),

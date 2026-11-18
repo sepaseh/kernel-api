@@ -8,6 +8,7 @@ import { inspect } from "node:util";
 import { and, eq } from "drizzle-orm";
 
 import { createApp } from "../../composition.ts";
+import type { LoginRequest } from "../../contracts/auth.ts";
 import { createAuth } from "../../infrastructure/auth/better-auth.ts";
 import { loadConfig } from "../../infrastructure/config.ts";
 import { createDatabase } from "../../infrastructure/db/client.ts";
@@ -46,27 +47,26 @@ const authenticated = (init: RequestInit = {}): RequestInit => ({
   },
 });
 
-test("repeated invalid logins are rate limited through HTTP", async () => {
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const response = await request("/auth/login", {
-      method: "POST",
+test("login identifier and mobile share the HTTP attempt limit", async () => {
+  const mobile = "09120000999";
+  const password = "incorrect-password";
+  const login = (input: LoginRequest) =>
+    request("/auth/login", {
+      body: JSON.stringify(input),
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        identifier: "09120000999",
-        password: "incorrect-password",
-      }),
+      method: "POST",
     });
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const response = await login(
+      attempt % 2
+        ? { identifier: mobile, password }
+        : { mobile: ` ${mobile} `, password },
+    );
     assert.equal(response.status, 400);
   }
-  const blocked = await request("/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      identifier: "09120000999",
-      password: "incorrect-password",
-    }),
-  });
+  const blocked = await login({ mobile, password });
   assert.equal(blocked.status, 429);
+  assert.ok(Number(blocked.headers.get("retry-after")) > 0);
 });
 
 test("logout expires a secure cookie and revokes an inactive user's session", async (t) => {
@@ -434,12 +434,12 @@ test("reports health and restricts credentialed CORS", async () => {
   assert.equal(untrusted.headers.get("access-control-allow-origin"), null);
 });
 
-test("authenticates the seeded account with Better Auth sessions", async () => {
+test("authenticates the seeded account with mobile and Better Auth sessions", async () => {
   const login = await request("/auth/login", {
     body: JSON.stringify({
-      identifier: "09123456789",
+      mobile: "09123456789",
       password: "password123",
-    }),
+    } satisfies LoginRequest),
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
@@ -456,6 +456,20 @@ test("authenticates the seeded account with Better Auth sessions", async () => {
   assert.equal(accountBody.mobile, "09123456789");
   assert.equal(accountBody.email, undefined);
   assert.ok(Array.isArray(accountBody.permissions));
+});
+
+test("login uses identifier when both identifier and mobile are present", async () => {
+  const login = await request("/auth/login", {
+    body: JSON.stringify({
+      identifier: "09123456789",
+      mobile: "invalid-mobile",
+      password: "password123",
+    } satisfies LoginRequest),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+  assert.equal(login.status, 200);
+  assert.match(login.headers.get("set-cookie") ?? "", /HttpOnly/i);
 });
 
 test("uses the configured system language for server-owned text", async () => {

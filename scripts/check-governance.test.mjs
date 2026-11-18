@@ -68,9 +68,16 @@ const packageFixture = {
   version: "1.0.0",
   type: "module",
   scripts: packageScripts("governance"),
-  devDependencies: { prettier: "3.9.10", yaml: "2.9.1" },
+  devDependencies: { prettier: "3.10.1", yaml: "2.9.1" },
 };
 const syntheticIntegrity = "sha512-" + Buffer.alloc(64, 7).toString("base64");
+const lockedPicomatch = {
+  dev: true,
+  name: "@ryotsu/picomatch",
+  version: "4.0.7-a",
+  integrity:
+    "sha512-JroBFEmaejC7szGSfqOhF1QZHLKvX2wTA1+fWyfkpy3BjzdQKNPLKa2FtgeKVUDy5/UPUNkXEeCHJ5ZRBMLTVA==",
+};
 const lockForPackage = (pkg) => ({
   name: pkg.name,
   lockfileVersion: 3,
@@ -1632,7 +1639,7 @@ test("coverage selects every published Node suite once and keeps audit records s
   assert.throws(() => coveragePlan(published, "foundation"), /never skipped/);
 });
 
-test("source packages allow only the reviewed minimatch override and require the locked fix", () => {
+test("source packages allow the reviewed glob overrides and require the locked fixes", () => {
   const pkg = {
     ...packageFixture,
     scripts: packageScripts("foundation"),
@@ -1696,6 +1703,177 @@ test("source packages allow only the reviewed minimatch override and require the
       ),
     /must not introduce dependency overrides/,
   );
+  const picomatchPath = "node_modules/tinyglobby/node_modules/picomatch";
+  reviewedLock.packages[picomatchPath] = lockedPicomatch;
+  validatePackage(pkg, reviewedLock, "foundation");
+  for (const fields of [
+    { name: "picomatch", version: "4.0.7" },
+    { integrity: syntheticIntegrity },
+    { dev: false },
+  ]) {
+    reviewedLock.packages[picomatchPath] = { ...lockedPicomatch, ...fields };
+    assert.throws(
+      () => validatePackage(pkg, reviewedLock, "foundation"),
+      /reviewed development-only security backport/,
+    );
+  }
+});
+
+test("the reviewed Picomatch policy distinguishes installed and registry names", () => {
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts("foundation"),
+    devDependencies: foundationDependencies,
+    overrides: reviewedOverrides,
+  };
+  const lock = lockForPackage(pkg);
+  const unrelated = { version: "1.0.0", integrity: syntheticIntegrity };
+  lock.packages["node_modules/@fixture/picomatch"] = unrelated;
+  lock.packages["node_modules/glob-tool/node_modules/@fixture/picomatch"] =
+    unrelated;
+  validatePackage(pkg, lock, "foundation");
+
+  const { dev, version, integrity } = lockedPicomatch;
+  for (const [location, backport] of [
+    ["node_modules/glob-backport", lockedPicomatch],
+    ["node_modules/@ryotsu/picomatch", { dev, version, integrity }],
+  ]) {
+    lock.packages[location] = backport;
+    validatePackage(pkg, lock, "foundation");
+    for (const fields of [
+      { dev: false },
+      { version: "4.0.6" },
+      { integrity: syntheticIntegrity },
+    ]) {
+      lock.packages[location] = { ...backport, ...fields };
+      assert.throws(
+        () => validatePackage(pkg, lock, "foundation"),
+        /reviewed development-only security backport/,
+      );
+    }
+    delete lock.packages[location];
+  }
+
+  lock.packages["node_modules/glob-tool/node_modules/glob-matcher"] = {
+    ...unrelated,
+    dev: true,
+    name: "picomatch",
+  };
+  assert.throws(
+    () => validatePackage(pkg, lock, "foundation"),
+    /reviewed development-only security backport/,
+  );
+});
+
+test("the reviewed Picomatch backport must remain outside the runtime dependency graph", () => {
+  const phase = "application-services";
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts(phase),
+    dependencies: { "runtime-lib": "1.0.0" },
+    devDependencies: { ...foundationDependencies, "glob-tool": "1.0.0" },
+    overrides: reviewedOverrides,
+  };
+  const lock = lockForPackage(pkg);
+  const runtime = "node_modules/runtime-lib";
+  const bridge = `${runtime}/node_modules/@fixture/bridge`;
+  lock.packages[runtime].dependencies = { "@fixture/bridge": "1.0.0" };
+  lock.packages[bridge] = {
+    version: "1.0.0",
+    dependencies: { "@fixture/picomatch": "1.0.0" },
+    optionalDependencies: { "missing-optional": "1.0.0" },
+  };
+  lock.packages["node_modules/@fixture/picomatch"] = {
+    version: "1.0.0",
+    integrity: syntheticIntegrity,
+  };
+  lock.packages["node_modules/glob-tool"].dependencies = {
+    picomatch: "^4.0.4",
+  };
+  lock.packages["node_modules/picomatch"] = lockedPicomatch;
+  validatePackage(pkg, lock, phase);
+
+  for (const [kind, name, location] of [
+    ["dependencies", "picomatch", `${bridge}/node_modules/picomatch`],
+    ["optionalDependencies", "glob-backport", "node_modules/glob-backport"],
+    ["peerDependencies", "picomatch", `${runtime}/node_modules/picomatch`],
+  ]) {
+    const runtimeLock = structuredClone(lock);
+    runtimeLock.packages[bridge][kind] = {
+      ...runtimeLock.packages[bridge][kind],
+      [name]: name === "picomatch" ? "^4.0.4" : reviewedOverrides.picomatch,
+    };
+    runtimeLock.packages[location] = lockedPicomatch;
+    assert.throws(
+      () => validatePackage(pkg, runtimeLock, phase),
+      /reviewed Picomatch backport must not be reachable from runtime dependencies/,
+    );
+  }
+});
+
+test("the reviewed Picomatch backport must satisfy required package resolutions", () => {
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts("foundation"),
+    devDependencies: foundationDependencies,
+    overrides: reviewedOverrides,
+  };
+  const lock = lockForPackage(pkg);
+  const ancestor = "node_modules/@fixture/tools";
+  const consumer = `${ancestor}/node_modules/glob-tool`;
+  const ownResolution = `${consumer}/node_modules/picomatch`;
+  const ancestorResolution = `${ancestor}/node_modules/picomatch`;
+  const range = { picomatch: "^4.0.4" };
+  const missing = /Required Picomatch dependency.*missing from the lockfile/;
+
+  lock.packages[consumer] = { dependencies: range };
+  assert.throws(() => validatePackage(pkg, lock, "foundation"), missing);
+  lock.packages["node_modules/unrelated/node_modules/picomatch"] =
+    lockedPicomatch;
+  assert.throws(() => validatePackage(pkg, lock, "foundation"), missing);
+
+  for (const location of [
+    ownResolution,
+    ancestorResolution,
+    "node_modules/picomatch",
+  ]) {
+    lock.packages[location] = lockedPicomatch;
+    validatePackage(pkg, lock, "foundation");
+    delete lock.packages[location];
+  }
+
+  lock.packages[consumer] = {
+    dependencies: range,
+    optionalDependencies: range,
+    peerDependencies: range,
+  };
+  validatePackage(pkg, lock, "foundation");
+  lock.packages[ownResolution] = lockedPicomatch;
+  validatePackage(pkg, lock, "foundation");
+
+  lock.packages[consumer] = {
+    dependencies: range,
+    peerDependencies: range,
+  };
+  validatePackage(pkg, lock, "foundation");
+  delete lock.packages[ownResolution];
+  assert.throws(() => validatePackage(pkg, lock, "foundation"), missing);
+
+  lock.packages[consumer] = {
+    peerDependencies: range,
+    peerDependenciesMeta: { picomatch: { optional: true } },
+  };
+  validatePackage(pkg, lock, "foundation");
+
+  lock.packages[consumer] = { peerDependencies: range };
+  assert.throws(() => validatePackage(pkg, lock, "foundation"), missing);
+  lock.packages[ancestorResolution] = lockedPicomatch;
+  validatePackage(pkg, lock, "foundation");
+  lock.packages[ownResolution] = lockedPicomatch;
+  assert.throws(
+    () => validatePackage(pkg, lock, "foundation"),
+    /Required Picomatch peer dependency.*at or above its parent/,
+  );
 });
 
 test("plain validation exports are supported but a broken existing Git repository fails closed", async (context) => {
@@ -1709,8 +1887,8 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
   const dependencies = {
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
-    "better-auth": "1.7.18",
-    "@better-auth/drizzle-adapter": "1.7.18",
+    "better-auth": "1.7.25",
+    "@better-auth/drizzle-adapter": "1.7.25",
   };
   const pkg = {
     ...packageFixture,
@@ -1726,16 +1904,16 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
   );
   const lock = structuredClone(missingCore);
   lock.packages["node_modules/@better-auth/core"] = {
-    version: "1.7.18",
+    version: "1.7.25",
     integrity: syntheticIntegrity,
   };
   validatePackage(pkg, lock, "auth-bootstrap");
   for (const versions of [
-    ["1.7.14", "1.7.18"],
-    ["1.7.18", "1.7.14"],
+    ["1.7.14", "1.7.25"],
+    ["1.7.25", "1.7.14"],
     ["1.7.14", "1.7.14"],
-    ["1.7.18", undefined],
-    [undefined, "1.7.18"],
+    ["1.7.25", undefined],
+    [undefined, "1.7.25"],
   ]) {
     const mismatched = structuredClone(pkg);
     for (const [index, name] of [
@@ -1850,8 +2028,8 @@ test("HTTP composition publishes only owned listener commands while preserving b
   const dependencies = {
     hono: "4.13.14",
     "@hono/node-server": "2.1.5",
-    "better-auth": "1.7.18",
-    "@better-auth/drizzle-adapter": "1.7.18",
+    "better-auth": "1.7.25",
+    "@better-auth/drizzle-adapter": "1.7.25",
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
   };
@@ -1864,7 +2042,7 @@ test("HTTP composition publishes only owned listener commands while preserving b
   pkg.overrides = overridesForPackage(pkg);
   const lock = lockForPackage(pkg);
   lock.packages["node_modules/@better-auth/core"] = {
-    version: "1.7.18",
+    version: "1.7.25",
     integrity: syntheticIntegrity,
   };
   validatePackage(pkg, lock, "http-composition");

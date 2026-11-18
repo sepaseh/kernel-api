@@ -110,9 +110,18 @@ const sourceToolingFiles = [
   "scripts/merge-coverage.mjs",
   "scripts/merge-coverage.test.mjs",
 ];
-const governanceDependencies = { prettier: "3.9.10", yaml: "2.9.1" };
-export const reviewedOverrides = { "minimatch@10.2.6": "11.0.5" };
-const reviewedAuthCoreVersion = "1.7.18";
+const governanceDependencies = { prettier: "3.10.1", yaml: "2.9.1" };
+const reviewedPicomatch = {
+  name: "@ryotsu/picomatch",
+  version: "4.0.7-a",
+  integrity:
+    "sha512-JroBFEmaejC7szGSfqOhF1QZHLKvX2wTA1+fWyfkpy3BjzdQKNPLKa2FtgeKVUDy5/UPUNkXEeCHJ5ZRBMLTVA==",
+};
+export const reviewedOverrides = {
+  "minimatch@10.2.6": "11.0.9",
+  picomatch: `npm:${reviewedPicomatch.name}@${reviewedPicomatch.version}`,
+};
+const reviewedAuthCoreVersion = "1.7.25";
 export const overridesForPackage = (pkg) => ({
   ...reviewedOverrides,
   ...(pkg.dependencies?.["better-auth"]
@@ -226,12 +235,12 @@ export const commandOwnersForPhase = (phase) => [
 export const foundationDependencies = {
   "@eslint/js": "10.0.1",
   "@types/node": "24.19.2",
-  eslint: "10.14.0",
+  eslint: "10.15.0",
   "eslint-plugin-simple-import-sort": "14.0.0",
   globals: "17.14.0",
   ...governanceDependencies,
   typescript: "6.0.3",
-  "typescript-eslint": "8.72.1",
+  "typescript-eslint": "8.73.0",
 };
 const scriptCommand = (id, phase) => {
   if (id === "actions-lint") return "node scripts/run-actionlint.mjs";
@@ -540,6 +549,83 @@ const validatePackageDefinition = (pkg, phase) => {
   );
 };
 
+const findLockedPackage = (packages, location, name) => {
+  for (
+    let container = location;
+    container;
+    container = container.slice(
+      0,
+      Math.max(0, container.lastIndexOf("/node_modules/")),
+    )
+  ) {
+    const candidate = `${container}/node_modules/${name}`;
+    if (Object.hasOwn(packages, candidate)) return candidate;
+  }
+  const rootCandidate = `node_modules/${name}`;
+  return Object.hasOwn(packages, rootCandidate) ? rootCandidate : undefined;
+};
+
+const runtimePackageLocations = (pkg, packages) => {
+  const locations = new Set([""]);
+  for (const location of locations) {
+    const entry = location ? packages[location] : pkg;
+    const dependencyNames = Object.keys({
+      ...entry.peerDependencies,
+      ...entry.dependencies,
+      ...entry.optionalDependencies,
+    });
+    for (const name of dependencyNames) {
+      const resolution = findLockedPackage(packages, location, name);
+      if (resolution) locations.add(resolution);
+    }
+  }
+  return locations;
+};
+
+const picomatchNames = new Set(["picomatch", reviewedPicomatch.name]);
+const validateLockedPicomatch = (
+  packages,
+  location,
+  entry,
+  runtimeLocations,
+) => {
+  const installName = location.split(/(?:^|\/)node_modules\//).at(-1);
+  const registryName = entry.name ?? installName;
+  if (picomatchNames.has(installName) || picomatchNames.has(registryName)) {
+    assert(
+      entry.dev === true &&
+        registryName === reviewedPicomatch.name &&
+        entry.version === reviewedPicomatch.version &&
+        entry.integrity === reviewedPicomatch.integrity,
+      "Picomatch must resolve to the reviewed development-only security backport.",
+    );
+    assert(
+      !runtimeLocations.has(location),
+      "The reviewed Picomatch backport must not be reachable from runtime dependencies.",
+    );
+  }
+
+  if (entry.optionalDependencies?.picomatch !== undefined) return;
+
+  const requiresDependency = entry.dependencies?.picomatch !== undefined;
+  const requiresPeer =
+    !requiresDependency &&
+    entry.peerDependencies?.picomatch !== undefined &&
+    entry.peerDependenciesMeta?.picomatch?.optional !== true;
+  if (!requiresDependency && !requiresPeer) return;
+
+  const resolution = findLockedPackage(packages, location, "picomatch");
+  assert(
+    resolution,
+    `Required Picomatch dependency for ${location || "the root package"} is missing from the lockfile.`,
+  );
+  if (requiresPeer && location)
+    assert(
+      resolution !== `${location}/node_modules/picomatch`,
+      `Required Picomatch peer dependency for ${location} must resolve at or above its parent.`,
+    );
+};
+
 const validateLockfile = (pkg, lock, phase) => {
   assert(
     lock?.lockfileVersion === 3 && lock.name === pkg.name,
@@ -576,6 +662,7 @@ const validateLockfile = (pkg, lock, phase) => {
         reviewedAuthCoreVersion,
       "The lockfile must include the reviewed authentication core.",
     );
+  const runtimeLocations = runtimePackageLocations(pkg, lock.packages);
   for (const [location, entry] of Object.entries(lock.packages ?? {})) {
     assert(
       entry.link !== true,
@@ -588,6 +675,7 @@ const validateLockfile = (pkg, lock, phase) => {
             entry.version === reviewedOverrides["minimatch@10.2.6"]),
         "The reviewed minimatch security override must be reflected in the lockfile.",
       );
+    validateLockedPicomatch(lock.packages, location, entry, runtimeLocations);
     if (
       pkg.dependencies?.["better-auth"] &&
       location.endsWith("/@better-auth/core")
@@ -624,7 +712,7 @@ export const validatePackage = (pkg, lock, phase = "governance") => {
     equal(
       pkg.overrides,
       overridesForPackage(pkg),
-      "Only the reviewed minimatch and owned authentication core overrides, plus the scoped Drizzle compiler override, are permitted in source phases.",
+      "Only the reviewed minimatch and picomatch security overrides, the owned authentication core, and the scoped Drizzle compiler override are permitted in source phases.",
     );
   validateLockfile(pkg, lock, phase);
 };

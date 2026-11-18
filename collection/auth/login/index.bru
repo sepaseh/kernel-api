@@ -36,7 +36,7 @@ script:post-response {
 docs {
   ## Purpose
 
-  Authenticates a user using an identifier and password.
+  Authenticates a user using a mobile number and password.
 
   ## Authentication
 
@@ -44,7 +44,7 @@ docs {
 
   ## Behavior
 
-  - The identifier is validated as a mobile number in this project.
+  - Send the mobile number as `identifier` or `mobile`. When both fields are present, `identifier` takes precedence.
   - The supplied credentials must be valid.
   - Password authentication must be enabled for the account.
   - A successful request returns an access token.
@@ -52,7 +52,7 @@ docs {
   - The session is also issued in an HttpOnly cookie.
   - The response must not reveal whether the identifier or password was incorrect.
 
-  - A bounded single-process per-identity authentication attempt limiter also applies.
+  - Both request fields share a bounded single-process authentication attempt limit for the same mobile number and transport peer.
 
   ## Response
 

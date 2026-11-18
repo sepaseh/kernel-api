@@ -630,6 +630,27 @@ test("bounds JSON bodies with and without declared length and requires JSON cont
   const page = (await limited.json()) as { items: unknown[]; total: number };
   assert.equal(page.items.length, 100);
   assert.equal(page.total, 103);
+  const first = await app.request("/users?page=1", {
+    headers: { Authorization: `Bearer ${administratorToken}` },
+  });
+  const second = await app.request("/users?page=2&size=1", {
+    headers: { Authorization: `Bearer ${administratorToken}` },
+  });
+  assert.equal(first.status, 200);
+  assert.equal(second.status, 200);
+  const itemsOnFirst = ((await first.json()) as { items: { id: string }[] })
+    .items;
+  const secondPage = (await second.json()) as {
+    items: { id: string }[];
+    total: number;
+  };
+  assert.equal(itemsOnFirst.length, 24);
+  assert.equal(secondPage.items.length, 24);
+  assert.equal(secondPage.total, 103);
+  assert.equal(
+    new Set([...itemsOnFirst, ...secondPage.items].map(({ id }) => id)).size,
+    48,
+  );
 });
 
 test("a failed password-change transaction preserves old credentials and sessions", async (context) => {
