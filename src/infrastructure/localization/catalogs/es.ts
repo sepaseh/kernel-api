@@ -1,8 +1,18 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const es = {
+  contentCategoryInUse:
+    "Esta categoría está en uso. Reasigna su contenido antes de eliminarla.",
+  contentCategoryNotFound: "No se encontró la categoría de contenido.",
+  contentCategoryOrderInvalid:
+    "Vuelve a cargar las categorías y envía el ID de cada categoría actual una sola vez.",
   fileInUse:
     "Este archivo está en uso. Resuelve sus referencias antes de eliminarlo.",
+  permissionContentCategories: "Categorías de contenido",
+  permissionContentCategoriesCreate: "Crear categorías de contenido",
+  permissionContentCategoriesDelete: "Eliminar categorías de contenido",
+  permissionContentCategoriesRead: "Ver categorías de contenido",
+  permissionContentCategoriesUpdate: "Actualizar categorías de contenido",
   permissionFiles: "Archivos",
   permissionFilesDelete: "Eliminar archivos",
   permissionFilesRead: "Ver archivos",

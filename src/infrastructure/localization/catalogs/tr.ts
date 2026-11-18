@@ -1,8 +1,18 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const tr = {
+  contentCategoryInUse:
+    "Bu kategori kullanılıyor. Silmeden önce içeriğini başka bir kategoriye taşıyın.",
+  contentCategoryNotFound: "İçerik kategorisi bulunamadı.",
+  contentCategoryOrderInvalid:
+    "Kategorileri yeniden yükleyin ve mevcut her kategori kimliğini tam bir kez gönderin.",
   fileInUse:
     "Bu dosya kullanılıyor. Silmeden önce dosyaya yapılan başvuruları kaldırın.",
+  permissionContentCategories: "İçerik kategorileri",
+  permissionContentCategoriesCreate: "İçerik kategorileri oluşturma",
+  permissionContentCategoriesDelete: "İçerik kategorilerini silme",
+  permissionContentCategoriesRead: "İçerik kategorilerini görüntüleme",
+  permissionContentCategoriesUpdate: "İçerik kategorilerini güncelleme",
   permissionFiles: "Dosyalar",
   permissionFilesDelete: "Dosyaları silme",
   permissionFilesRead: "Dosyaları görüntüleme",

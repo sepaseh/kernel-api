@@ -1,8 +1,18 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const fa = {
+  contentCategoryInUse:
+    "این دسته‌بندی در حال استفاده است. پیش از حذف، محتوای آن را به دستهٔ دیگری منتقل کنید.",
+  contentCategoryNotFound: "دسته‌بندی محتوا پیدا نشد.",
+  contentCategoryOrderInvalid:
+    "دسته‌بندی‌ها را دوباره بارگیری کنید و شناسهٔ هر دسته را دقیقاً یک‌بار بفرستید.",
   fileInUse:
     "این فایل در حال استفاده است. پیش از حذف، موارد استفاده از آن را برطرف کنید.",
+  permissionContentCategories: "دسته‌بندی‌های محتوا",
+  permissionContentCategoriesCreate: "ایجاد دسته‌بندی محتوا",
+  permissionContentCategoriesDelete: "حذف دسته‌بندی محتوا",
+  permissionContentCategoriesRead: "مشاهدهٔ دسته‌بندی‌های محتوا",
+  permissionContentCategoriesUpdate: "ویرایش دسته‌بندی محتوا",
   permissionFiles: "فایل‌ها",
   permissionFilesDelete: "حذف فایل‌ها",
   permissionFilesRead: "مشاهدهٔ فایل‌ها",

@@ -10,6 +10,7 @@ import { enforceAuthAttempt } from "../src/presentation/http/auth-attempts.ts";
 import { createAccountRoutes } from "../src/presentation/http/routes/account.ts";
 import { createAuthRoutes } from "../src/presentation/http/routes/auth.ts";
 import { createCalendarRoutes } from "../src/presentation/http/routes/calendar.ts";
+import { createContentCategoryRoutes } from "../src/presentation/http/routes/content-categories.ts";
 import { createFileRoutes } from "../src/presentation/http/routes/files.ts";
 import { createRoleRoutes } from "../src/presentation/http/routes/roles.ts";
 import {
@@ -23,6 +24,7 @@ export const collectionRoutes = {
   account: createAccountRoutes,
   auth: createAuthRoutes,
   calendar: createCalendarRoutes,
+  "content-categories": createContentCategoryRoutes,
   files: createFileRoutes,
   languages: createLanguageRoutes,
   roles: createRoleRoutes,

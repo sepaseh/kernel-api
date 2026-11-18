@@ -1,8 +1,18 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const ru = {
+  contentCategoryInUse:
+    "Эта категория используется. Перенесите её материалы в другую категорию перед удалением.",
+  contentCategoryNotFound: "Категория материалов не найдена.",
+  contentCategoryOrderInvalid:
+    "Обновите список категорий и отправьте идентификатор каждой текущей категории ровно один раз.",
   fileInUse:
     "Этот файл используется. Устраните ссылки на него перед удалением.",
+  permissionContentCategories: "Категории материалов",
+  permissionContentCategoriesCreate: "Создавать категории материалов",
+  permissionContentCategoriesDelete: "Удалять категории материалов",
+  permissionContentCategoriesRead: "Просматривать категории материалов",
+  permissionContentCategoriesUpdate: "Изменять категории материалов",
   permissionFiles: "Файлы",
   permissionFilesDelete: "Удалять файлы",
   permissionFilesRead: "Просматривать файлы",

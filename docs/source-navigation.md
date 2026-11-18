@@ -23,7 +23,7 @@ evidence. Select the relevant source, type, lint and test checks from the
 [canonical manifest](../.agents/validation.json), then run the full profile
 before an authorized commit or PR.
 
-The `services-and-catalogs` task covers the seven application services, their
+The `services-and-catalogs` task covers the eight application services, their
 feature ports/contracts and the ten literal API catalogs. Inspect each service's
 synthetic-port suite and the catalog integrity tests; those establish application
 policy and data boundaries, not adapter behavior.
@@ -78,7 +78,7 @@ ambient local source as part of a checked partial publication.
 
 The collection-contracts task owns the published Bruno requests and response
 examples. Follow the inventory collectionGroups field and the registered feature
-suites; all eight published groups are covered by the full profile. Read the
+suites; all nine published groups are covered by the full profile. Read the
 [collection setup](../collection/README.md) and [handoff guide](collection-guide.md).
 
 The guidance task also owns the [evaluation prompts](../.agents/evaluation/README.md),

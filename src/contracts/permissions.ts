@@ -1,6 +1,10 @@
 export const permissionKeys = [
   "calendar.read",
   "calendar.update",
+  "content-categories.create",
+  "content-categories.delete",
+  "content-categories.read",
+  "content-categories.update",
   "files.delete",
   "files.read",
   "roles.create",

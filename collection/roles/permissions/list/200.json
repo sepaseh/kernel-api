@@ -14,6 +14,28 @@
     "title": "Calendar"
   },
   {
+    "name": "content-categories",
+    "permissions": [
+      {
+        "name": "content-categories.create",
+        "title": "Create content categories"
+      },
+      {
+        "name": "content-categories.delete",
+        "title": "Delete content categories"
+      },
+      {
+        "name": "content-categories.read",
+        "title": "View content categories"
+      },
+      {
+        "name": "content-categories.update",
+        "title": "Update content categories"
+      }
+    ],
+    "title": "Content categories"
+  },
+  {
     "name": "files",
     "permissions": [
       {

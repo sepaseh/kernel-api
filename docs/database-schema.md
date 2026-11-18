@@ -2,8 +2,8 @@
 
 The executable schema is [src/infrastructure/db/schema.ts](../src/infrastructure/db/schema.ts);
 reviewed SQL migrations and Drizzle metadata live in [drizzle/](../drizzle). The
-twelve tables store identities, revocable sessions, authorization, settings,
-calendar dates, OTP challenges and object metadata.
+fourteen tables store identities, revocable sessions, authorization, settings,
+calendar dates, OTP challenges, content and object metadata.
 File bytes stay in local public/private
 storage or MinIO.
 
@@ -26,6 +26,8 @@ Date. Theme palettes are JSON text. Join tables use composite primary keys.
 | settings               | id, language_code, dark_theme, light_theme, dark_logo_id?, light_logo_id?, image_settings                                                                                      |
 | otp_codes              | id, destination, purpose, subject?, value_hash, created_at, expires_at, consumed_at?                                                                                           |
 | calendar_dates         | date                                                                                                                                                                           |
+| content_categories     | id, name, position                                                                                                                                                             |
+| contents               | id, title, normalized_title, body, excerpt, content_category_id, cover_image_id, created_at                                                                                    |
 | pending_file_deletions | id, bucket, object_key                                                                                                                                                         |
 
 The TypeScript field user.email maps to SQL auth_email, the required internal
@@ -72,6 +74,8 @@ erDiagram
     ROLES ||--o{ ROLE_PERMISSIONS : permissions
     USER ||--o{ FILES : uploads
     FILES o|--o{ SETTINGS : optional_logos
+    FILES ||--o{ CONTENTS : covers
+    CONTENT_CATEGORIES ||--o{ CONTENTS : classification
 ```
 
 - User-role memberships and files.created_by are incoming business references:
@@ -86,7 +90,8 @@ erDiagram
   to its owned role_permissions.
 - Both settings logo foreign keys RESTRICT deletion of a referenced file. Resolve
   or reassign the branding references explicitly before deleting its metadata;
-  no automatic unlinking is allowed. Public-file suitability is checked
+  no automatic unlinking is allowed. Content categories and cover images are
+  also protected by restrictive foreign keys. Public-file suitability is checked
   by application and persistence logic. An unused file is hard-deleted and its
   object deletion is tracked separately until storage confirms cleanup.
 - user auth_email, profile email, mobile and username; session token; role name;
@@ -117,7 +122,8 @@ values. Tests verify foreign keys are enabled after the migration runner restore
 them and that post-upgrade foreign-key integrity is clean.
 
 The file management migration adds the pending file deletion table and backfills
-image settings with defaults for existing installations. It preserves existing settings fields
+image settings with defaults for existing installations. The content management
+migration adds categories and content. It preserves existing settings fields
 and ownership relationships.
 
 The Drizzle libSQL migrator delegates the SQL batch to libSQL, which disables

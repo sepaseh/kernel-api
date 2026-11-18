@@ -1,0 +1,35 @@
+meta {
+  name: List Content Categories
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/content-categories
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  ## Purpose
+
+  Lists content categories in their saved order.
+
+  ## Authentication
+
+  Requires a valid access token with content-categories.read.
+
+  ## Response
+
+  - `200 OK` — An array of categories, each with its ID and name.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user cannot list categories.
+}

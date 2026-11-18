@@ -151,6 +151,38 @@ export const pendingFileDeletions = sqliteTable("pending_file_deletions", {
   objectKey: text("object_key").notNull(),
 });
 
+export const contentCategories = sqliteTable(
+  "content_categories",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    position: integer("position").notNull(),
+  },
+  (table) => [index("content_categories_position_index").on(table.position)],
+);
+
+export const contents = sqliteTable(
+  "contents",
+  {
+    body: text("body").notNull(),
+    contentCategoryId: text("content_category_id")
+      .notNull()
+      .references(() => contentCategories.id, { onDelete: "restrict" }),
+    coverImageId: text("cover_image_id")
+      .notNull()
+      .references(() => files.id, { onDelete: "restrict" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+    excerpt: text("excerpt").notNull(),
+    id: text("id").primaryKey(),
+    normalizedTitle: text("normalized_title").notNull(),
+    title: text("title").notNull(),
+  },
+  (table) => [
+    index("contents_category_index").on(table.contentCategoryId),
+    index("contents_cover_image_index").on(table.coverImageId),
+  ],
+);
+
 export const settings = sqliteTable("settings", {
   darkLogoId: text("dark_logo_id").references(() => files.id, {
     onDelete: "restrict",
