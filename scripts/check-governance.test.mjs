@@ -71,6 +71,13 @@ const packageFixture = {
   devDependencies: { prettier: "3.10.1", yaml: "2.9.1" },
 };
 const syntheticIntegrity = "sha512-" + Buffer.alloc(64, 7).toString("base64");
+const lockedPicomatch = {
+  dev: true,
+  name: "@ryotsu/picomatch",
+  version: "4.0.7-a",
+  integrity:
+    "sha512-JroBFEmaejC7szGSfqOhF1QZHLKvX2wTA1+fWyfkpy3BjzdQKNPLKa2FtgeKVUDy5/UPUNkXEeCHJ5ZRBMLTVA==",
+};
 const lockForPackage = (pkg) => ({
   name: pkg.name,
   lockfileVersion: 3,
@@ -1696,27 +1703,74 @@ test("source packages allow the reviewed glob overrides and require the locked f
       ),
     /must not introduce dependency overrides/,
   );
-  const patched = {
-    dev: true,
-    name: "@ryotsu/picomatch",
-    version: "4.0.7-a",
-    integrity:
-      "sha512-JroBFEmaejC7szGSfqOhF1QZHLKvX2wTA1+fWyfkpy3BjzdQKNPLKa2FtgeKVUDy5/UPUNkXEeCHJ5ZRBMLTVA==",
-  };
   const picomatchPath = "node_modules/tinyglobby/node_modules/picomatch";
-  reviewedLock.packages[picomatchPath] = patched;
+  reviewedLock.packages[picomatchPath] = lockedPicomatch;
   validatePackage(pkg, reviewedLock, "foundation");
   for (const fields of [
     { name: "picomatch", version: "4.0.7" },
     { integrity: syntheticIntegrity },
     { dev: false },
   ]) {
-    reviewedLock.packages[picomatchPath] = { ...patched, ...fields };
+    reviewedLock.packages[picomatchPath] = { ...lockedPicomatch, ...fields };
     assert.throws(
       () => validatePackage(pkg, reviewedLock, "foundation"),
       /reviewed development-only security backport/,
     );
   }
+});
+
+test("the reviewed Picomatch backport must satisfy required package resolutions", () => {
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts("foundation"),
+    devDependencies: foundationDependencies,
+    overrides: reviewedOverrides,
+  };
+  const lock = lockForPackage(pkg);
+  const ancestor = "node_modules/@fixture/tools";
+  const consumer = `${ancestor}/node_modules/glob-tool`;
+  const ownResolution = `${consumer}/node_modules/picomatch`;
+  const ancestorResolution = `${ancestor}/node_modules/picomatch`;
+  const range = { picomatch: "^4.0.4" };
+  const missing = /Required Picomatch dependency.*missing from the lockfile/;
+
+  lock.packages[consumer] = { dependencies: range };
+  assert.throws(() => validatePackage(pkg, lock, "foundation"), missing);
+  lock.packages["node_modules/unrelated/node_modules/picomatch"] =
+    lockedPicomatch;
+  assert.throws(() => validatePackage(pkg, lock, "foundation"), missing);
+
+  for (const location of [
+    ownResolution,
+    ancestorResolution,
+    "node_modules/picomatch",
+  ]) {
+    lock.packages[location] = lockedPicomatch;
+    validatePackage(pkg, lock, "foundation");
+    delete lock.packages[location];
+  }
+
+  lock.packages[consumer] = {
+    dependencies: range,
+    optionalDependencies: range,
+  };
+  validatePackage(pkg, lock, "foundation");
+
+  lock.packages[consumer] = {
+    peerDependencies: range,
+    peerDependenciesMeta: { picomatch: { optional: true } },
+  };
+  validatePackage(pkg, lock, "foundation");
+
+  lock.packages[consumer] = { peerDependencies: range };
+  assert.throws(() => validatePackage(pkg, lock, "foundation"), missing);
+  lock.packages[ancestorResolution] = lockedPicomatch;
+  validatePackage(pkg, lock, "foundation");
+  lock.packages[ownResolution] = lockedPicomatch;
+  assert.throws(
+    () => validatePackage(pkg, lock, "foundation"),
+    /Required Picomatch peer dependency.*at or above its parent/,
+  );
 });
 
 test("plain validation exports are supported but a broken existing Git repository fails closed", async (context) => {

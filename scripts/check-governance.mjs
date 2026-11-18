@@ -549,6 +549,52 @@ const validatePackageDefinition = (pkg, phase) => {
   );
 };
 
+const findLockedPicomatch = (packages, location) => {
+  for (
+    let container = location;
+    container;
+    container = container.slice(
+      0,
+      Math.max(0, container.lastIndexOf("/node_modules/")),
+    )
+  ) {
+    const candidate = `${container}/node_modules/picomatch`;
+    if (Object.hasOwn(packages, candidate)) return candidate;
+  }
+  if (Object.hasOwn(packages, "node_modules/picomatch"))
+    return "node_modules/picomatch";
+};
+
+const validateLockedPicomatch = (packages, location, entry) => {
+  if (location.endsWith("/picomatch"))
+    assert(
+      entry.dev === true &&
+        entry.name === reviewedPicomatch.name &&
+        entry.version === reviewedPicomatch.version &&
+        entry.integrity === reviewedPicomatch.integrity,
+      "Picomatch must resolve to the reviewed development-only security backport.",
+    );
+
+  const requiresDependency =
+    entry.dependencies?.picomatch !== undefined &&
+    entry.optionalDependencies?.picomatch === undefined;
+  const requiresPeer =
+    entry.peerDependencies?.picomatch !== undefined &&
+    entry.peerDependenciesMeta?.picomatch?.optional !== true;
+  if (!requiresDependency && !requiresPeer) return;
+
+  const resolution = findLockedPicomatch(packages, location);
+  assert(
+    resolution,
+    `Required Picomatch dependency for ${location || "the root package"} is missing from the lockfile.`,
+  );
+  if (requiresPeer && location)
+    assert(
+      resolution !== `${location}/node_modules/picomatch`,
+      `Required Picomatch peer dependency for ${location} must resolve at or above its parent.`,
+    );
+};
+
 const validateLockfile = (pkg, lock, phase) => {
   assert(
     lock?.lockfileVersion === 3 && lock.name === pkg.name,
@@ -597,14 +643,7 @@ const validateLockfile = (pkg, lock, phase) => {
             entry.version === reviewedOverrides["minimatch@10.2.6"]),
         "The reviewed minimatch security override must be reflected in the lockfile.",
       );
-    if (location.endsWith("/picomatch"))
-      assert(
-        entry.dev === true &&
-          entry.name === reviewedPicomatch.name &&
-          entry.version === reviewedPicomatch.version &&
-          entry.integrity === reviewedPicomatch.integrity,
-        "Picomatch must resolve to the reviewed development-only security backport.",
-      );
+    validateLockedPicomatch(lock.packages, location, entry);
     if (
       pkg.dependencies?.["better-auth"] &&
       location.endsWith("/@better-auth/core")
