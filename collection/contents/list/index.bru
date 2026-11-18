@@ -1,0 +1,47 @@
+meta {
+  name: List Contents
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/contents
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+params:query {
+  content_category_id:
+  page: 1
+  title:
+}
+
+docs {
+  ## Purpose
+
+  Returns a page of contents.
+
+  ## Authentication
+
+  Requires a valid access token with the `contents.read` permission.
+
+  ## Behavior
+
+  - The one-based `page` defaults to `1`. Each page contains up to 24 entries.
+  - Optional `title` matches a literal, case-insensitive substring and `content_category_id` matches a category ID. When both are sent, both must match.
+  - Results are ordered by creation time, then ID. `total` counts every matching entry across all pages.
+
+  ## Response
+
+  - `200 OK` — Matching contents returned.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user lacks the required permission.
+}

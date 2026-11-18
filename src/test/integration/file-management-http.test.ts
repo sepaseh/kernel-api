@@ -49,15 +49,16 @@ test("manages scoped uploads and resumes hard deletion without removing used fil
   const account = await auth.api.signUpEmail({
     body: {
       email: "editor@kernel.test",
-      firstName: "Branding",
+      firstName: "Content",
       lastName: "Editor",
       mobile: "09120000007",
-      name: "Branding Editor",
+      name: "Content Editor",
       password: "synthetic-password",
     },
   });
   await database.insert(roles).values({ id: "editor", name: "Editor" });
   await database.insert(rolePermissions).values([
+    { permission: "contents.create", roleId: "editor" },
     { permission: "files.delete", roleId: "editor" },
     { permission: "files.read", roleId: "editor" },
   ]);
@@ -88,22 +89,19 @@ test("manages scoped uploads and resumes hard deletion without removing used fil
 
   assert.equal((await app.request("/files")).status, 401);
   assert.equal((await upload("logo", "logo")).status, 403);
-  assert.equal((await upload("unknown", "brand")).status, 400);
-  await database
-    .insert(rolePermissions)
-    .values({ permission: "settings.update", roleId: "editor" });
+  assert.equal((await upload("contents", "cover", "text/plain")).status, 415);
   await database
     .update(settings)
     .set({
       imageSettings: JSON.stringify({
-        contents: { height: 630, size: 2_000_000, width: 1200 },
-        logo: { height: 256, size: 5, width: 256 },
+        contents: { height: 630, size: 5, width: 1200 },
+        logo: { height: 256, size: 1_000_000, width: 256 },
       }),
     })
     .where(eq(settings.id, 1));
-  assert.equal((await upload("logo", "too-large")).status, 413);
+  assert.equal((await upload("contents", "too-large")).status, 413);
 
-  const response = await upload("logo", "brand");
+  const response = await upload("contents", "cover");
   assert.equal(response.status, 201);
   const uploaded = (await response.json()) as { id: string; url: string };
   assert.deepEqual(uploaded, {
@@ -117,7 +115,7 @@ test("manages scoped uploads and resumes hard deletion without removing used fil
   const publicPath = `/files/${uploaded.id}/content`;
   const original = await app.request(publicPath);
   assert.equal(original.headers.get("Cache-Control"), "public, max-age=3600");
-  assert.equal(await original.text(), "brand");
+  assert.equal(await original.text(), "cover");
 
   await database
     .update(settings)

@@ -4,7 +4,12 @@ import type { Actor, PermissionKey } from "./models.ts";
 import type { ContentCategoriesRepository } from "./ports/content-categories.ts";
 import { requiredString } from "./validation.ts";
 
-const listPermissions: PermissionKey[] = ["content-categories.read"];
+const listPermissions: PermissionKey[] = [
+  "content-categories.read",
+  "contents.create",
+  "contents.read",
+  "contents.update",
+];
 
 const parseIds = (value: unknown): ContentCategorySortRequest["ids"] => {
   if (

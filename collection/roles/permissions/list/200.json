@@ -36,6 +36,28 @@
     "title": "Content categories"
   },
   {
+    "name": "contents",
+    "permissions": [
+      {
+        "name": "contents.create",
+        "title": "Create content"
+      },
+      {
+        "name": "contents.delete",
+        "title": "Delete content"
+      },
+      {
+        "name": "contents.read",
+        "title": "View content"
+      },
+      {
+        "name": "contents.update",
+        "title": "Update content"
+      }
+    ],
+    "title": "Content"
+  },
+  {
     "name": "files",
     "permissions": [
       {

@@ -1,5 +1,7 @@
+import { isContentCoverImageType } from "../contracts/contents.ts";
 import {
   type FileContext,
+  fileContexts,
   type StoredFileResponse,
 } from "../contracts/files.ts";
 import { ApplicationError } from "./errors.ts";
@@ -111,7 +113,7 @@ export const createFilesService = ({
           field: "file",
         });
       }
-      const imageContext = context === "logo" ? context : undefined;
+      const imageContext = fileContexts.find((value) => value === context);
       if (context !== undefined) {
         if (!imageContext)
           throw new ApplicationError("invalid", "fieldInvalid", {
@@ -124,10 +126,15 @@ export const createFilesService = ({
       if (visibility !== "public" && visibility !== "private") {
         throw new ApplicationError("invalid", "visibilityInvalid");
       }
+      const canUploadPublic =
+        context === "contents"
+          ? actor.permissions.includes("contents.create") ||
+            actor.permissions.includes("contents.update")
+          : actor.permissions.includes("settings.update");
       if (
         visibility === "public" &&
         !actor.account.isSystemAdmin &&
-        !actor.permissions.includes("settings.update")
+        !canUploadPublic
       ) {
         throw new ApplicationError("forbidden", "publicUploadDenied");
       }
@@ -138,6 +145,11 @@ export const createFilesService = ({
       const id = newId();
       const objectKey = `${id}/${safeObjectName(source.name || "upload")}`;
       const contentType = source.type || "application/octet-stream";
+      if (context === "contents" && !isContentCoverImageType(contentType))
+        throw new ApplicationError(
+          "unsupported-media",
+          "contentCoverImageTypeInvalid",
+        );
       observe(() => events?.stage?.("read"));
       const data = await source.read();
       const size = data.byteLength;

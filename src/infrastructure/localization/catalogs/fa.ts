@@ -6,6 +6,10 @@ export const fa = {
   contentCategoryNotFound: "دسته‌بندی محتوا پیدا نشد.",
   contentCategoryOrderInvalid:
     "دسته‌بندی‌ها را دوباره بارگیری کنید و شناسهٔ هر دسته را دقیقاً یک‌بار بفرستید.",
+  contentCoverImageNotFound: "تصویر عمومی جلد پیدا نشد.",
+  contentCoverImageTypeInvalid:
+    "تصویر جلد را با قالب AVIF، GIF، JPEG، PNG یا WebP بارگذاری کنید.",
+  contentNotFound: "محتوا پیدا نشد.",
   fileInUse:
     "این فایل در حال استفاده است. پیش از حذف، موارد استفاده از آن را برطرف کنید.",
   permissionContentCategories: "دسته‌بندی‌های محتوا",
@@ -13,6 +17,11 @@ export const fa = {
   permissionContentCategoriesDelete: "حذف دسته‌بندی محتوا",
   permissionContentCategoriesRead: "مشاهدهٔ دسته‌بندی‌های محتوا",
   permissionContentCategoriesUpdate: "ویرایش دسته‌بندی محتوا",
+  permissionContents: "محتوا",
+  permissionContentsCreate: "ایجاد محتوا",
+  permissionContentsDelete: "حذف محتوا",
+  permissionContentsRead: "مشاهدهٔ محتوا",
+  permissionContentsUpdate: "ویرایش محتوا",
   permissionFiles: "فایل‌ها",
   permissionFilesDelete: "حذف فایل‌ها",
   permissionFilesRead: "مشاهدهٔ فایل‌ها",

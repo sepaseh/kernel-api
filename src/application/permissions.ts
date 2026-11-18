@@ -34,6 +34,16 @@ export const permissionGroupDefinitions = [
     titleKey: "permissionContentCategories",
   },
   {
+    name: "contents",
+    permissions: [
+      { name: "contents.create", titleKey: "permissionContentsCreate" },
+      { name: "contents.delete", titleKey: "permissionContentsDelete" },
+      { name: "contents.read", titleKey: "permissionContentsRead" },
+      { name: "contents.update", titleKey: "permissionContentsUpdate" },
+    ],
+    titleKey: "permissionContents",
+  },
+  {
     name: "files",
     permissions: [
       { name: "files.delete", titleKey: "permissionFilesDelete" },

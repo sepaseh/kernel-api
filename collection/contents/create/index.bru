@@ -1,0 +1,54 @@
+meta {
+  name: Create Content
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/contents
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "body": "<p>Open a record to review its details.</p>",
+    "content_category_id": "{{content_category_id}}",
+    "cover_image_id": "{{file_id}}",
+    "excerpt": "Read the administration guide.",
+    "title": "Getting started"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Creates a content entry.
+
+  ## Authentication
+
+  Requires a valid access token with the `contents.create` permission.
+
+  ## Behavior
+
+  - Supply a title, excerpt, nonempty rich-text body, category ID and public cover image ID. Use a supported raster image uploaded with `context=contents`.
+  - The body preserves the supported headings, emphasis, block quotes and lists. Links retain their text. Embedded content and other markup are removed.
+  - The server generates the content UUID.
+
+  ## Response
+
+  - `201 Created` — Content created successfully.
+  - `400 Bad Request` — Required content data is missing or invalid.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user lacks the required permission.
+  - `404 Not Found` — The selected category or public cover image is unavailable.
+}

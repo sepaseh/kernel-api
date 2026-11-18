@@ -75,15 +75,19 @@ Settings responses include `image_settings` for `contents` and `logo`. A PUT
 without `image_settings` preserves the stored values. When it sends them, it
 supplies both contexts with integer `width`, `height`, and maximum byte `size`.
 
-Upload with multipart `context=logo` for a logo. The corresponding
-`image_settings` entry describes crop dimensions and upload size. Use `size`
-in bytes and `is_used` for the file management list. Deleting a file used as
-a settings logo returns a localized 409.
+For content management, `GET /contents` uses one-based pages of 24 and supports
+filters for `title` and `content_category_id`. The authorized category list supplies
+the filter and editor choices. Use the same public cover image ID from
+`POST /files` in `cover_image_id` when it remains selected during an edit.
+Upload with multipart `context=contents` for a cover or `context=logo` for a logo.
+These contexts use the corresponding `image_settings` entry to describe crop
+dimensions and upload size. Use `size` in bytes and `is_used` for the file
+management list. An in-use file or category returns a localized 409 when
+deleted.
 
-Content categories are listed in the saved order. The sort operation accepts
-the complete ordered ID list and returns 409 when the displayed list is stale.
-Reload the list before reordering again. Deleting an in-use category returns
-a localized 409.
+Content categories are listed in the saved order. The sort
+operations accept the complete ordered ID list and return 409 when the
+displayed list is stale. Reload the list before reordering again.
 
 The users screen sends `page` to `GET /users` for one-based pages of 24. Clients
 using the existing `offset` and `size` parameters retain variable-size pages.

@@ -19,6 +19,7 @@ before(() => requireCollectionGroups("account", "auth"));
 
 const routeVariables = {
   contentCategoryId: "content_category_id",
+  contentId: "content_id",
   date: "calendar_date",
   fileId: "file_id",
   roleId: "role_id",

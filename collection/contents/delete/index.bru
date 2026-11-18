@@ -1,0 +1,40 @@
+meta {
+  name: Delete Content
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/contents/{{content_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  ## Purpose
+
+  Permanently deletes a content entry by UUID.
+
+  ## Authentication
+
+  Requires a valid access token with the `contents.delete` permission.
+
+  ## Behavior
+
+  - A successful request returns a bodyless response and preserves the linked category and cover image.
+
+  ## Response
+
+  - `200 OK` — Content deleted successfully.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user lacks the required permission.
+  - `404 Not Found` — The content does not exist.
+}

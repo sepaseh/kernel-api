@@ -1,0 +1,53 @@
+meta {
+  name: Update Content
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/contents/{{content_id}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "body": "<h2 class=\"heading\">Guide</h2><p><strong>Start</strong> <a href=\"https://example.test\">here</a>.</p><ol><li data-list=\"bullet\">First step</li></ol>",
+    "content_category_id": "{{content_category_id}}",
+    "cover_image_id": "{{file_id}}",
+    "excerpt": "Read the administration guide.",
+    "title": "Getting started with Kernel"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Replaces the editable fields of a content entry by UUID.
+
+  ## Authentication
+
+  Requires a valid access token with the `contents.update` permission.
+
+  ## Behavior
+
+  - Supply every editable field. The same rich-text and cover image requirements apply as for creation.
+  - A failed association change leaves the existing content entry unchanged.
+
+  ## Response
+
+  - `200 OK` — Content updated.
+  - `400 Bad Request` — Required content data is missing or invalid.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user lacks the required permission.
+  - `404 Not Found` — The content, selected category or public cover image is unavailable.
+}

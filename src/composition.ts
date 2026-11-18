@@ -2,6 +2,7 @@ import { createAccountService } from "./application/account.ts";
 import { createAuthService } from "./application/auth.ts";
 import { createCalendarService } from "./application/calendar.ts";
 import { createContentCategoriesService } from "./application/content-categories.ts";
+import { createContentsService } from "./application/contents.ts";
 import { createFilesService } from "./application/files.ts";
 import { createRolesService } from "./application/roles.ts";
 import { createSettingsService } from "./application/settings.ts";
@@ -9,10 +10,12 @@ import { createUsersService } from "./application/users.ts";
 import type { Dependencies } from "./dependencies.ts";
 import { createAuthGateway } from "./infrastructure/auth/gateway.ts";
 import { createOtpGateway } from "./infrastructure/auth/otp.ts";
+import { normalizeContentBody } from "./infrastructure/content/rich-text.ts";
 import { createAccountPersistence } from "./infrastructure/persistence/account.ts";
 import { createAuthPersistence } from "./infrastructure/persistence/auth.ts";
 import { createDrizzleCalendarRepository } from "./infrastructure/persistence/calendar.ts";
 import { createDrizzleContentCategoriesRepository } from "./infrastructure/persistence/content-categories.ts";
+import { createDrizzleContentsRepository } from "./infrastructure/persistence/contents.ts";
 import { createDrizzleFileRepository } from "./infrastructure/persistence/files.ts";
 import { createDrizzleRolesRepository } from "./infrastructure/persistence/roles.ts";
 import { createDrizzleSettingsRepository } from "./infrastructure/persistence/settings.ts";
@@ -54,6 +57,11 @@ export const createApp = ({
     calendar: createCalendarService(createDrizzleCalendarRepository(database)),
     contentCategories: createContentCategoriesService(
       createDrizzleContentCategoriesRepository(database),
+    ),
+    contents: createContentsService(
+      createDrizzleContentsRepository(database),
+      (file) => storage.url(file.bucket, file.objectKey, file.visibility),
+      normalizeContentBody,
     ),
     files: createFilesService({
       getImageUploadLimit: settings.getImageUploadLimit,

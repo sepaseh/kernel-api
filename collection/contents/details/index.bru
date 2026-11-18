@@ -1,0 +1,40 @@
+meta {
+  name: Get Content
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/contents/{{content_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  ## Purpose
+
+  Returns a content entry by UUID.
+
+  ## Authentication
+
+  Requires a valid access token with the `contents.read` permission.
+
+  ## Behavior
+
+  - The response includes the current category and the cover image's public URL.
+
+  ## Response
+
+  - `200 OK` — Content returned.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user lacks the required permission.
+  - `404 Not Found` — The content does not exist.
+}

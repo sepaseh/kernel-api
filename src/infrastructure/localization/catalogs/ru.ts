@@ -6,6 +6,10 @@ export const ru = {
   contentCategoryNotFound: "Категория материалов не найдена.",
   contentCategoryOrderInvalid:
     "Обновите список категорий и отправьте идентификатор каждой текущей категории ровно один раз.",
+  contentCoverImageNotFound: "Общедоступное изображение обложки не найдено.",
+  contentCoverImageTypeInvalid:
+    "Загрузите изображение обложки в формате AVIF, GIF, JPEG, PNG или WebP.",
+  contentNotFound: "Материал не найден.",
   fileInUse:
     "Этот файл используется. Устраните ссылки на него перед удалением.",
   permissionContentCategories: "Категории материалов",
@@ -13,6 +17,11 @@ export const ru = {
   permissionContentCategoriesDelete: "Удалять категории материалов",
   permissionContentCategoriesRead: "Просматривать категории материалов",
   permissionContentCategoriesUpdate: "Изменять категории материалов",
+  permissionContents: "Материалы",
+  permissionContentsCreate: "Создавать материалы",
+  permissionContentsDelete: "Удалять материалы",
+  permissionContentsRead: "Просматривать материалы",
+  permissionContentsUpdate: "Изменять материалы",
   permissionFiles: "Файлы",
   permissionFilesDelete: "Удалять файлы",
   permissionFilesRead: "Просматривать файлы",
