@@ -1,6 +1,11 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const fa = {
+  fileInUse:
+    "این فایل در حال استفاده است. پیش از حذف، موارد استفاده از آن را برطرف کنید.",
+  permissionFiles: "فایل‌ها",
+  permissionFilesDelete: "حذف فایل‌ها",
+  permissionFilesRead: "مشاهدهٔ فایل‌ها",
   authThrottled:
     "تعداد تلاش‌های احراز هویت بیش از حد مجاز است. بعداً دوباره تلاش کنید.",
   bodyTooLarge: "حجم بدنه درخواست از محدودیت مجاز بیشتر است.",

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "uploaded-logo",
+    "is_used": true,
+    "size": 7,
+    "url": "http://localhost:3000/files/uploaded-logo/content"
+  },
+  {
+    "id": "private-file",
+    "is_used": false,
+    "size": 14
+  }
+]

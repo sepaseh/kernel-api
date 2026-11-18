@@ -78,6 +78,10 @@ export type ApiMessageKey =
   | "userStatusInvalid"
   | "usernameInUse"
   | "usernameInvalid"
-  | "visibilityInvalid";
+  | "visibilityInvalid"
+  | "fileInUse"
+  | "permissionFiles"
+  | "permissionFilesDelete"
+  | "permissionFilesRead";
 
 export type ApiTranslationResource = Record<ApiMessageKey, string>;

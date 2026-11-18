@@ -6,6 +6,10 @@ import { before, test } from "node:test";
 import { permissionGroupDefinitions } from "../src/application/permissions.ts";
 import { createRolesService } from "../src/application/roles.ts";
 import { supportedLanguages } from "../src/contracts/locales.ts";
+import {
+  defaultImageSettings,
+  parseImageSettings,
+} from "../src/contracts/settings.ts";
 import { en } from "../src/infrastructure/localization/catalogs/en.ts";
 import { LocalFileStorage } from "../src/infrastructure/storage/local.ts";
 import {
@@ -38,6 +42,7 @@ test("language and settings examples follow published local contracts", async ()
     localStoragePath: "synthetic-not-used",
   });
   const get = await read("settings/get/200.json");
+  assert.deepEqual(get.image_settings, defaultImageSettings);
   for (const logo of [get.dark_logo, get.light_logo])
     assert.equal(
       logo.url,
@@ -50,6 +55,11 @@ test("language and settings examples follow published local contracts", async ()
   const body = JSON.parse(request.match(/body:json \{\s*\n([\s\S]*?)\n\}/)[1]);
   const updated = await read("settings/update/200.json");
   assert.deepEqual(updated.dark_theme, body.dark_theme);
+  assert.deepEqual(updated.image_settings, body.image_settings);
+  assert.deepEqual(
+    parseImageSettings(body.image_settings),
+    body.image_settings,
+  );
   assert.deepEqual(updated.light_theme, body.light_theme);
   for (const theme of [body.dark_theme, body.light_theme])
     assert.deepEqual(Object.keys(theme).sort(), [

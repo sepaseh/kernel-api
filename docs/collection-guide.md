@@ -71,3 +71,14 @@ may change it. An unchanged compatibility input from an ordinary editor is never
 written, protecting a concurrent administrator change. Apply returned settings after
 success and account for the documented invalid, unauthenticated, forbidden and
 missing-language/logo responses. No list/pagination contract is needed for this screen.
+Settings responses include `image_settings` for `contents` and `logo`. A PUT
+without `image_settings` preserves the stored values. When it sends them, it
+supplies both contexts with integer `width`, `height`, and maximum byte `size`.
+
+Upload with multipart `context=logo` for a logo. The corresponding
+`image_settings` entry describes crop dimensions and upload size. Use `size`
+in bytes and `is_used` for the file management list. Deleting a file used as
+a settings logo returns a localized 409.
+
+The users screen sends `page` to `GET /users` for one-based pages of 24. Clients
+using the existing `offset` and `size` parameters retain variable-size pages.

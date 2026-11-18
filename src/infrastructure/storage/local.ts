@@ -19,7 +19,16 @@ export class LocalFileStorage implements ObjectStorage {
   }
 
   async delete(bucket: string, objectKey: string) {
-    await unlink(this.#resolveExisting(bucket, objectKey));
+    try {
+      await unlink(this.#resolveExisting(bucket, objectKey));
+    } catch (error) {
+      if (!(
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ))
+        throw error;
+    }
   }
 
   async ensureReady() {

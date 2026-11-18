@@ -55,6 +55,7 @@ const appForTest = (
           return {
             id: "file",
             contentType: "text/plain",
+            size: bytes.byteLength,
             visibility: "public",
           };
         },

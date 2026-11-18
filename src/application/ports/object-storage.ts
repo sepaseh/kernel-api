@@ -4,6 +4,7 @@ type StoredObject = {
 };
 
 export type ObjectStorage = {
+  // Delete is safe to retry when the object has already been removed.
   delete(bucket: string, objectKey: string): Promise<void>;
   ensureReady(signal?: AbortSignal): Promise<void>;
   get(bucket: string, objectKey: string): Promise<Uint8Array>;

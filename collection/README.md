@@ -31,16 +31,18 @@ inventory, without private Bruno environments.
 The API implements the features below. Use the inventory's published groups to
 determine which request directories and examples are included at this stage.
 
-- Authentication: register, login, OTP request, refresh token, forgot password,
+- **Authentication.** Register, login, OTP request, refresh token, forgot password,
   change password, and logout.
-- Account: current account, profile and username updates, and email verification.
-- Calendar: list, create, and delete configured dates.
-- Roles: list, create, details, update, and delete.
-- Permissions: role-scoped list.
-- System settings: public details and authenticated update.
-- Languages: authenticated list of supported languages.
-- Files: multipart upload used by application logos.
-- Users: list, create, details, update, delete, status, system-admin, password,
+- **Account.** Current account, profile and username updates, and email verification.
+- **Calendar.** List, create, and delete configured dates.
+- **Files.** Upload, list with byte size and usage status, retrieve public
+  content, and permanently delete unused files.
+- **Roles.** List, create, details, update, and delete.
+- **Permissions.** Role-scoped list.
+- **System settings.** Public details and authenticated update of themes, logos,
+  image settings, and the configured language.
+- **Languages.** Authenticated list of supported languages.
+- **Users.** List, create, details, update, delete, status, system-admin, password,
   roles, and mobile verification.
 
 Clients may restore an in-memory token through `/auth/refresh-token`; the
@@ -52,6 +54,13 @@ page. Session cookies are also used by the authentication adapter.
 Run the login request with a local test account. Its post-response script stores
 the returned access token as `access_token` in the active environment. The
 remaining authenticated requests use that token.
+
+Use multipart `context=logo` for branding images. The upload response includes
+`size` in bytes and starts with `is_used: false`. The files list reports whether
+settings now reference each file.
+
+Send `page` to list users in one-based pages of 24. Existing consumers can
+continue sending `offset` and `size` for variable-size pages.
 
 Saved response files sit beside each published request and are named after its
 HTTP status code. Saved error examples use English messages. When the settings

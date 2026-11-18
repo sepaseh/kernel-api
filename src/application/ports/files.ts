@@ -20,11 +20,19 @@ export class FileInsertNotCommittedError extends Error {
 }
 
 export type FileRepository = {
+  beginDeletion(id: string): Promise<PendingFileDeletion | undefined>;
+  finishDeletion(id: string): Promise<void>;
   findById(id: string): Promise<FileRecord | undefined>;
   // Use FileInsertNotCommittedError only when the insert is known not to have
   // committed. Other rejections may leave a row referencing the stored bytes.
   insert(record: FileRecord): Promise<void>;
+  list(): Promise<Array<FileRecord & { isUsed: boolean }>>;
 };
+
+export type PendingFileDeletion = Pick<
+  FileRecord,
+  "bucket" | "id" | "objectKey"
+>;
 
 export type UploadFileSource = {
   name: string;
@@ -36,6 +44,7 @@ export type UploadFileSource = {
 
 export type FileUploadInput = {
   actor: Actor;
+  context?: unknown;
   source?: UploadFileSource;
   visibility: unknown;
 };
@@ -46,6 +55,7 @@ export type FileUploadStage =
 export type UploadedFile = {
   contentType: FileRecord["contentType"];
   id: FileRecord["id"];
+  size: FileRecord["size"];
   url?: string;
   visibility: FileRecord["visibility"];
 };

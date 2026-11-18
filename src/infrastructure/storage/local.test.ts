@@ -228,16 +228,14 @@ test("a failed final close removes this call's object and preserves the close er
   });
 });
 
-test("missing reads and deletes expose a failure rather than a fabricated success", async (context) => {
+test("missing reads fail and object deletion can be retried", async (context) => {
   const { storage } = await fixture(context);
   await storage.ensureReady();
   for (const bucket of ["local-private", "local-public"]) {
     await assert.rejects(storage.get(bucket, "missing/object"), {
       code: "ENOENT",
     });
-    await assert.rejects(storage.delete(bucket, "missing/object"), {
-      code: "ENOENT",
-    });
+    await storage.delete(bucket, "missing/object");
   }
 });
 

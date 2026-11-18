@@ -46,10 +46,13 @@ const fixture = () => {
   const objects = new Map<string, Uint8Array>();
   const deleted: string[] = [];
   const repository: FileRepository = {
+    beginDeletion: async () => undefined,
+    finishDeletion: async () => {},
     findById: async (id) => records.get(id),
     insert: async (record) => {
       records.set(record.id, record);
     },
+    list: async () => [],
   };
   const storage: ObjectStorage = {
     delete: async (_bucket, key) => {
@@ -70,6 +73,7 @@ const fixture = () => {
       visibility === "public" ? `https://storage.example/${key}` : undefined,
   };
   const service = createFilesService({
+    getImageUploadLimit: async () => 10,
     newId: () => "fixture-file",
     now: () => new Date("2026-01-02"),
     repository,
@@ -139,6 +143,7 @@ test("public uploads use the injected ports and private records cannot be read p
   assert.deepEqual(result, {
     contentType: "image/png",
     id: "fixture-file",
+    size: 3,
     url: "https://storage.example/fixture-file/a-b-picture.png",
     visibility: "public",
   });

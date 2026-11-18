@@ -1,6 +1,11 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const tr = {
+  fileInUse:
+    "Bu dosya kullanılıyor. Silmeden önce dosyaya yapılan başvuruları kaldırın.",
+  permissionFiles: "Dosyalar",
+  permissionFilesDelete: "Dosyaları silme",
+  permissionFilesRead: "Dosyaları görüntüleme",
   authThrottled:
     "Çok fazla kimlik doğrulama denemesi. Daha sonra tekrar deneyin.",
   bodyTooLarge: "İstek gövdesi boyut sınırını aşıyor.",

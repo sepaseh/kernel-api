@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 
 import type { FileEvents } from "../../../application/ports/files.ts";
+import type { UploadedFileResponse } from "../../../contracts/files.ts";
 import type { AppEnvironment } from "../http.ts";
 import { ApiError, authenticate } from "../http.ts";
 
@@ -71,6 +72,33 @@ const inlineContentTypes = new Set([
 
 export const createFileRoutes = () => {
   const app = new Hono<AppEnvironment>();
+
+  app.get("/", async (context) => {
+    await authenticate(context, { permission: "files.read" });
+    return context.json(
+      await context.get("dependencies").services.files.list(),
+    );
+  });
+
+  app.delete("/:fileId", async (context) => {
+    await authenticate(context, { permission: "files.delete" });
+    await context
+      .get("dependencies")
+      .services.files.remove(context.req.param("fileId"), {
+        storageFailed: ({ fileId, operation }) => {
+          context.get("logger").error(
+            {
+              event: "storage.operation.failed",
+              fileId,
+              operation,
+              storageDriver: context.get("dependencies").config.storageDriver,
+            },
+            "Storage operation failed",
+          );
+        },
+      });
+    return context.body(null, 200);
+  });
 
   app.get("/:fileId/content", async (context) => {
     const dependencies = context.get("dependencies");
@@ -162,6 +190,7 @@ export const createFileRoutes = () => {
       const result = await dependencies.services.files.upload(
         {
           actor,
+          context: form.get("context") ?? undefined,
           source:
             file instanceof File
               ? {
@@ -171,7 +200,7 @@ export const createFileRoutes = () => {
                   type: file.type,
                 }
               : undefined,
-          visibility: form.get("visibility"),
+          visibility: form.get("visibility") ?? undefined,
         },
         events,
       );
@@ -179,9 +208,11 @@ export const createFileRoutes = () => {
         {
           content_type: result.contentType,
           id: result.id,
+          is_used: false,
+          size: result.size,
           ...(result.url && { url: result.url }),
           visibility: result.visibility,
-        },
+        } satisfies UploadedFileResponse,
         201,
       );
     } finally {

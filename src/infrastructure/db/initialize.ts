@@ -77,6 +77,7 @@ const seed = async (database: Database, auth: Auth) => {
       (await transaction.query.user.findFirst()) ||
       (await transaction.query.roles.findFirst()) ||
       (await transaction.query.calendarDates.findFirst()) ||
+      (await transaction.query.pendingFileDeletions.findFirst()) ||
       (await transaction.query.files.findFirst())
     )
       throw new Error("Development seed requires an empty business database.");

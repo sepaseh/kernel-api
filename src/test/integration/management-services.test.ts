@@ -11,6 +11,7 @@ import type { CalendarRepository } from "../../application/ports/calendar.ts";
 import type { SettingsRepository } from "../../application/ports/settings.ts";
 import { createRolesService } from "../../application/roles.ts";
 import { createSettingsService } from "../../application/settings.ts";
+import { defaultImageSettings } from "../../contracts/settings.ts";
 import * as schema from "../../infrastructure/db/schema.ts";
 import { createDrizzleRolesRepository } from "../../infrastructure/persistence/roles.ts";
 import { createDrizzleSettingsRepository } from "../../infrastructure/persistence/settings.ts";
@@ -152,10 +153,12 @@ test("settings use cases preserve the configured language and reject invalid col
   );
   const service = createSettingsService(
     {
+      readImageSettings: async () => defaultImageSettings,
       readLanguageCode: async () => "fa",
       read: async () => ({
         languageCode: "fa",
         darkTheme: palette,
+        imageSettings: defaultImageSettings,
         lightTheme: palette,
       }),
       save: async () => {
@@ -210,6 +213,7 @@ test("malformed themes do not block language resolution or settings repair", asy
         id INTEGER PRIMARY KEY,
         language_code TEXT NOT NULL,
         dark_theme TEXT NOT NULL,
+        image_settings TEXT NOT NULL DEFAULT '${JSON.stringify(defaultImageSettings)}',
         light_theme TEXT NOT NULL,
         dark_logo_id TEXT,
         light_logo_id TEXT
@@ -272,9 +276,11 @@ test("only system administrators can write language while settings editors retai
     {
       read: async () => ({
         darkTheme: palette,
+        imageSettings: defaultImageSettings,
         languageCode,
         lightTheme: palette,
       }),
+      readImageSettings: async () => defaultImageSettings,
       readLanguageCode: async () => languageCode,
       save: async (input) => {
         writes.push(input);
@@ -321,6 +327,7 @@ test("an ordinary branding save cannot overwrite an interleaved system language 
         id INTEGER PRIMARY KEY,
         language_code TEXT NOT NULL,
         dark_theme TEXT NOT NULL,
+        image_settings TEXT NOT NULL DEFAULT '${JSON.stringify(defaultImageSettings)}',
         light_theme TEXT NOT NULL,
         dark_logo_id TEXT,
         light_logo_id TEXT

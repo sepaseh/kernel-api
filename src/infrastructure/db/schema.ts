@@ -8,6 +8,8 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
+import { defaultImageSettings } from "../../contracts/settings.ts";
+
 export const user = sqliteTable("user", {
   createdAt: integer("created_at", { mode: "timestamp" })
     .$defaultFn(() => new Date())
@@ -143,12 +145,21 @@ export const files = sqliteTable("files", {
   visibility: text("visibility", { enum: ["private", "public"] }).notNull(),
 });
 
+export const pendingFileDeletions = sqliteTable("pending_file_deletions", {
+  bucket: text("bucket").notNull(),
+  id: text("id").primaryKey(),
+  objectKey: text("object_key").notNull(),
+});
+
 export const settings = sqliteTable("settings", {
   darkLogoId: text("dark_logo_id").references(() => files.id, {
     onDelete: "restrict",
   }),
   darkTheme: text("dark_theme").notNull(),
   id: integer("id").primaryKey(),
+  imageSettings: text("image_settings")
+    .notNull()
+    .default(JSON.stringify(defaultImageSettings)),
   languageCode: text("language_code").notNull(),
   lightLogoId: text("light_logo_id").references(() => files.id, {
     onDelete: "restrict",

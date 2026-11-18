@@ -20,7 +20,7 @@ headers {
 
 body:multipart-form {
   file: @file()
-  visibility: public
+  context: logo
 }
 
 docs {
@@ -30,12 +30,19 @@ docs {
 
   ## Authentication
 
-  A public upload requires a system administrator or `settings.update`; private uploads require authentication.
+  A logo upload requires a system administrator or `settings.update`.
+
+  ## Behavior
+
+  Logo uploads are public and use the smaller of the configured logo size and the server upload limit.
+  Existing clients may send `visibility: public` or `visibility: private` without a context.
+  Legacy public uploads require a system administrator or `settings.update`.
+  Private uploads require authentication and return no public URL.
 
   ## Response
 
-  - `201 Created` — File stored successfully.
-  - `400 Bad Request` — File or visibility is invalid.
+  - `201 Created` — File stored successfully. The response contains the ID, byte size, initial usage, content type, visibility and public URL when available.
+  - `400 Bad Request` — File, context or visibility is invalid.
   - `401 Unauthorized` — Authentication is missing or invalid.
   - `403 Forbidden` — Public upload is not allowed.
   - `408 Request Timeout` — The request body is still incomplete after the 60-second read deadline.
