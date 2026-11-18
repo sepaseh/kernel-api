@@ -3,6 +3,7 @@ import type { AuthService } from "../../application/auth.ts";
 import type { createCalendarService } from "../../application/calendar.ts";
 import type { createContentCategoriesService } from "../../application/content-categories.ts";
 import type { ContentsService } from "../../application/contents.ts";
+import type { createFaqsService } from "../../application/faqs.ts";
 import type { FilesService } from "../../application/files.ts";
 import type { createRolesService } from "../../application/roles.ts";
 import type { createSettingsService } from "../../application/settings.ts";
@@ -26,6 +27,7 @@ export type HttpDependencies = {
     calendar: ReturnType<typeof createCalendarService>;
     contentCategories: ReturnType<typeof createContentCategoriesService>;
     contents: ContentsService;
+    faqs: ReturnType<typeof createFaqsService>;
     files: FilesService;
     roles: ReturnType<typeof createRolesService>;
     settings: ReturnType<typeof createSettingsService>;

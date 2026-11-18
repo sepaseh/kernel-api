@@ -12,6 +12,7 @@ import { createAuthRoutes } from "../src/presentation/http/routes/auth.ts";
 import { createCalendarRoutes } from "../src/presentation/http/routes/calendar.ts";
 import { createContentCategoryRoutes } from "../src/presentation/http/routes/content-categories.ts";
 import { createContentRoutes } from "../src/presentation/http/routes/contents.ts";
+import { createFaqRoutes } from "../src/presentation/http/routes/faqs.ts";
 import { createFileRoutes } from "../src/presentation/http/routes/files.ts";
 import { createRoleRoutes } from "../src/presentation/http/routes/roles.ts";
 import {
@@ -27,6 +28,7 @@ export const collectionRoutes = {
   calendar: createCalendarRoutes,
   "content-categories": createContentCategoryRoutes,
   contents: createContentRoutes,
+  faqs: createFaqRoutes,
   files: createFileRoutes,
   languages: createLanguageRoutes,
   roles: createRoleRoutes,

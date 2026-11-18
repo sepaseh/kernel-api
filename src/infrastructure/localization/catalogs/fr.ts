@@ -10,6 +10,9 @@ export const fr = {
   contentCoverImageTypeInvalid:
     "Importez une image de couverture au format AVIF, GIF, JPEG, PNG ou WebP.",
   contentNotFound: "Contenu introuvable.",
+  faqNotFound: "Cette question fréquente n’existe pas.",
+  faqOrderChanged:
+    "La liste des questions fréquentes a changé. Rechargez-la avant de la réorganiser.",
   fileInUse:
     "Ce fichier est utilisé. Résolvez ses références avant de le supprimer.",
   permissionContentCategories: "Catégories de contenu",
@@ -22,6 +25,11 @@ export const fr = {
   permissionContentsDelete: "Supprimer du contenu",
   permissionContentsRead: "Voir le contenu",
   permissionContentsUpdate: "Modifier le contenu",
+  permissionFaqs: "Questions fréquentes",
+  permissionFaqsCreate: "Créer des questions fréquentes",
+  permissionFaqsDelete: "Supprimer des questions fréquentes",
+  permissionFaqsRead: "Voir les questions fréquentes",
+  permissionFaqsUpdate: "Modifier les questions fréquentes",
   permissionFiles: "Fichiers",
   permissionFilesDelete: "Supprimer des fichiers",
   permissionFilesRead: "Voir les fichiers",

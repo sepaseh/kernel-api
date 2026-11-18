@@ -17,9 +17,9 @@ Request directories and saved examples become available with their owning group.
    `base_url`; include its scheme and port when configured. The collection sends
    it as the `Origin` header so requests with session cookies pass the server's
    origin check. For individual resources, set `user_id`, `role_id`, `file_id`,
-   `content_id`, and `content_category_id` to synthetic identifiers created
-   on the disposable local server. The category sorting example also uses
-   `other_content_category_id` for the second entry.
+   `content_id`, `content_category_id`, and `faq_id` to synthetic identifiers
+   created on the disposable local server. The sorting examples also use
+   `other_content_category_id` and `faq_second_id` for the second entry in each list.
    For calendar deletion, set `calendar_date` in the active environment to the
    date to remove in `YYYY-MM-DD` format.
    Select a synthetic local file in Bruno before sending the upload request.
@@ -37,7 +37,7 @@ determine which request directories and examples are included at this stage.
   change password, and logout.
 - **Account.** Current account, profile and username updates, and email verification.
 - **Calendar.** List, create, and delete configured dates.
-- **Content categories.** List, create, details, update, hard deletion,
+- **Content categories and FAQs.** List, create, details, update, hard deletion,
   and sorting. Each sort submits the complete set of IDs in the desired order.
 - **Contents.** Page, filter, create, read, update, and delete content with a
   category and a public cover image.

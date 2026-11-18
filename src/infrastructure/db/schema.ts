@@ -151,6 +151,17 @@ export const pendingFileDeletions = sqliteTable("pending_file_deletions", {
   objectKey: text("object_key").notNull(),
 });
 
+export const faqs = sqliteTable(
+  "faqs",
+  {
+    answer: text("answer").notNull(),
+    id: text("id").primaryKey(),
+    position: integer("position").notNull(),
+    question: text("question").notNull(),
+  },
+  (table) => [index("faqs_position_index").on(table.position)],
+);
+
 export const contentCategories = sqliteTable(
   "content_categories",
   {

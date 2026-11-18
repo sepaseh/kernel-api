@@ -1,0 +1,48 @@
+meta {
+  name: Create FAQ
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/faqs
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "answer": "Open the account settings and choose Update Profile.",
+    "question": "How do I update my profile?"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Appends an FAQ to the display order and assigns a UUID.
+
+  ## Authentication
+
+  Requires a valid access token with `faqs.create` permission.
+
+  ## Behavior
+
+  Both fields are required nonblank strings, limited after trimming to 300 UTF-16 code units for `question` and 5,000 for `answer`.
+
+  ## Response
+
+  - `201 Created` — Returns the new FAQ.
+  - `400 Bad Request` — The question or answer is missing or invalid.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user lacks the required permission.
+}

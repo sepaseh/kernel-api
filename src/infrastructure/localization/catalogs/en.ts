@@ -8,6 +8,8 @@ export const en = {
   contentCoverImageTypeInvalid:
     "Upload an AVIF, GIF, JPEG, PNG or WebP cover image.",
   contentNotFound: "Content not found.",
+  faqNotFound: "The FAQ does not exist.",
+  faqOrderChanged: "The FAQ list changed. Reload it before sorting again.",
   fileInUse:
     "This file is in use. Resolve its references before deleting the file.",
   permissionContentCategories: "Content categories",
@@ -20,6 +22,11 @@ export const en = {
   permissionContentsDelete: "Delete content",
   permissionContentsRead: "View content",
   permissionContentsUpdate: "Update content",
+  permissionFaqs: "Frequently asked questions",
+  permissionFaqsCreate: "Create FAQs",
+  permissionFaqsDelete: "Delete FAQs",
+  permissionFaqsRead: "View FAQs",
+  permissionFaqsUpdate: "Update FAQs",
   permissionFiles: "Files",
   permissionFilesDelete: "Delete files",
   permissionFilesRead: "View files",

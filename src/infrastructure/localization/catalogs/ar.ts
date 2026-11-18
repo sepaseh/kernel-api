@@ -9,6 +9,9 @@ export const ar = {
   contentCoverImageTypeInvalid:
     "حمّل صورة غلاف بتنسيق AVIF أو GIF أو JPEG أو PNG أو WebP.",
   contentNotFound: "المحتوى غير موجود.",
+  faqNotFound: "هذا السؤال الشائع غير موجود.",
+  faqOrderChanged:
+    "تغيرت قائمة الأسئلة الشائعة. أعد تحميلها قبل إعادة الترتيب.",
   fileInUse: "هذا الملف قيد الاستخدام. أزل المراجع إليه قبل حذفه.",
   permissionContentCategories: "فئات المحتوى",
   permissionContentCategoriesCreate: "إنشاء فئات المحتوى",
@@ -20,6 +23,11 @@ export const ar = {
   permissionContentsDelete: "حذف المحتوى",
   permissionContentsRead: "عرض المحتوى",
   permissionContentsUpdate: "تعديل المحتوى",
+  permissionFaqs: "الأسئلة الشائعة",
+  permissionFaqsCreate: "إنشاء الأسئلة الشائعة",
+  permissionFaqsDelete: "حذف الأسئلة الشائعة",
+  permissionFaqsRead: "عرض الأسئلة الشائعة",
+  permissionFaqsUpdate: "تعديل الأسئلة الشائعة",
   permissionFiles: "الملفات",
   permissionFilesDelete: "حذف الملفات",
   permissionFilesRead: "عرض الملفات",

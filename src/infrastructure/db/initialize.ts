@@ -79,6 +79,7 @@ const seed = async (database: Database, auth: Auth) => {
       (await transaction.query.calendarDates.findFirst()) ||
       (await transaction.query.contentCategories.findFirst()) ||
       (await transaction.query.contents.findFirst()) ||
+      (await transaction.query.faqs.findFirst()) ||
       (await transaction.query.pendingFileDeletions.findFirst()) ||
       (await transaction.query.files.findFirst())
     )

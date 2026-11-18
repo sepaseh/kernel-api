@@ -10,6 +10,9 @@ export const tr = {
   contentCoverImageTypeInvalid:
     "AVIF, GIF, JPEG, PNG veya WebP biçiminde bir kapak görseli yükleyin.",
   contentNotFound: "İçerik bulunamadı.",
+  faqNotFound: "Bu sık sorulan soru bulunamadı.",
+  faqOrderChanged:
+    "Sık sorulan sorular listesi değişti. Yeniden sıralamadan önce listeyi yükleyin.",
   fileInUse:
     "Bu dosya kullanılıyor. Silmeden önce dosyaya yapılan başvuruları kaldırın.",
   permissionContentCategories: "İçerik kategorileri",
@@ -22,6 +25,11 @@ export const tr = {
   permissionContentsDelete: "İçerik silme",
   permissionContentsRead: "İçerik görüntüleme",
   permissionContentsUpdate: "İçerik güncelleme",
+  permissionFaqs: "Sık sorulan sorular",
+  permissionFaqsCreate: "Sık sorulan sorular oluşturma",
+  permissionFaqsDelete: "Sık sorulan soruları silme",
+  permissionFaqsRead: "Sık sorulan soruları görüntüleme",
+  permissionFaqsUpdate: "Sık sorulan soruları güncelleme",
   permissionFiles: "Dosyalar",
   permissionFilesDelete: "Dosyaları silme",
   permissionFilesRead: "Dosyaları görüntüleme",
