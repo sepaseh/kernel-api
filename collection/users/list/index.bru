@@ -24,7 +24,7 @@ params:query {
   last_name:
   mobile:
   offset: 0
-  size: 12
+  page: 1
   status:
   username:
 }
@@ -41,7 +41,8 @@ docs {
   ## Behavior
 
   - `offset` specifies the number of users to skip and defaults to `0`.
-  - `size` specifies the maximum number of users to return, defaults to `12`, and is capped at `100`.
+  - `page` starts at 1 and returns up to 24 users. Invalid page values fall back to page 1.
+  - Existing clients may omit `page` and use `offset` and `size`. This mode defaults to 12 users and caps `size` at 100.
   - `email`, `mobile`, and `username` are optional exact-match filters.
   - `first_name` and `last_name` are optional case-insensitive partial-match filters.
   - `status` is an optional activation-state filter accepting `active` or `inactive`.

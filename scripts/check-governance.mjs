@@ -110,9 +110,18 @@ const sourceToolingFiles = [
   "scripts/merge-coverage.mjs",
   "scripts/merge-coverage.test.mjs",
 ];
-const governanceDependencies = { prettier: "3.9.10", yaml: "2.9.1" };
-export const reviewedOverrides = { "minimatch@10.2.6": "11.0.5" };
-const reviewedAuthCoreVersion = "1.7.18";
+const governanceDependencies = { prettier: "3.10.1", yaml: "2.9.1" };
+const reviewedPicomatch = {
+  name: "@ryotsu/picomatch",
+  version: "4.0.7-a",
+  integrity:
+    "sha512-JroBFEmaejC7szGSfqOhF1QZHLKvX2wTA1+fWyfkpy3BjzdQKNPLKa2FtgeKVUDy5/UPUNkXEeCHJ5ZRBMLTVA==",
+};
+export const reviewedOverrides = {
+  "minimatch@10.2.6": "11.0.9",
+  picomatch: `npm:${reviewedPicomatch.name}@${reviewedPicomatch.version}`,
+};
+const reviewedAuthCoreVersion = "1.7.25";
 export const overridesForPackage = (pkg) => ({
   ...reviewedOverrides,
   ...(pkg.dependencies?.["better-auth"]
@@ -226,12 +235,12 @@ export const commandOwnersForPhase = (phase) => [
 export const foundationDependencies = {
   "@eslint/js": "10.0.1",
   "@types/node": "24.19.2",
-  eslint: "10.14.0",
+  eslint: "10.15.0",
   "eslint-plugin-simple-import-sort": "14.0.0",
   globals: "17.14.0",
   ...governanceDependencies,
   typescript: "6.0.3",
-  "typescript-eslint": "8.72.1",
+  "typescript-eslint": "8.73.0",
 };
 const scriptCommand = (id, phase) => {
   if (id === "actions-lint") return "node scripts/run-actionlint.mjs";
@@ -588,6 +597,14 @@ const validateLockfile = (pkg, lock, phase) => {
             entry.version === reviewedOverrides["minimatch@10.2.6"]),
         "The reviewed minimatch security override must be reflected in the lockfile.",
       );
+    if (location.endsWith("/picomatch"))
+      assert(
+        entry.dev === true &&
+          entry.name === reviewedPicomatch.name &&
+          entry.version === reviewedPicomatch.version &&
+          entry.integrity === reviewedPicomatch.integrity,
+        "Picomatch must resolve to the reviewed development-only security backport.",
+      );
     if (
       pkg.dependencies?.["better-auth"] &&
       location.endsWith("/@better-auth/core")
@@ -624,7 +641,7 @@ export const validatePackage = (pkg, lock, phase = "governance") => {
     equal(
       pkg.overrides,
       overridesForPackage(pkg),
-      "Only the reviewed minimatch and owned authentication core overrides, plus the scoped Drizzle compiler override, are permitted in source phases.",
+      "Only the reviewed minimatch and picomatch security overrides, the owned authentication core, and the scoped Drizzle compiler override are permitted in source phases.",
     );
   validateLockfile(pkg, lock, phase);
 };

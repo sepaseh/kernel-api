@@ -29,6 +29,25 @@ const parsePagination = (value: string | undefined, fallback: number) => {
   return Number.isSafeInteger(parsed) ? parsed : fallback;
 };
 
+const pageSize = 24;
+
+const pagination = (query: Record<string, string | undefined>) => {
+  if (query.page === undefined) {
+    const size = parsePagination(query.size, 12);
+    return {
+      offset: parsePagination(query.offset, 0),
+      size: size > 0 ? Math.min(size, 100) : 12,
+    };
+  }
+
+  const page = parsePagination(query.page, 1);
+  const offset = (page - 1) * pageSize;
+  return {
+    offset: offset >= 0 && Number.isSafeInteger(offset) ? offset : 0,
+    size: pageSize,
+  };
+};
+
 export const createUsersService = ({
   provider,
   repository,
@@ -161,14 +180,12 @@ export const createUsersService = ({
     },
     get,
     async list(query: Record<string, string | undefined>) {
-      const requestedSize = parsePagination(query.size, 12);
       const page = await repository.list({
         email: query.email,
         firstName: query.first_name,
         lastName: query.last_name,
         mobile: query.mobile,
-        offset: parsePagination(query.offset, 0),
-        size: requestedSize > 0 ? Math.min(requestedSize, 100) : 12,
+        ...pagination(query),
         status:
           query.status === "active" || query.status === "inactive"
             ? query.status

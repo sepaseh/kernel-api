@@ -24,8 +24,10 @@ its 10,000-window capacity, new identities are rejected until space becomes
 available. Deliberate saturation can still deny service, so independent ingress
 or shared-store throttling is essential.
 
-Login is limited to 20 attempts per identifier and immediate transport peer
-address in a 15-minute window. Clients behind one NAT or reverse proxy share a
+Login accepts either `identifier` or `mobile` with the password. The API uses
+`identifier` when both fields are included. Both forms share the limit of 20
+attempts per trimmed mobile number and immediate transport peer address in a
+15-minute window. Clients behind one NAT or reverse proxy share a
 source. The listener ignores forwarded client headers, and in-process requests
 without a transport peer share a fallback source. Registration, OTP issuance,
 password recovery and email-verification confirmation are each limited to 10

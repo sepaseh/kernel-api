@@ -68,7 +68,7 @@ const packageFixture = {
   version: "1.0.0",
   type: "module",
   scripts: packageScripts("governance"),
-  devDependencies: { prettier: "3.9.10", yaml: "2.9.1" },
+  devDependencies: { prettier: "3.10.1", yaml: "2.9.1" },
 };
 const syntheticIntegrity = "sha512-" + Buffer.alloc(64, 7).toString("base64");
 const lockForPackage = (pkg) => ({
@@ -1632,7 +1632,7 @@ test("coverage selects every published Node suite once and keeps audit records s
   assert.throws(() => coveragePlan(published, "foundation"), /never skipped/);
 });
 
-test("source packages allow only the reviewed minimatch override and require the locked fix", () => {
+test("source packages allow the reviewed glob overrides and require the locked fixes", () => {
   const pkg = {
     ...packageFixture,
     scripts: packageScripts("foundation"),
@@ -1696,6 +1696,27 @@ test("source packages allow only the reviewed minimatch override and require the
       ),
     /must not introduce dependency overrides/,
   );
+  const patched = {
+    dev: true,
+    name: "@ryotsu/picomatch",
+    version: "4.0.7-a",
+    integrity:
+      "sha512-JroBFEmaejC7szGSfqOhF1QZHLKvX2wTA1+fWyfkpy3BjzdQKNPLKa2FtgeKVUDy5/UPUNkXEeCHJ5ZRBMLTVA==",
+  };
+  const picomatchPath = "node_modules/tinyglobby/node_modules/picomatch";
+  reviewedLock.packages[picomatchPath] = patched;
+  validatePackage(pkg, reviewedLock, "foundation");
+  for (const fields of [
+    { name: "picomatch", version: "4.0.7" },
+    { integrity: syntheticIntegrity },
+    { dev: false },
+  ]) {
+    reviewedLock.packages[picomatchPath] = { ...patched, ...fields };
+    assert.throws(
+      () => validatePackage(pkg, reviewedLock, "foundation"),
+      /reviewed development-only security backport/,
+    );
+  }
 });
 
 test("plain validation exports are supported but a broken existing Git repository fails closed", async (context) => {
@@ -1709,8 +1730,8 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
   const dependencies = {
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
-    "better-auth": "1.7.18",
-    "@better-auth/drizzle-adapter": "1.7.18",
+    "better-auth": "1.7.25",
+    "@better-auth/drizzle-adapter": "1.7.25",
   };
   const pkg = {
     ...packageFixture,
@@ -1726,16 +1747,16 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
   );
   const lock = structuredClone(missingCore);
   lock.packages["node_modules/@better-auth/core"] = {
-    version: "1.7.18",
+    version: "1.7.25",
     integrity: syntheticIntegrity,
   };
   validatePackage(pkg, lock, "auth-bootstrap");
   for (const versions of [
-    ["1.7.14", "1.7.18"],
-    ["1.7.18", "1.7.14"],
+    ["1.7.14", "1.7.25"],
+    ["1.7.25", "1.7.14"],
     ["1.7.14", "1.7.14"],
-    ["1.7.18", undefined],
-    [undefined, "1.7.18"],
+    ["1.7.25", undefined],
+    [undefined, "1.7.25"],
   ]) {
     const mismatched = structuredClone(pkg);
     for (const [index, name] of [
@@ -1850,8 +1871,8 @@ test("HTTP composition publishes only owned listener commands while preserving b
   const dependencies = {
     hono: "4.13.14",
     "@hono/node-server": "2.1.5",
-    "better-auth": "1.7.18",
-    "@better-auth/drizzle-adapter": "1.7.18",
+    "better-auth": "1.7.25",
+    "@better-auth/drizzle-adapter": "1.7.25",
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
   };
@@ -1864,7 +1885,7 @@ test("HTTP composition publishes only owned listener commands while preserving b
   pkg.overrides = overridesForPackage(pkg);
   const lock = lockForPackage(pkg);
   lock.packages["node_modules/@better-auth/core"] = {
-    version: "1.7.18",
+    version: "1.7.25",
     integrity: syntheticIntegrity,
   };
   validatePackage(pkg, lock, "http-composition");

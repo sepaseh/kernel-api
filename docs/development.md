@@ -75,6 +75,11 @@ the installed TypeScript/ESLint peer ranges and upgrade `better-auth`,
 Refresh the lockfile and run the full validation profile after dependency
 changes. Do not use `--force` or `--legacy-peer-deps` to hide an incompatible tree.
 
+The development lint chain uses a pinned `@ryotsu/picomatch` backport for
+[CVE-2026-112366](https://github.com/advisories/GHSA-fc5q-39xc-vjpf).
+Snapshot validation checks the exact registry integrity and the development-only
+lockfile scope. Revisit the override when upstream publishes a compatible fix.
+
 Drizzle Kit's legacy loader uses the reviewed scoped esbuild override `0.28.2`.
 Keep that compatibility choice aligned with the lockfile and real toolchain
 tests; do not broaden it to unrelated esbuild consumers. Additional unused-code

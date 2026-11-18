@@ -17,14 +17,14 @@ export const createAuthRoutes = () => {
 
   app.post("/login", async (context) => {
     const body = await parseJson(context);
-    enforceAuthAttempt(
-      context,
-      "login",
-      requiredString(body.identifier, "identifier"),
+    const identifier = requiredString(
+      body.identifier === undefined ? body.mobile : body.identifier,
+      "identifier",
     );
+    enforceAuthAttempt(context, "login", identifier);
     const { services } = context.get("dependencies");
     const service = services.auth.fromRequest(context.req.raw.headers);
-    const result = await service.login(body);
+    const result = await service.login({ identifier, password: body.password });
     bindAuthenticatedUser(context, result.userId);
     copyCookies(context, service.responseCookies());
     return context.json({
