@@ -1753,6 +1753,62 @@ test("the reviewed Picomatch policy distinguishes installed and registry names",
     }
     delete lock.packages[location];
   }
+
+  lock.packages["node_modules/glob-tool/node_modules/glob-matcher"] = {
+    ...unrelated,
+    dev: true,
+    name: "picomatch",
+  };
+  assert.throws(
+    () => validatePackage(pkg, lock, "foundation"),
+    /reviewed development-only security backport/,
+  );
+});
+
+test("the reviewed Picomatch backport must remain outside the runtime dependency graph", () => {
+  const phase = "application-services";
+  const pkg = {
+    ...packageFixture,
+    scripts: packageScripts(phase),
+    dependencies: { "runtime-lib": "1.0.0" },
+    devDependencies: { ...foundationDependencies, "glob-tool": "1.0.0" },
+    overrides: reviewedOverrides,
+  };
+  const lock = lockForPackage(pkg);
+  const runtime = "node_modules/runtime-lib";
+  const bridge = `${runtime}/node_modules/@fixture/bridge`;
+  lock.packages[runtime].dependencies = { "@fixture/bridge": "1.0.0" };
+  lock.packages[bridge] = {
+    version: "1.0.0",
+    dependencies: { "@fixture/picomatch": "1.0.0" },
+    optionalDependencies: { "missing-optional": "1.0.0" },
+  };
+  lock.packages["node_modules/@fixture/picomatch"] = {
+    version: "1.0.0",
+    integrity: syntheticIntegrity,
+  };
+  lock.packages["node_modules/glob-tool"].dependencies = {
+    picomatch: "^4.0.4",
+  };
+  lock.packages["node_modules/picomatch"] = lockedPicomatch;
+  validatePackage(pkg, lock, phase);
+
+  for (const [kind, name, location] of [
+    ["dependencies", "picomatch", `${bridge}/node_modules/picomatch`],
+    ["optionalDependencies", "glob-backport", "node_modules/glob-backport"],
+    ["peerDependencies", "picomatch", `${runtime}/node_modules/picomatch`],
+  ]) {
+    const runtimeLock = structuredClone(lock);
+    runtimeLock.packages[bridge][kind] = {
+      ...runtimeLock.packages[bridge][kind],
+      [name]: name === "picomatch" ? "^4.0.4" : reviewedOverrides.picomatch,
+    };
+    runtimeLock.packages[location] = lockedPicomatch;
+    assert.throws(
+      () => validatePackage(pkg, runtimeLock, phase),
+      /reviewed Picomatch backport must not be reachable from runtime dependencies/,
+    );
+  }
 });
 
 test("the reviewed Picomatch backport must satisfy required package resolutions", () => {
