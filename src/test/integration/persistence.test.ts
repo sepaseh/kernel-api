@@ -1213,6 +1213,34 @@ test("user list reads the page and total in one batch", async (context) => {
   assert.equal(page.total, 1);
 });
 
+test("user list keeps users with the same creation time ordered across pages", async (context) => {
+  const { database } = await fixture(context);
+  const ids = Array.from(
+    { length: 26 },
+    (_, index) => `user-${String(index).padStart(2, "0")}`,
+  );
+  for (const [index, id] of ids.toReversed().entries())
+    await insertUser(database, id, `0912${String(index).padStart(7, "0")}`);
+  const older = await insertUser(database, "z-older", "09200000001");
+  await database
+    .update(schema.user)
+    .set({ createdAt: new Date(now.getTime() - 1_000) })
+    .where(eq(schema.user.id, older.id));
+
+  const repository = createDrizzleUsersRepository(database);
+  const first = await repository.list({ offset: 0, size: 24 });
+  const second = await repository.list({ offset: 24, size: 24 });
+  const expected = [older.id, ...ids];
+  assert.deepEqual(
+    first.items.map(({ id }) => id),
+    expected.slice(0, 24),
+  );
+  assert.deepEqual(
+    second.items.map(({ id }) => id),
+    expected.slice(24),
+  );
+});
+
 test("user write transactions roll back all fields and owned credential/session effects on failure", async (context) => {
   const { database } = await fixture(context);
   await insertUser(database);

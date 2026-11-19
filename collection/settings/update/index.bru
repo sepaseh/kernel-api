@@ -65,7 +65,8 @@ docs {
   - The PUT replaces both palettes and logo selections. Send existing `dark_logo.id`/`light_logo.id` as `dark_logo_id`/`light_logo_id` when retaining logos during an unrelated save; omitting either identifier clears that selection.
   - Both complete palettes are required and the operation is idempotent.
   - Omit `image_settings` to preserve the stored values. When provided, include `contents` and `logo` with integer `width` and `height` from 1 to 8192 pixels and a positive safe integer `size` in bytes.
-  - The browser uses the dimensions to crop images. The API applies the saved byte limits and global upload limit to uploads with the matching context.
+  - The browser uses the dimensions to crop images. For uploads with `context=logo`, the API uses the smaller of the saved logo size and the global upload limit.
+  - The API stores `contents` settings. `POST /files` returns `400 Bad Request` for `context=contents`. Uploads without a context use the global upload limit.
 
   ## Response
 
