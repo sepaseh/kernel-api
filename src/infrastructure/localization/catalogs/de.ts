@@ -10,6 +10,9 @@ export const de = {
   contentCoverImageTypeInvalid:
     "Laden Sie ein Titelbild im Format AVIF, GIF, JPEG, PNG oder WebP hoch.",
   contentNotFound: "Der Inhalt wurde nicht gefunden.",
+  faqNotFound: "Diese häufig gestellte Frage ist nicht vorhanden.",
+  faqOrderChanged:
+    "Die Liste der häufig gestellten Fragen hat sich geändert. Laden Sie sie vor dem Sortieren neu.",
   fileInUse:
     "Diese Datei wird verwendet. Lösen Sie ihre Verknüpfungen vor dem Löschen auf.",
   permissionContentCategories: "Inhaltskategorien",
@@ -22,6 +25,11 @@ export const de = {
   permissionContentsDelete: "Inhalte löschen",
   permissionContentsRead: "Inhalte anzeigen",
   permissionContentsUpdate: "Inhalte bearbeiten",
+  permissionFaqs: "Häufig gestellte Fragen",
+  permissionFaqsCreate: "Häufig gestellte Fragen erstellen",
+  permissionFaqsDelete: "Häufig gestellte Fragen löschen",
+  permissionFaqsRead: "Häufig gestellte Fragen anzeigen",
+  permissionFaqsUpdate: "Häufig gestellte Fragen bearbeiten",
   permissionFiles: "Dateien",
   permissionFilesDelete: "Dateien löschen",
   permissionFilesRead: "Dateien anzeigen",

@@ -1,0 +1,51 @@
+meta {
+  name: Sort FAQs
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{base_url}}/faqs/sort
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "ids": [
+      "{{faq_second_id}}",
+      "{{faq_id}}"
+    ]
+  }
+}
+
+docs {
+  ## Purpose
+
+  Saves the display order of all FAQs in one transaction.
+
+  ## Authentication
+
+  Requires a valid access token with `faqs.update` permission.
+
+  ## Behavior
+
+  Send each current FAQ ID exactly once, in the desired order. Replace the example IDs with the complete list from the server. For a two-record list, set `faq_id` and `faq_second_id` to the two current IDs.
+
+  ## Response
+
+  - `200 OK` — Order saved, with an empty response body.
+  - `400 Bad Request` — IDs are missing, malformed, or duplicated.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user lacks the required permission.
+  - `409 Conflict` — The submitted IDs differ from the current records. No changes were saved.
+}

@@ -58,6 +58,28 @@
     "title": "Content"
   },
   {
+    "name": "faqs",
+    "permissions": [
+      {
+        "name": "faqs.create",
+        "title": "Create FAQs"
+      },
+      {
+        "name": "faqs.delete",
+        "title": "Delete FAQs"
+      },
+      {
+        "name": "faqs.read",
+        "title": "View FAQs"
+      },
+      {
+        "name": "faqs.update",
+        "title": "Update FAQs"
+      }
+    ],
+    "title": "Frequently asked questions"
+  },
+  {
     "name": "files",
     "permissions": [
       {

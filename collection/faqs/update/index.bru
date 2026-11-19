@@ -1,0 +1,49 @@
+meta {
+  name: Update FAQ
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/faqs/{{faq_id}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "answer": "Open your profile and save the updated information.",
+    "question": "How do I save changes to my profile?"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Replaces the question and answer of the FAQ identified by `faq_id`.
+
+  ## Authentication
+
+  Requires a valid access token with `faqs.update` permission.
+
+  ## Behavior
+
+  Both fields are required nonblank strings, limited after trimming to 300 UTF-16 code units for `question` and 5,000 for `answer`. The FAQ retains its position.
+
+  ## Response
+
+  - `200 OK` — Returns the updated FAQ.
+  - `400 Bad Request` — The question or answer is missing or invalid.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user lacks the required permission.
+  - `404 Not Found` — The FAQ does not exist.
+}

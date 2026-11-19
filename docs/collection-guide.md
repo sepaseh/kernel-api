@@ -85,9 +85,9 @@ dimensions and upload size. Use `size` in bytes and `is_used` for the file
 management list. An in-use file or category returns a localized 409 when
 deleted.
 
-Content categories are listed in the saved order. The sort operation accepts
-the complete ordered ID list and returns 409 if the submitted IDs do not match
-the current set of categories. Reload the list and retry after a 409. If only
+Content categories and FAQs are listed in the saved order. Their sort operations
+accept the complete ordered ID list and return 409 if the submitted IDs do not
+match the current set of records. Reload the list and retry after a 409. If only
 the saved order has changed, a valid sort request replaces it.
 
 The users screen sends `page` to `GET /users` for one-based pages of 24. Clients

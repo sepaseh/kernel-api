@@ -21,6 +21,7 @@ const routeVariables = {
   contentCategoryId: "content_category_id",
   contentId: "content_id",
   date: "calendar_date",
+  faqId: "faq_id",
   fileId: "file_id",
   roleId: "role_id",
   userId: "user_id",
@@ -28,6 +29,7 @@ const routeVariables = {
 const collectionVariables = new Set([
   "access_token",
   "base_url",
+  "faq_second_id",
   "other_content_category_id",
   ...Object.values(routeVariables),
 ]);

@@ -10,6 +10,9 @@ export const ru = {
   contentCoverImageTypeInvalid:
     "Загрузите изображение обложки в формате AVIF, GIF, JPEG, PNG или WebP.",
   contentNotFound: "Материал не найден.",
+  faqNotFound: "Этот часто задаваемый вопрос не найден.",
+  faqOrderChanged:
+    "Список часто задаваемых вопросов изменился. Обновите его перед сортировкой.",
   fileInUse:
     "Этот файл используется. Устраните ссылки на него перед удалением.",
   permissionContentCategories: "Категории материалов",
@@ -22,6 +25,11 @@ export const ru = {
   permissionContentsDelete: "Удалять материалы",
   permissionContentsRead: "Просматривать материалы",
   permissionContentsUpdate: "Изменять материалы",
+  permissionFaqs: "Часто задаваемые вопросы",
+  permissionFaqsCreate: "Создавать часто задаваемые вопросы",
+  permissionFaqsDelete: "Удалять часто задаваемые вопросы",
+  permissionFaqsRead: "Просматривать часто задаваемые вопросы",
+  permissionFaqsUpdate: "Изменять часто задаваемые вопросы",
   permissionFiles: "Файлы",
   permissionFilesDelete: "Удалять файлы",
   permissionFilesRead: "Просматривать файлы",

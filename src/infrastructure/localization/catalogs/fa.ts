@@ -10,6 +10,9 @@ export const fa = {
   contentCoverImageTypeInvalid:
     "تصویر جلد را با قالب AVIF، GIF، JPEG، PNG یا WebP بارگذاری کنید.",
   contentNotFound: "محتوا پیدا نشد.",
+  faqNotFound: "این پرسش متداول وجود ندارد.",
+  faqOrderChanged:
+    "فهرست پرسش‌های متداول تغییر کرده است. پیش از مرتب‌سازی، آن را دوباره بارگیری کنید.",
   fileInUse:
     "این فایل در حال استفاده است. پیش از حذف، موارد استفاده از آن را برطرف کنید.",
   permissionContentCategories: "دسته‌بندی‌های محتوا",
@@ -22,6 +25,11 @@ export const fa = {
   permissionContentsDelete: "حذف محتوا",
   permissionContentsRead: "مشاهدهٔ محتوا",
   permissionContentsUpdate: "ویرایش محتوا",
+  permissionFaqs: "پرسش‌های متداول",
+  permissionFaqsCreate: "ایجاد پرسش متداول",
+  permissionFaqsDelete: "حذف پرسش متداول",
+  permissionFaqsRead: "مشاهدهٔ پرسش‌های متداول",
+  permissionFaqsUpdate: "ویرایش پرسش متداول",
   permissionFiles: "فایل‌ها",
   permissionFilesDelete: "حذف فایل‌ها",
   permissionFilesRead: "مشاهدهٔ فایل‌ها",

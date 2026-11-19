@@ -407,6 +407,7 @@ test("fresh migrations match the ORM's complete columns, keys and declared index
     schema.otpCodes,
     schema.contentCategories,
     schema.contents,
+    schema.faqs,
     schema.pendingFileDeletions,
   ];
   const installed = await client.execute(
@@ -642,10 +643,10 @@ test("populated logo migration preserves every row and blocks deletion until ref
 
 test("the appended snapshot agrees with the ORM and preserves the migration identity chain", async () => {
   const previous = JSON.parse(
-    await readFile(path.join(migrations, "meta/0006_snapshot.json"), "utf8"),
+    await readFile(path.join(migrations, "meta/0007_snapshot.json"), "utf8"),
   ) as { id: string };
   const current = JSON.parse(
-    await readFile(path.join(migrations, "meta/0007_snapshot.json"), "utf8"),
+    await readFile(path.join(migrations, "meta/0008_snapshot.json"), "utf8"),
   ) as {
     id: string;
     prevId: string;
@@ -685,6 +686,7 @@ test("the appended snapshot agrees with the ORM and preserves the migration iden
     schema.otpCodes,
     schema.contentCategories,
     schema.contents,
+    schema.faqs,
     schema.pendingFileDeletions,
   ];
   for (const table of tables) {

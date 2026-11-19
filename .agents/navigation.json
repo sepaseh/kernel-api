@@ -117,12 +117,14 @@
         "src/application/calendar.ts",
         "src/application/content-categories.ts",
         "src/application/contents.ts",
+        "src/application/faqs.ts",
         "src/application/files.ts",
         "src/application/ports/account.ts",
         "src/application/ports/auth.ts",
         "src/application/ports/calendar.ts",
         "src/application/ports/content-categories.ts",
         "src/application/ports/contents.ts",
+        "src/application/ports/faqs.ts",
         "src/application/ports/files.ts",
         "src/application/ports/object-storage.ts",
         "src/application/ports/roles.ts",
@@ -274,6 +276,7 @@
         "src/infrastructure/lifecycle.test.ts",
         "src/test/integration/content-categories-http.test.ts",
         "src/test/integration/contents-http.test.ts",
+        "src/test/integration/faqs-http.test.ts",
         "src/test/integration/file-management-http.test.ts"
       ],
       "checks": [
@@ -363,6 +366,7 @@
         "scripts/collection-users.test.mjs",
         "src/test/integration/content-categories-http.test.ts",
         "src/test/integration/contents-http.test.ts",
+        "src/test/integration/faqs-http.test.ts",
         "src/test/integration/file-management-http.test.ts"
       ],
       "checks": [

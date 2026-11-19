@@ -3,6 +3,7 @@ import { createAuthService } from "./application/auth.ts";
 import { createCalendarService } from "./application/calendar.ts";
 import { createContentCategoriesService } from "./application/content-categories.ts";
 import { createContentsService } from "./application/contents.ts";
+import { createFaqsService } from "./application/faqs.ts";
 import { createFilesService } from "./application/files.ts";
 import { createRolesService } from "./application/roles.ts";
 import { createSettingsService } from "./application/settings.ts";
@@ -17,6 +18,7 @@ import { createAuthPersistence } from "./infrastructure/persistence/auth.ts";
 import { createDrizzleCalendarRepository } from "./infrastructure/persistence/calendar.ts";
 import { createDrizzleContentCategoriesRepository } from "./infrastructure/persistence/content-categories.ts";
 import { createDrizzleContentsRepository } from "./infrastructure/persistence/contents.ts";
+import { createDrizzleFaqsRepository } from "./infrastructure/persistence/faqs.ts";
 import { createDrizzleFileRepository } from "./infrastructure/persistence/files.ts";
 import { createDrizzleRolesRepository } from "./infrastructure/persistence/roles.ts";
 import { createDrizzleSettingsRepository } from "./infrastructure/persistence/settings.ts";
@@ -64,6 +66,7 @@ export const createApp = ({
       (file) => storage.url(file.bucket, file.objectKey, file.visibility),
       normalizeContentBody,
     ),
+    faqs: createFaqsService(createDrizzleFaqsRepository(database)),
     files: createFilesService({
       detectCoverImageType,
       getImageUploadLimit: settings.getImageUploadLimit,
