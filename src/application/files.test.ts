@@ -41,7 +41,13 @@ const source: UploadFileSource = {
   type: "image/png",
 };
 
-const fixture = () => {
+type CoverImageTypeDetector = Parameters<
+  typeof createFilesService
+>[0]["detectCoverImageType"];
+
+const fixture = (
+  detectCoverImageType: CoverImageTypeDetector = async () => undefined,
+) => {
   const records = new Map<string, FileRecord>();
   const objects = new Map<string, Uint8Array>();
   const deleted: string[] = [];
@@ -73,6 +79,7 @@ const fixture = () => {
       visibility === "public" ? `https://storage.example/${key}` : undefined,
   };
   const service = createFilesService({
+    detectCoverImageType,
     getImageUploadLimit: async () => 10,
     newId: () => "fixture-file",
     now: () => new Date("2026-01-02"),
@@ -172,6 +179,27 @@ test("public uploads use the injected ports and private records cannot be read p
         error.kind === "not-found" &&
         error.key === "fileNotFound",
     );
+  }
+});
+
+test("invalid or mismatched cover images are rejected before writing objects or metadata", async () => {
+  const data = new Uint8Array([1, 2, 3]);
+  for (const detectedType of [undefined, "image/jpeg"]) {
+    const { objects, records, service } = fixture(async (bytes) => {
+      assert.equal(bytes, data);
+      return detectedType;
+    });
+    await assert.rejects(
+      service.upload({
+        actor: { ...actor, permissions: ["contents.create"] },
+        context: "contents",
+        source: { ...source, read: async () => data },
+        visibility: undefined,
+      }),
+      { key: "contentCoverImageTypeInvalid", kind: "unsupported-media" },
+    );
+    assert.equal(objects.size, 0);
+    assert.equal(records.size, 0);
   }
 });
 

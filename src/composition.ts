@@ -11,6 +11,7 @@ import { createUsersService } from "./application/users.ts";
 import type { Dependencies } from "./dependencies.ts";
 import { createAuthGateway } from "./infrastructure/auth/gateway.ts";
 import { createOtpGateway } from "./infrastructure/auth/otp.ts";
+import { detectCoverImageType } from "./infrastructure/content/cover-image.ts";
 import { normalizeContentBody } from "./infrastructure/content/rich-text.ts";
 import { createAccountPersistence } from "./infrastructure/persistence/account.ts";
 import { createAuthPersistence } from "./infrastructure/persistence/auth.ts";
@@ -67,6 +68,7 @@ export const createApp = ({
     ),
     faqs: createFaqsService(createDrizzleFaqsRepository(database)),
     files: createFilesService({
+      detectCoverImageType,
       getImageUploadLimit: settings.getImageUploadLimit,
       repository: createDrizzleFileRepository(database),
       storage,

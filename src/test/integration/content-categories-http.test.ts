@@ -165,6 +165,15 @@ test("creates, reads, renames, reorders and removes categories through HTTP", as
   }
   assert.deepEqual(await listCategories(), [renamedGuides, announcements]);
 
+  const readCategoryPositions = () =>
+    database
+      .select({
+        id: contentCategories.id,
+        position: contentCategories.position,
+      })
+      .from(contentCategories)
+      .orderBy(contentCategories.id);
+  const positionsBeforeSort = await readCategoryPositions();
   await client.execute(`
     CREATE TRIGGER reject_category_position BEFORE UPDATE OF position ON content_categories
     WHEN OLD.position = 0
@@ -174,6 +183,7 @@ test("creates, reads, renames, reorders and removes categories through HTTP", as
   `);
   const failedSort = await sort([announcements.id, guides.id]);
   assert.equal(failedSort.status, 500);
+  assert.deepEqual(await readCategoryPositions(), positionsBeforeSort);
   assert.deepEqual(await listCategories(), [renamedGuides, announcements]);
   await client.execute("DROP TRIGGER reject_category_position");
 

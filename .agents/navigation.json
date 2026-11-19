@@ -133,6 +133,7 @@
         "src/application/roles.ts",
         "src/application/settings.ts",
         "src/application/users.ts",
+        "src/infrastructure/content/cover-image.ts",
         "src/infrastructure/content/rich-text.ts",
         "src/infrastructure/localization/catalogs/ar.ts",
         "src/infrastructure/localization/catalogs/de.ts",
