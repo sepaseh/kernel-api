@@ -1,6 +1,16 @@
 export const en = {
+  contentCategoryInUse:
+    "This category is in use. Reassign its content before deleting the category.",
+  contentCategoryNotFound: "Content category not found.",
+  contentCategoryOrderInvalid:
+    "Reload the categories and submit each current category ID exactly once.",
   fileInUse:
     "This file is in use. Resolve its references before deleting the file.",
+  permissionContentCategories: "Content categories",
+  permissionContentCategoriesCreate: "Create content categories",
+  permissionContentCategoriesDelete: "Delete content categories",
+  permissionContentCategoriesRead: "View content categories",
+  permissionContentCategoriesUpdate: "Update content categories",
   permissionFiles: "Files",
   permissionFilesDelete: "Delete files",
   permissionFilesRead: "View files",

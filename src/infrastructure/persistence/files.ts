@@ -11,12 +11,18 @@ import { ApplicationError } from "../../application/errors.ts";
 import type { FileRepository } from "../../application/ports/files.ts";
 import { FileInsertNotCommittedError } from "../../application/ports/files.ts";
 import type { Database } from "../db/client.ts";
-import { files, pendingFileDeletions, settings } from "../db/schema.ts";
+import {
+  contents,
+  files,
+  pendingFileDeletions,
+  settings,
+} from "../db/schema.ts";
 import { isForeignKeyConstraintError } from "./errors.ts";
 
 const fileUsage = (id: string | typeof files.id) =>
   sql<boolean>`
   exists (select 1 from ${settings} where ${or(eq(settings.darkLogoId, id), eq(settings.lightLogoId, id))})
+  or exists (select 1 from ${contents} where ${eq(contents.coverImageId, id)})
 `.mapWith(Boolean);
 
 export const createDrizzleFileRepository = (

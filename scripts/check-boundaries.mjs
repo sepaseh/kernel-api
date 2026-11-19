@@ -495,6 +495,7 @@ const databaseImports = {
       "account",
       "auth",
       "calendar",
+      "content-categories",
       "files",
       "identity",
       "roles",

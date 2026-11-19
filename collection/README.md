@@ -16,8 +16,9 @@ Request directories and saved examples become available with their owning group.
    `SERVER_ALLOWED_ORIGIN` on the server. The allowed origin may differ from
    `base_url`; include its scheme and port when configured. The collection sends
    it as the `Origin` header so requests with session cookies pass the server's
-   origin check. For individual resources, set `user_id`, `role_id`, and
-   `file_id` to synthetic identifiers created on the disposable local server.
+   origin check. Set `user_id`, `role_id`, `file_id`, and `content_category_id`
+   to synthetic IDs created on the disposable local server. The category
+   sorting example uses `other_content_category_id` for the second entry.
    For calendar deletion, set `calendar_date` in the active environment to the
    date to remove in `YYYY-MM-DD` format.
    Select a synthetic local file in Bruno before sending the upload request.
@@ -35,6 +36,8 @@ determine which request directories and examples are included at this stage.
   change password, and logout.
 - **Account.** Current account, profile and username updates, and email verification.
 - **Calendar.** List, create, and delete configured dates.
+- **Content categories.** List, create, details, update, hard deletion,
+  and sorting. Each sort submits the complete set of IDs in the desired order.
 - **Files.** Upload, list with byte size and usage status, retrieve public
   content, and permanently delete unused files.
 - **Roles.** List, create, details, update, and delete.

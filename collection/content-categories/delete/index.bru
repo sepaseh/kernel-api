@@ -1,0 +1,41 @@
+meta {
+  name: Delete Content Category
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/content-categories/{{content_category_id}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+docs {
+  ## Purpose
+
+  Permanently deletes a category by ID.
+
+  ## Authentication
+
+  Requires a valid access token with content-categories.delete.
+
+  ## Behavior
+
+  Reassign any content that uses the category before deleting it. An in-use conflict preserves the category and its content.
+
+  ## Response
+
+  - `200 OK` — The category was deleted. The response body is empty.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user cannot delete categories.
+  - `404 Not Found` — The category does not exist.
+  - `409 Conflict` — Content still uses this category.
+}

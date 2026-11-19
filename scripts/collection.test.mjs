@@ -17,6 +17,34 @@ import {
 
 before(() => requireCollectionGroups("account", "auth"));
 
+const routeVariables = {
+  contentCategoryId: "content_category_id",
+  date: "calendar_date",
+  fileId: "file_id",
+  roleId: "role_id",
+  userId: "user_id",
+};
+const collectionVariables = new Set([
+  "access_token",
+  "base_url",
+  "other_content_category_id",
+  ...Object.values(routeVariables),
+]);
+
+const isEnglishError = (message) => {
+  if (typeof message !== "string") return false;
+  const field = message.match(/^[a-z][a-z\d_-]*(?= )/i)?.[0];
+  return (
+    Object.values(en).includes(message) ||
+    Boolean(
+      field &&
+      [en.fieldInvalid, en.fieldRequired].some(
+        (template) => template.replace("{{field}}", field) === message,
+      ),
+    )
+  );
+};
+
 test("Bruno block lookup skips other, malformed and commented headers", () => {
   const source = `
 /* script:post-response { throw new Error("commented"); } */
@@ -139,16 +167,8 @@ test("collection operations match the published HTTP routes", async () => {
         (m) => m[1],
       );
       assert.ok(
-        variables.every((value) =>
-          [
-            "base_url",
-            "access_token",
-            "user_id",
-            "role_id",
-            "calendar_date",
-            "file_id",
-          ].includes(value),
-        ),
+        variables.every((value) => collectionVariables.has(value)),
+        `${dir} uses documented environment variables`,
       );
       const jsonBody = request.match(/body:json \{\s*\n([\s\S]*?)\n\}/);
       if (jsonBody) JSON.parse(jsonBody[1]);
@@ -161,15 +181,7 @@ test("collection operations match the published HTTP routes", async () => {
         if (Number.parseInt(file, 10) >= 400) {
           assert.deepEqual(Object.keys(example), ["message"]);
           assert.ok(
-            Object.values(en).includes(example.message) ||
-              [
-                en.fieldInvalid.replace("{{field}}", "Content-Type"),
-                "first_name is invalid.",
-                "first_name is required.",
-                "name is required.",
-                "file is required.",
-                "dark_theme is required.",
-              ].includes(example.message),
+            isEnglishError(example.message),
             `${group}/${operation.name}/${file} is an English catalog message`,
           );
         }
@@ -177,10 +189,13 @@ test("collection operations match the published HTTP routes", async () => {
     }
     const expected = createRoutes().routes.map(({ method, path: route }) =>
       `${method} /${group}${route}`
-        .replace(":userId", "{{user_id}}")
-        .replace(":roleId", "{{role_id}}")
-        .replace(":date", "{{calendar_date}}")
-        .replace(":fileId", "{{file_id}}")
+        .replace(/:([a-zA-Z]+)(?=\/|$)/g, (_, param) => {
+          assert.ok(
+            Object.hasOwn(routeVariables, param),
+            `Unmapped route parameter: ${param}`,
+          );
+          return `{{${routeVariables[param]}}}`;
+        })
         .replace(/\/$/, ""),
     );
     assert.deepEqual(actual.sort(), expected.sort());

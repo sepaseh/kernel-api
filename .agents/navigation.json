@@ -115,10 +115,12 @@
         "src/application/account.ts",
         "src/application/auth.ts",
         "src/application/calendar.ts",
+        "src/application/content-categories.ts",
         "src/application/files.ts",
         "src/application/ports/account.ts",
         "src/application/ports/auth.ts",
         "src/application/ports/calendar.ts",
+        "src/application/ports/content-categories.ts",
         "src/application/ports/files.ts",
         "src/application/ports/object-storage.ts",
         "src/application/ports/roles.ts",
@@ -266,6 +268,7 @@
         "src/test/integration/request-logging.test.ts",
         "src/test/integration/upload-body-limit.test.ts",
         "src/infrastructure/lifecycle.test.ts",
+        "src/test/integration/content-categories-http.test.ts",
         "src/test/integration/file-management-http.test.ts"
       ],
       "checks": [
@@ -353,6 +356,7 @@
         "scripts/collection-management.test.mjs",
         "scripts/collection-files.test.mjs",
         "scripts/collection-users.test.mjs",
+        "src/test/integration/content-categories-http.test.ts",
         "src/test/integration/file-management-http.test.ts"
       ],
       "checks": [

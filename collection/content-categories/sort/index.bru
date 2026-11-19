@@ -1,0 +1,48 @@
+meta {
+  name: Sort Content Categories
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{base_url}}/content-categories/sort
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "ids": ["{{other_content_category_id}}", "{{content_category_id}}"]
+  }
+}
+
+docs {
+  ## Purpose
+
+  Saves the complete category order.
+
+  ## Authentication
+
+  Requires a valid access token with content-categories.update.
+
+  ## Behavior
+
+  Send each current category ID exactly once in the requested order. The saved order changes atomically. This example assumes two categories in the disposable database.
+
+  ## Response
+
+  - `200 OK` — The order was saved. The response body is empty.
+  - `400 Bad Request` — The ID list is malformed or contains duplicate IDs.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user cannot update categories.
+  - `409 Conflict` — The submitted IDs do not match the current set of categories. Reload the list and retry.
+}

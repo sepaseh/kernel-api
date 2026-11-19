@@ -12,6 +12,7 @@ import { requestLogging } from "./request-logging.ts";
 import { createAccountRoutes } from "./routes/account.ts";
 import { createAuthRoutes } from "./routes/auth.ts";
 import { createCalendarRoutes } from "./routes/calendar.ts";
+import { createContentCategoryRoutes } from "./routes/content-categories.ts";
 import { createFileRoutes } from "./routes/files.ts";
 import { createRoleRoutes } from "./routes/roles.ts";
 import {
@@ -61,7 +62,7 @@ export const createHttpApp = (dependencies: HttpDependencies) => {
         throw new ApiError(403, "originForbidden");
     }
     if (
-      /^\/(?:auth|account|calendar|languages|users|roles)(?:\/|$)/.test(
+      /^\/(?:auth|account|calendar|content-categories|languages|users|roles)(?:\/|$)/.test(
         context.req.path,
       ) ||
       /^\/files(?:\/[^/]+)?\/?$/.test(context.req.path)
@@ -74,6 +75,7 @@ export const createHttpApp = (dependencies: HttpDependencies) => {
   app.route("/account", createAccountRoutes());
   app.route("/auth", createAuthRoutes());
   app.route("/calendar", createCalendarRoutes());
+  app.route("/content-categories", createContentCategoryRoutes());
   app.route("/files", createFileRoutes());
   app.route("/languages", createLanguageRoutes());
   app.route("/roles", createRoleRoutes());

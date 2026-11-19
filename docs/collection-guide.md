@@ -80,5 +80,11 @@ Upload with multipart `context=logo` for a logo. The corresponding
 in bytes and `is_used` for the file management list. Deleting a file used as
 a settings logo returns a localized 409.
 
+Content categories are listed in the saved order. The sort operation accepts
+the complete ordered ID list and returns 409 if the submitted IDs do not match
+the current set of categories. Reload the list and retry after a 409. If only
+the saved order has changed, a valid sort request replaces it. Deleting an
+in-use category returns a localized 409.
+
 The users screen sends `page` to `GET /users` for one-based pages of 24. Clients
 using the existing `offset` and `size` parameters retain variable-size pages.

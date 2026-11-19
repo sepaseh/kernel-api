@@ -48,7 +48,7 @@ was `.`, resolving it to the existing file at `<file-id>`.
 
 ## File management
 
-The authenticated list reports usage by settings logos.
+The authenticated list reports usage by settings logos and content covers.
 Private files include metadata without a public URL. When a file is in use,
 deletion returns a localized 409 and preserves its metadata and bytes.
 

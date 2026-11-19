@@ -1,7 +1,16 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const ar = {
+  contentCategoryInUse: "هذه الفئة قيد الاستخدام. أعد تعيين محتواها قبل حذفها.",
+  contentCategoryNotFound: "فئة المحتوى غير موجودة.",
+  contentCategoryOrderInvalid:
+    "أعد تحميل الفئات وأرسل معرّف كل فئة حالية مرة واحدة بالضبط.",
   fileInUse: "هذا الملف قيد الاستخدام. أزل المراجع إليه قبل حذفه.",
+  permissionContentCategories: "فئات المحتوى",
+  permissionContentCategoriesCreate: "إنشاء فئات المحتوى",
+  permissionContentCategoriesDelete: "حذف فئات المحتوى",
+  permissionContentCategoriesRead: "عرض فئات المحتوى",
+  permissionContentCategoriesUpdate: "تعديل فئات المحتوى",
   permissionFiles: "الملفات",
   permissionFilesDelete: "حذف الملفات",
   permissionFilesRead: "عرض الملفات",

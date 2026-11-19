@@ -1,0 +1,49 @@
+meta {
+  name: Update Content Category
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/content-categories/{{content_category_id}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Setup Guides"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Renames a category by ID.
+
+  ## Authentication
+
+  Requires a valid access token with content-categories.update.
+
+  ## Behavior
+
+  - The required name is trimmed and must contain 1 to 1,000 UTF-16 code units.
+  - Renaming preserves the category's position.
+
+  ## Response
+
+  - `200 OK` — The updated category with its ID and name.
+  - `400 Bad Request` — The name is missing or invalid.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user cannot update categories.
+  - `404 Not Found` — The category does not exist.
+}

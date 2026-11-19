@@ -1,0 +1,48 @@
+meta {
+  name: Create Content Category
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/content-categories
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{access_token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Guides"
+  }
+}
+
+docs {
+  ## Purpose
+
+  Creates a category for organizing content.
+
+  ## Authentication
+
+  Requires a valid access token with content-categories.create.
+
+  ## Behavior
+
+  - The required name is trimmed and must contain 1 to 1,000 UTF-16 code units.
+  - The API generates the ID and appends the category to the current order.
+
+  ## Response
+
+  - `201 Created` — The new category with its ID and name.
+  - `400 Bad Request` — The name is missing or invalid.
+  - `401 Unauthorized` — Authentication is missing or invalid.
+  - `403 Forbidden` — The authenticated user cannot create categories.
+}
