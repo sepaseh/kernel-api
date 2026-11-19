@@ -1887,8 +1887,8 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
   const dependencies = {
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
-    "better-auth": "1.7.25",
-    "@better-auth/drizzle-adapter": "1.7.25",
+    "better-auth": "1.7.26",
+    "@better-auth/drizzle-adapter": "1.7.26",
   };
   const pkg = {
     ...packageFixture,
@@ -1904,16 +1904,16 @@ test("authentication publication owns its bootstrap command and pins its SDK cor
   );
   const lock = structuredClone(missingCore);
   lock.packages["node_modules/@better-auth/core"] = {
-    version: "1.7.25",
+    version: "1.7.26",
     integrity: syntheticIntegrity,
   };
   validatePackage(pkg, lock, "auth-bootstrap");
   for (const versions of [
-    ["1.7.14", "1.7.25"],
-    ["1.7.25", "1.7.14"],
+    ["1.7.14", "1.7.26"],
+    ["1.7.26", "1.7.14"],
     ["1.7.14", "1.7.14"],
-    ["1.7.25", undefined],
-    [undefined, "1.7.25"],
+    ["1.7.26", undefined],
+    [undefined, "1.7.26"],
   ]) {
     const mismatched = structuredClone(pkg);
     for (const [index, name] of [
@@ -2028,8 +2028,8 @@ test("HTTP composition publishes only owned listener commands while preserving b
   const dependencies = {
     hono: "4.13.14",
     "@hono/node-server": "2.1.5",
-    "better-auth": "1.7.25",
-    "@better-auth/drizzle-adapter": "1.7.25",
+    "better-auth": "1.7.26",
+    "@better-auth/drizzle-adapter": "1.7.26",
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
   };
@@ -2042,7 +2042,7 @@ test("HTTP composition publishes only owned listener commands while preserving b
   pkg.overrides = overridesForPackage(pkg);
   const lock = lockForPackage(pkg);
   lock.packages["node_modules/@better-auth/core"] = {
-    version: "1.7.25",
+    version: "1.7.26",
     integrity: syntheticIntegrity,
   };
   validatePackage(pkg, lock, "http-composition");
