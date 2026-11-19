@@ -16,9 +16,10 @@ Request directories and saved examples become available with their owning group.
    `SERVER_ALLOWED_ORIGIN` on the server. The allowed origin may differ from
    `base_url`; include its scheme and port when configured. The collection sends
    it as the `Origin` header so requests with session cookies pass the server's
-   origin check. Set `user_id`, `role_id`, `file_id`, and `content_category_id`
-   to synthetic IDs created on the disposable local server. The category
-   sorting example uses `other_content_category_id` for the second entry.
+   origin check. For individual resources, set `user_id`, `role_id`, `file_id`,
+   `content_id`, and `content_category_id` to synthetic identifiers created
+   on the disposable local server. The category sorting example also uses
+   `other_content_category_id` for the second entry.
    For calendar deletion, set `calendar_date` in the active environment to the
    date to remove in `YYYY-MM-DD` format.
    Select a synthetic local file in Bruno before sending the upload request.
@@ -38,6 +39,8 @@ determine which request directories and examples are included at this stage.
 - **Calendar.** List, create, and delete configured dates.
 - **Content categories.** List, create, details, update, hard deletion,
   and sorting. Each sort submits the complete set of IDs in the desired order.
+- **Contents.** Page, filter, create, read, update, and delete content with a
+  category and a public cover image.
 - **Files.** Upload, list with byte size and usage status, retrieve public
   content, and permanently delete unused files.
 - **Roles.** List, create, details, update, and delete.
@@ -58,9 +61,11 @@ Run the login request with a local test account. Its post-response script stores
 the returned access token as `access_token` in the active environment. The
 remaining authenticated requests use that token.
 
-Use multipart `context=logo` for branding images. The upload response includes
-`size` in bytes and starts with `is_used: false`. The files list reports whether
-settings now reference each file.
+To create content, create a category and upload a public cover image using
+multipart `context=contents`. Set `content_category_id` and `file_id` to the
+returned IDs. Use `context=logo` for branding images. The upload response
+includes `size` in bytes and starts with `is_used: false`; the files list
+reflects whether settings or content now reference each file.
 
 Send `page` to list users in one-based pages of 24. Existing consumers can
 continue sending `offset` and `size` for variable-size pages.

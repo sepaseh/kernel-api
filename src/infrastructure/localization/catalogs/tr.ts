@@ -6,6 +6,10 @@ export const tr = {
   contentCategoryNotFound: "İçerik kategorisi bulunamadı.",
   contentCategoryOrderInvalid:
     "Kategorileri yeniden yükleyin ve mevcut her kategori kimliğini tam bir kez gönderin.",
+  contentCoverImageNotFound: "Herkese açık kapak görseli bulunamadı.",
+  contentCoverImageTypeInvalid:
+    "AVIF, GIF, JPEG, PNG veya WebP biçiminde bir kapak görseli yükleyin.",
+  contentNotFound: "İçerik bulunamadı.",
   fileInUse:
     "Bu dosya kullanılıyor. Silmeden önce dosyaya yapılan başvuruları kaldırın.",
   permissionContentCategories: "İçerik kategorileri",
@@ -13,6 +17,11 @@ export const tr = {
   permissionContentCategoriesDelete: "İçerik kategorilerini silme",
   permissionContentCategoriesRead: "İçerik kategorilerini görüntüleme",
   permissionContentCategoriesUpdate: "İçerik kategorilerini güncelleme",
+  permissionContents: "İçerik",
+  permissionContentsCreate: "İçerik oluşturma",
+  permissionContentsDelete: "İçerik silme",
+  permissionContentsRead: "İçerik görüntüleme",
+  permissionContentsUpdate: "İçerik güncelleme",
   permissionFiles: "Dosyalar",
   permissionFilesDelete: "Dosyaları silme",
   permissionFilesRead: "Dosyaları görüntüleme",

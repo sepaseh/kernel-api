@@ -1,0 +1,14 @@
+{
+  "body": "<h2>Guide</h2><p><strong>Start</strong> here.</p><ol><li data-list=\"bullet\">First step</li></ol>",
+  "content_category": {
+    "id": "b70983e5-5e24-4110-9666-a477fcc78ddc",
+    "name": "Release news"
+  },
+  "cover_image": {
+    "id": "6e38a527-b430-4a12-aef6-16f783de0ee4",
+    "url": "http://localhost:3000/files/6e38a527-b430-4a12-aef6-16f783de0ee4/content"
+  },
+  "excerpt": "Read the administration guide.",
+  "id": "4dd98e8f-fc40-4f83-8835-2e1917b649cc",
+  "title": "Getting started with Kernel"
+}

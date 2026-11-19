@@ -6,6 +6,10 @@ export const de = {
   contentCategoryNotFound: "Die Inhaltskategorie wurde nicht gefunden.",
   contentCategoryOrderInvalid:
     "Laden Sie die Kategorien neu und senden Sie jede aktuelle Kategorie-ID genau einmal.",
+  contentCoverImageNotFound: "Das öffentliche Titelbild wurde nicht gefunden.",
+  contentCoverImageTypeInvalid:
+    "Laden Sie ein Titelbild im Format AVIF, GIF, JPEG, PNG oder WebP hoch.",
+  contentNotFound: "Der Inhalt wurde nicht gefunden.",
   fileInUse:
     "Diese Datei wird verwendet. Lösen Sie ihre Verknüpfungen vor dem Löschen auf.",
   permissionContentCategories: "Inhaltskategorien",
@@ -13,6 +17,11 @@ export const de = {
   permissionContentCategoriesDelete: "Inhaltskategorien löschen",
   permissionContentCategoriesRead: "Inhaltskategorien anzeigen",
   permissionContentCategoriesUpdate: "Inhaltskategorien bearbeiten",
+  permissionContents: "Inhalte",
+  permissionContentsCreate: "Inhalte erstellen",
+  permissionContentsDelete: "Inhalte löschen",
+  permissionContentsRead: "Inhalte anzeigen",
+  permissionContentsUpdate: "Inhalte bearbeiten",
   permissionFiles: "Dateien",
   permissionFilesDelete: "Dateien löschen",
   permissionFilesRead: "Dateien anzeigen",

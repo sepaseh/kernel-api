@@ -4,6 +4,10 @@ export const en = {
   contentCategoryNotFound: "Content category not found.",
   contentCategoryOrderInvalid:
     "Reload the categories and submit each current category ID exactly once.",
+  contentCoverImageNotFound: "Public cover image not found.",
+  contentCoverImageTypeInvalid:
+    "Upload an AVIF, GIF, JPEG, PNG or WebP cover image.",
+  contentNotFound: "Content not found.",
   fileInUse:
     "This file is in use. Resolve its references before deleting the file.",
   permissionContentCategories: "Content categories",
@@ -11,6 +15,11 @@ export const en = {
   permissionContentCategoriesDelete: "Delete content categories",
   permissionContentCategoriesRead: "View content categories",
   permissionContentCategoriesUpdate: "Update content categories",
+  permissionContents: "Content",
+  permissionContentsCreate: "Create content",
+  permissionContentsDelete: "Delete content",
+  permissionContentsRead: "View content",
+  permissionContentsUpdate: "Update content",
   permissionFiles: "Files",
   permissionFilesDelete: "Delete files",
   permissionFilesRead: "View files",

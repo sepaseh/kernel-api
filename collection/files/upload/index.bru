@@ -31,10 +31,12 @@ docs {
   ## Authentication
 
   A logo upload requires a system administrator or `settings.update`.
+  A content cover upload uses `context: contents` and requires a system administrator, `contents.create`, or `contents.update`.
 
   ## Behavior
 
-  Logo uploads are public and use the smaller of the configured logo size and the server upload limit.
+  Context uploads are public and use the smaller of the configured context size and the server upload limit.
+  A cover must decode as AVIF, GIF, JPEG, PNG or WebP and match its declared media type. Covers can contain up to 67,108,864 pixels across all frames.
   Existing clients may send `visibility: public` or `visibility: private` without a context.
   Legacy public uploads require a system administrator or `settings.update`.
   Private uploads require authentication and return no public URL.
@@ -47,6 +49,6 @@ docs {
   - `403 Forbidden` — Public upload is not allowed.
   - `408 Request Timeout` — The request body is still incomplete after the 60-second read deadline.
   - `413 Content Too Large` — The file exceeds its limit or the complete multipart body exceeds that limit plus 64 KiB of framing and metadata.
-  - `415 Unsupported Media Type` — Content-Type is not multipart/form-data.
+  - `415 Unsupported Media Type` — Content-Type is not multipart/form-data, or the cover image is invalid, unsupported, or does not match its declared media type.
   - `503 Service Unavailable` — Four uploads are already in progress in this process. An authenticated request is rejected before body reading, with `Cache-Control: no-store`.
 }

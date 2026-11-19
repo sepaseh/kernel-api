@@ -216,19 +216,17 @@ test("creates, reads, renames, reorders and removes categories through HTTP", as
   assert.deepEqual(await listCategories(), [announcements, news]);
 });
 
-test("lets category readers list and read without granting category management", async (context) => {
+test("lets content readers select categories without granting category management", async (context) => {
   const { app, database, listCategories, send } = await fixture(context, [
-    "content-categories.read",
+    "contents.read",
   ]);
   const category = { id: "guides", name: "Guides" };
   await database.insert(contentCategories).values({ ...category, position: 0 });
 
   assert.equal((await app.request(basePath)).status, 401);
   assert.deepEqual(await listCategories(), [category]);
-  const detail = await send(categoryPath(category.id), "GET");
-  assert.equal(detail.status, 200);
-  assert.deepEqual(await detail.json(), category);
   for (const request of [
+    () => send(categoryPath(category.id), "GET"),
     () => send(basePath, "POST", { name: "News" }),
     () => send(categoryPath(category.id), "PATCH", { name: "Updated" }),
     () => send(`${basePath}/sort`, "PATCH", { ids: [category.id] }),
@@ -268,17 +266,6 @@ test("blocks deletion of an in-use category and rolls back a late content refere
     title: "Guide",
   };
   await database.insert(contents).values(content);
-  const listedFiles = await send("/files", "GET");
-  assert.equal(listedFiles.status, 200);
-  assert.deepEqual(await listedFiles.json(), [
-    {
-      id: "cover",
-      is_used: true,
-      size: 1,
-      url: "https://storage.test/synthetic/cover.png",
-    },
-  ]);
-  assert.equal((await send("/files/cover", "DELETE")).status, 409);
   const remove = () => send(categoryPath(category.id), "DELETE");
   const inUse = await remove();
   assert.equal(inUse.status, 409);

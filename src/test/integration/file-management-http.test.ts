@@ -12,6 +12,7 @@ import { loadConfig } from "../../infrastructure/config.ts";
 import { createDatabase } from "../../infrastructure/db/client.ts";
 import { initializeDatabase } from "../../infrastructure/db/initialize.ts";
 import {
+  files,
   pendingFileDeletions,
   rolePermissions,
   roles,
@@ -21,6 +22,7 @@ import {
 import { getTranslator } from "../../infrastructure/localization/i18n.ts";
 import { createLogger } from "../../infrastructure/logging/logger.ts";
 import { LocalFileStorage } from "../../infrastructure/storage/local.ts";
+import { sampleCoverImage } from "../support/cover-image.ts";
 import { registerFixtureCleanup } from "../support/fixture-cleanup.ts";
 
 test("manages scoped uploads and resumes hard deletion without removing used files", async (t) => {
@@ -49,15 +51,16 @@ test("manages scoped uploads and resumes hard deletion without removing used fil
   const account = await auth.api.signUpEmail({
     body: {
       email: "editor@kernel.test",
-      firstName: "Branding",
+      firstName: "Content",
       lastName: "Editor",
       mobile: "09120000007",
-      name: "Branding Editor",
+      name: "Content Editor",
       password: "synthetic-password",
     },
   });
   await database.insert(roles).values({ id: "editor", name: "Editor" });
   await database.insert(rolePermissions).values([
+    { permission: "contents.create", roleId: "editor" },
     { permission: "files.delete", roleId: "editor" },
     { permission: "files.read", roleId: "editor" },
   ]);
@@ -77,7 +80,7 @@ test("manages scoped uploads and resumes hard deletion without removing used fil
     access_token: string;
   };
   const headers = { Authorization: `Bearer ${token}` };
-  const upload = (context: string, bytes: string, type = "image/png") => {
+  const upload = (context: string, bytes: BlobPart, type = "image/png") => {
     const body = new FormData();
     body.set("context", context);
     body.set("file", new File([bytes], "fixture.png", { type }));
@@ -88,36 +91,49 @@ test("manages scoped uploads and resumes hard deletion without removing used fil
 
   assert.equal((await app.request("/files")).status, 401);
   assert.equal((await upload("logo", "logo")).status, 403);
-  assert.equal((await upload("unknown", "brand")).status, 400);
-  await database
-    .insert(rolePermissions)
-    .values({ permission: "settings.update", roleId: "editor" });
+  const coverSize = sampleCoverImage.byteLength;
+  const putObject = t.mock.method(storage, "put");
   await database
     .update(settings)
     .set({
       imageSettings: JSON.stringify({
-        contents: { height: 630, size: 2_000_000, width: 1200 },
-        logo: { height: 256, size: 5, width: 256 },
+        contents: { height: 630, size: coverSize, width: 1200 },
+        logo: { height: 256, size: 1_000_000, width: 256 },
       }),
     })
     .where(eq(settings.id, 1));
-  assert.equal((await upload("logo", "too-large")).status, 413);
+  const oversizedImage = new Uint8Array(coverSize + 1);
+  assert.equal((await upload("contents", oversizedImage)).status, 413);
+  for (const [bytes, type] of [
+    ["cover", "text/plain"],
+    ["cover", "image/png"],
+    [sampleCoverImage.subarray(0, 41), "image/png"],
+    [sampleCoverImage, "image/jpeg"],
+  ] as const) {
+    const rejected = await upload("contents", bytes, type);
+    assert.equal(rejected.status, 415);
+    assert.deepEqual(await rejected.json(), {
+      message: getTranslator("en")("contentCoverImageTypeInvalid"),
+    });
+  }
+  assert.equal(putObject.mock.callCount(), 0);
+  assert.deepEqual(await database.select().from(files), []);
 
-  const response = await upload("logo", "brand");
+  const response = await upload("contents", sampleCoverImage);
   assert.equal(response.status, 201);
   const uploaded = (await response.json()) as { id: string; url: string };
   assert.deepEqual(uploaded, {
     content_type: "image/png",
     id: uploaded.id,
     is_used: false,
-    size: 5,
+    size: coverSize,
     url: `${config.baseUrl}/files/${uploaded.id}/content`,
     visibility: "public",
   });
   const publicPath = `/files/${uploaded.id}/content`;
   const original = await app.request(publicPath);
   assert.equal(original.headers.get("Cache-Control"), "public, max-age=3600");
-  assert.equal(await original.text(), "brand");
+  assert.deepEqual(Buffer.from(await original.arrayBuffer()), sampleCoverImage);
 
   await database
     .update(settings)
@@ -132,7 +148,7 @@ test("manages scoped uploads and resumes hard deletion without removing used fil
     {
       id: uploaded.id,
       is_used: true,
-      size: 5,
+      size: coverSize,
       url: uploaded.url,
     },
   ]);

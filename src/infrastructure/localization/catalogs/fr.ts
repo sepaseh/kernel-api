@@ -6,6 +6,10 @@ export const fr = {
   contentCategoryNotFound: "Catégorie de contenu introuvable.",
   contentCategoryOrderInvalid:
     "Rechargez les catégories et envoyez une seule fois l’identifiant de chaque catégorie actuelle.",
+  contentCoverImageNotFound: "Image de couverture publique introuvable.",
+  contentCoverImageTypeInvalid:
+    "Importez une image de couverture au format AVIF, GIF, JPEG, PNG ou WebP.",
+  contentNotFound: "Contenu introuvable.",
   fileInUse:
     "Ce fichier est utilisé. Résolvez ses références avant de le supprimer.",
   permissionContentCategories: "Catégories de contenu",
@@ -13,6 +17,11 @@ export const fr = {
   permissionContentCategoriesDelete: "Supprimer des catégories de contenu",
   permissionContentCategoriesRead: "Voir les catégories de contenu",
   permissionContentCategoriesUpdate: "Modifier les catégories de contenu",
+  permissionContents: "Contenu",
+  permissionContentsCreate: "Créer du contenu",
+  permissionContentsDelete: "Supprimer du contenu",
+  permissionContentsRead: "Voir le contenu",
+  permissionContentsUpdate: "Modifier le contenu",
   permissionFiles: "Fichiers",
   permissionFilesDelete: "Supprimer des fichiers",
   permissionFilesRead: "Voir les fichiers",
