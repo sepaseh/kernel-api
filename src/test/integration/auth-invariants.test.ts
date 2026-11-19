@@ -8,6 +8,7 @@ import { and, eq } from "drizzle-orm";
 
 import { createApp } from "../../composition.ts";
 import type { PublicSettingsResponse } from "../../contracts/settings.ts";
+import { defaultImageSettings } from "../../contracts/settings.ts";
 import { createAuth } from "../../infrastructure/auth/better-auth.ts";
 import { loadConfig, repositoryRoot } from "../../infrastructure/config.ts";
 import { createDatabase } from "../../infrastructure/db/client.ts";
@@ -354,6 +355,7 @@ test("settings editors can save branding but only a system administrator can cha
   const initial = (await (
     await app.request("/settings")
   ).json()) as PublicSettingsResponse;
+  assert.deepEqual(initial.image_settings, defaultImageSettings);
   const login = await request("/auth/login", "POST", {
     identifier: targetMobile,
     password: originalPassword,
@@ -421,12 +423,22 @@ test("settings editors can save branding but only a system administrator can cha
       color_primary: "#123456",
     },
   };
-  const omitted = await request("/settings", "PUT", branding, editorToken);
+  const imageSettings = {
+    ...initial.image_settings,
+    contents: { ...initial.image_settings.contents, width: 1024 },
+  };
+  const omitted = await request(
+    "/settings",
+    "PUT",
+    { ...branding, image_settings: imageSettings },
+    editorToken,
+  );
   assert.equal(omitted.status, 200);
   const saved = (await omitted.json()) as PublicSettingsResponse;
   assert.equal(saved.language.code, "en");
   assert.equal(saved.dark_logo?.id, logoId);
   assert.deepEqual(saved.dark_theme, branding.dark_theme);
+  assert.deepEqual(saved.image_settings, imageSettings);
   const unchanged = await request(
     "/settings",
     "PUT",
@@ -434,6 +446,10 @@ test("settings editors can save branding but only a system administrator can cha
     editorToken,
   );
   assert.equal(unchanged.status, 200);
+  assert.deepEqual(
+    ((await unchanged.json()) as PublicSettingsResponse).image_settings,
+    imageSettings,
+  );
   const storedBefore = await database.query.settings.findFirst({
     where: eq(settings.id, 1),
   });

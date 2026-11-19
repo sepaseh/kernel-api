@@ -27,6 +27,10 @@ export const createApp = ({
 }: Dependencies) => {
   const persistence = createAuthPersistence(database);
   const otp = createOtpGateway(config, database);
+  const settings = createSettingsService(
+    createDrizzleSettingsRepository(database),
+    (file) => storage.url(file.bucket, file.objectKey, file.visibility),
+  );
   const services: HttpDependencies["services"] = {
     account: createAccountService({
       persistence: createAccountPersistence(database),
@@ -47,6 +51,7 @@ export const createApp = ({
     },
     calendar: createCalendarService(createDrizzleCalendarRepository(database)),
     files: createFilesService({
+      getImageUploadLimit: settings.getImageUploadLimit,
       repository: createDrizzleFileRepository(database),
       storage,
       uploadLimitBytes: config.uploadLimitBytes,
@@ -54,10 +59,7 @@ export const createApp = ({
       now: () => new Date(),
     }),
     roles: createRolesService(createDrizzleRolesRepository(database)),
-    settings: createSettingsService(
-      createDrizzleSettingsRepository(database),
-      (file) => storage.url(file.bucket, file.objectKey, file.visibility),
-    ),
+    settings,
     users: createUsersService({
       provider: createAuthGateway(auth).provider,
       repository: createDrizzleUsersRepository(database),

@@ -1,3 +1,5 @@
+import type { SettingsImageConfiguration } from "../../contracts/settings.ts";
+
 export type SettingsLogo = {
   bucket: string;
   id: string;
@@ -8,6 +10,7 @@ export type SettingsLogo = {
 type SettingsRecord = {
   darkLogo?: SettingsLogo;
   darkTheme: unknown;
+  imageSettings: SettingsImageConfiguration;
   languageCode: string;
   lightLogo?: SettingsLogo;
   lightTheme: unknown;
@@ -16,6 +19,7 @@ type SettingsRecord = {
 type SettingsUpdate = {
   darkLogoId?: string;
   darkTheme: Record<string, string>;
+  imageSettings?: SettingsImageConfiguration;
   languageCode?: string;
   lightLogoId?: string;
   lightTheme: Record<string, string>;
@@ -23,6 +27,7 @@ type SettingsUpdate = {
 
 export type SettingsRepository = {
   read(): Promise<SettingsRecord | undefined>;
+  readImageSettings(): Promise<SettingsImageConfiguration | undefined>;
   readLanguageCode(): Promise<string | undefined>;
   save(input: SettingsUpdate): Promise<"saved" | "missing" | "invalid-logo">;
 };

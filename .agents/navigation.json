@@ -116,9 +116,6 @@
         "src/application/auth.ts",
         "src/application/calendar.ts",
         "src/application/files.ts",
-        "src/application/roles.ts",
-        "src/application/settings.ts",
-        "src/application/users.ts",
         "src/application/ports/account.ts",
         "src/application/ports/auth.ts",
         "src/application/ports/calendar.ts",
@@ -127,6 +124,9 @@
         "src/application/ports/roles.ts",
         "src/application/ports/settings.ts",
         "src/application/ports/users.ts",
+        "src/application/roles.ts",
+        "src/application/settings.ts",
+        "src/application/users.ts",
         "src/infrastructure/localization/catalogs/ar.ts",
         "src/infrastructure/localization/catalogs/de.ts",
         "src/infrastructure/localization/catalogs/en.ts",
@@ -265,7 +265,8 @@
         "src/test/integration/input-validation-http.test.ts",
         "src/test/integration/request-logging.test.ts",
         "src/test/integration/upload-body-limit.test.ts",
-        "src/infrastructure/lifecycle.test.ts"
+        "src/infrastructure/lifecycle.test.ts",
+        "src/test/integration/file-management-http.test.ts"
       ],
       "checks": [
         "boundaries",
@@ -351,7 +352,8 @@
         "scripts/collection-account-auth.test.mjs",
         "scripts/collection-management.test.mjs",
         "scripts/collection-files.test.mjs",
-        "scripts/collection-users.test.mjs"
+        "scripts/collection-users.test.mjs",
+        "src/test/integration/file-management-http.test.ts"
       ],
       "checks": [
         "boundaries",

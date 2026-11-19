@@ -1,8 +1,15 @@
 import { eq, inArray } from "drizzle-orm";
 
 import type { SettingsRepository } from "../../application/ports/settings.ts";
+import { parseImageSettings } from "../../contracts/settings.ts";
 import type { Database } from "../db/client.ts";
 import { files, settings } from "../db/schema.ts";
+
+const decodeImageSettings = (serialized: string) => {
+  const imageSettings = parseImageSettings(JSON.parse(serialized));
+  if (!imageSettings) throw new Error("Invalid stored image settings.");
+  return imageSettings;
+};
 
 export const createDrizzleSettingsRepository = (
   database: Database,
@@ -22,10 +29,18 @@ export const createDrizzleSettingsRepository = (
     return {
       darkLogo: value.darkLogoId ? byId.get(value.darkLogoId) : undefined,
       darkTheme: JSON.parse(value.darkTheme) as unknown,
+      imageSettings: decodeImageSettings(value.imageSettings),
       languageCode: value.languageCode,
       lightLogo: value.lightLogoId ? byId.get(value.lightLogoId) : undefined,
       lightTheme: JSON.parse(value.lightTheme) as unknown,
     };
+  },
+  readImageSettings: async () => {
+    const [value] = await database
+      .select({ imageSettings: settings.imageSettings })
+      .from(settings)
+      .where(eq(settings.id, 1));
+    return value ? decodeImageSettings(value.imageSettings) : undefined;
   },
   readLanguageCode: async () => {
     const [value] = await database
@@ -58,6 +73,9 @@ export const createDrizzleSettingsRepository = (
           .set({
             darkLogoId: input.darkLogoId ?? null,
             darkTheme: JSON.stringify(input.darkTheme),
+            ...(input.imageSettings && {
+              imageSettings: JSON.stringify(input.imageSettings),
+            }),
             ...(input.languageCode !== undefined && {
               languageCode: input.languageCode,
             }),

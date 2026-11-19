@@ -26,7 +26,8 @@ fails before database or storage initialization. See
 directory. Creation is exclusive: a repeated key cannot overwrite an existing
 object. A write/close failure removes only that call's newly created file on a
 best-effort basis and preserves the original failure. Failed cleanup can leave
-partial bytes for operator attention. Reads and deletes of missing files fail.
+partial bytes for operator attention. Reads of missing files fail. Deletion can
+be repeated when the object is already absent.
 
 On POSIX hosts, newly created directories request mode `0700` and files request
 mode `0600`, subject to the process umask. Existing paths retain their permissions.
@@ -44,6 +45,20 @@ reachable. Private objects are not served by this public route.
 Local object keys reject `.` and `..` path segments. Reads and deletes also
 accept the exact legacy `<file-id>/.` key for uploads whose original filename
 was `.`, resolving it to the existing file at `<file-id>`.
+
+## File management
+
+The authenticated list reports usage by settings logos.
+Private files include metadata without a public URL. When a file is in use,
+deletion returns a localized 409 and preserves its metadata and bytes.
+
+For unused files, the database transaction removes the file row and records a
+pending object deletion. The API removes the exact object, then clears the
+pending record. If either cleanup step fails, retry the DELETE for the original
+file ID. Local and MinIO deletion tolerate missing objects. For local storage,
+new requests to the old content URL fail once metadata is removed. MinIO serves
+its direct public URL until object removal completes. Existing cached public
+responses can remain available until their cache lifetime ends.
 
 ## MinIO through the S3 SDK
 
@@ -80,9 +95,8 @@ transaction and must not be reported as ready after a failure.
 overwriting the existing bytes; concurrent writers must handle that failure.
 `get` buffers the complete SDK response into a `Uint8Array` and propagates stream
 failures. This is not an unbounded-file streaming interface. Deleting an absent
-object follows S3's idempotent delete behavior, unlike the local adapter's
-missing-file failure. `storage/operations.ts` can provide safe diagnostics
-without replacing the original operation failure.
+object follows S3's idempotent delete behavior. `storage/operations.ts` can
+provide safe diagnostics without replacing the original operation failure.
 
 ## Hard deletion and public references
 

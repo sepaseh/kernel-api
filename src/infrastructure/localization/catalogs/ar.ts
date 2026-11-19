@@ -1,6 +1,10 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const ar = {
+  fileInUse: "هذا الملف قيد الاستخدام. أزل المراجع إليه قبل حذفه.",
+  permissionFiles: "الملفات",
+  permissionFilesDelete: "حذف الملفات",
+  permissionFilesRead: "عرض الملفات",
   authThrottled: "محاولات مصادقة كثيرة. حاول لاحقاً.",
   bodyTooLarge: "يتجاوز حجم الطلب الحد المسموح.",
   fieldInvalid: "الحقل {{field}} غير صالح.",

@@ -1,6 +1,11 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const es = {
+  fileInUse:
+    "Este archivo está en uso. Resuelve sus referencias antes de eliminarlo.",
+  permissionFiles: "Archivos",
+  permissionFilesDelete: "Eliminar archivos",
+  permissionFilesRead: "Ver archivos",
   authThrottled: "Demasiados intentos de autenticación. Inténtelo más tarde.",
   bodyTooLarge: "El cuerpo de la solicitud supera el límite de tamaño.",
   fieldInvalid: "{{field}} no es válido.",

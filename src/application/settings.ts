@@ -1,5 +1,7 @@
+import type { FileContext } from "../contracts/files.ts";
 import { supportedLanguages } from "../contracts/locales.ts";
 import type { PublicSettingsResponse } from "../contracts/settings.ts";
+import { parseImageSettings } from "../contracts/settings.ts";
 import { authorizeActor } from "./authorization.ts";
 import { ApplicationError } from "./errors.ts";
 import type { Actor } from "./models.ts";
@@ -56,6 +58,7 @@ export const createSettingsService = (
     return {
       ...(darkLogo && { dark_logo: darkLogo }),
       dark_theme: value.darkTheme,
+      image_settings: value.imageSettings,
       language,
       ...(lightLogo && { light_logo: lightLogo }),
       light_theme: value.lightTheme,
@@ -64,6 +67,12 @@ export const createSettingsService = (
 
   return {
     get,
+    getImageUploadLimit: async (context: FileContext) => {
+      const imageSettings = await repository.readImageSettings();
+      if (!imageSettings)
+        throw new ApplicationError("internal", "settingsNotInitialized");
+      return imageSettings[context].size;
+    },
     getLanguageCode: async () => (await repository.readLanguageCode()) ?? "en",
     listLanguages: () => supportedLanguages,
     update: async (actor: Actor, input: Record<string, unknown>) => {
@@ -87,10 +96,16 @@ export const createSettingsService = (
         throw new ApplicationError("not-found", "languageNotFound");
       const darkTheme = parsePalette(input.dark_theme, "dark_theme");
       const lightTheme = parsePalette(input.light_theme, "light_theme");
+      const imageSettings = parseImageSettings(input.image_settings);
+      if (input.image_settings !== undefined && imageSettings === undefined)
+        throw new ApplicationError("invalid", "fieldInvalid", {
+          field: "image_settings",
+        });
       // Ordinary branding saves must not overwrite a concurrent language change.
       const result = await repository.save({
         darkLogoId: optionalString(input.dark_logo_id, "dark_logo_id"),
         darkTheme,
+        ...(imageSettings && { imageSettings }),
         ...(actor.account.isSystemAdmin &&
           suppliedLanguage !== undefined && {
             languageCode: suppliedLanguage,

@@ -405,6 +405,7 @@ test("fresh migrations match the ORM's complete columns, keys and declared index
     schema.settings,
     schema.calendarDates,
     schema.otpCodes,
+    schema.pendingFileDeletions,
   ];
   const installed = await client.execute(
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__drizzle_%'",
@@ -553,13 +554,16 @@ test("populated logo migration preserves every row and blocks deletion until ref
       size: 4,
       visibility: "public",
     });
-  await database.insert(schema.settings).values({
-    darkLogoId: "dark",
-    darkTheme: '{"color_primary":"#123456"}',
-    id: 1,
-    languageCode: "fa",
-    lightLogoId: "light",
-    lightTheme: '{"color_primary":"#abcdef"}',
+  await client.execute({
+    sql: "INSERT INTO settings (id, dark_logo_id, dark_theme, language_code, light_logo_id, light_theme) VALUES (?, ?, ?, ?, ?, ?)",
+    args: [
+      1,
+      "dark",
+      '{"color_primary":"#123456"}',
+      "fa",
+      "light",
+      '{"color_primary":"#abcdef"}',
+    ],
   });
   const state = async () => {
     const tables = [
@@ -578,13 +582,24 @@ test("populated logo migration preserves every row and blocks deletion until ref
     return Promise.all(
       tables.map(async (table) => ({
         table,
-        rows: (await client.execute(`SELECT * FROM "${table}"`)).rows,
+        rows: (
+          await client.execute(
+            table === "settings"
+              ? "SELECT id, dark_logo_id, dark_theme, language_code, light_logo_id, light_theme FROM settings"
+              : `SELECT * FROM "${table}"`,
+          )
+        ).rows,
       })),
     );
   };
   const before = await state();
   await migrate(database, { migrationsFolder: migrations });
   assert.deepEqual(await state(), before);
+  const upgraded = await createDrizzleSettingsRepository(database).read();
+  assert.deepEqual(upgraded?.imageSettings, {
+    contents: { height: 630, size: 2_000_000, width: 1200 },
+    logo: { height: 256, size: 1_000_000, width: 256 },
+  });
   const references = (await client.execute("PRAGMA foreign_key_list(settings)"))
     .rows;
   assert.deepEqual(
@@ -625,10 +640,10 @@ test("populated logo migration preserves every row and blocks deletion until ref
 
 test("the appended snapshot agrees with the ORM and preserves the migration identity chain", async () => {
   const previous = JSON.parse(
-    await readFile(path.join(migrations, "meta/0004_snapshot.json"), "utf8"),
+    await readFile(path.join(migrations, "meta/0005_snapshot.json"), "utf8"),
   ) as { id: string };
   const current = JSON.parse(
-    await readFile(path.join(migrations, "meta/0005_snapshot.json"), "utf8"),
+    await readFile(path.join(migrations, "meta/0006_snapshot.json"), "utf8"),
   ) as {
     id: string;
     prevId: string;
@@ -660,6 +675,7 @@ test("the appended snapshot agrees with the ORM and preserves the migration iden
     schema.settings,
     schema.calendarDates,
     schema.otpCodes,
+    schema.pendingFileDeletions,
   ];
   for (const table of tables) {
     const config = getTableConfig(table);

@@ -63,7 +63,8 @@ export const createHttpApp = (dependencies: HttpDependencies) => {
     if (
       /^\/(?:auth|account|calendar|languages|users|roles)(?:\/|$)/.test(
         context.req.path,
-      )
+      ) ||
+      /^\/files(?:\/[^/]+)?\/?$/.test(context.req.path)
     )
       context.header("Cache-Control", "private, no-store");
     await next();

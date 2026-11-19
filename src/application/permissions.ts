@@ -12,6 +12,14 @@ export const permissionGroupDefinitions = [
     titleKey: "permissionCalendar",
   },
   {
+    name: "files",
+    permissions: [
+      { name: "files.delete", titleKey: "permissionFilesDelete" },
+      { name: "files.read", titleKey: "permissionFilesRead" },
+    ],
+    titleKey: "permissionFiles",
+  },
+  {
     name: "roles",
     permissions: [
       { name: "roles.create", titleKey: "permissionRolesCreate" },

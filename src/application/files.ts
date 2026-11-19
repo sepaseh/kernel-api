@@ -1,3 +1,7 @@
+import {
+  type FileContext,
+  type StoredFileResponse,
+} from "../contracts/files.ts";
 import { ApplicationError } from "./errors.ts";
 import type {
   FileEvents,
@@ -23,6 +27,7 @@ const observe = (notify: () => unknown) => {
 };
 
 type FilesDependencies = {
+  getImageUploadLimit(context: FileContext): Promise<number>;
   newId(): string;
   now(): Date;
   repository: FileRepository;
@@ -31,16 +36,16 @@ type FilesDependencies = {
 };
 
 export const createFilesService = ({
+  getImageUploadLimit,
   newId,
   now,
   repository,
   storage,
   uploadLimitBytes,
 }: FilesDependencies) => {
-  const validateSize = (size: number) => {
+  const validateSize = (size: number, limit: number) => {
     if (!size) throw new ApplicationError("invalid", "fileEmpty");
-    if (size > uploadLimitBytes)
-      throw new ApplicationError("too-large", "fileTooLarge");
+    if (size > limit) throw new ApplicationError("too-large", "fileTooLarge");
   };
 
   const storageOperation = async <T>(
@@ -58,6 +63,29 @@ export const createFilesService = ({
   };
 
   return {
+    async list(): Promise<StoredFileResponse[]> {
+      return (await repository.list()).map((file) => {
+        const url = storage.url(file.bucket, file.objectKey, file.visibility);
+        return {
+          id: file.id,
+          is_used: file.isUsed,
+          size: file.size,
+          ...(url && { url }),
+        };
+      });
+    },
+    async remove(id: string, events?: FileEvents): Promise<void> {
+      const pending = await repository.beginDeletion(id);
+      if (!pending) throw new ApplicationError("not-found", "fileNotFound");
+
+      await storageOperation(
+        "delete",
+        () => storage.delete(pending.bucket, pending.objectKey),
+        events,
+        id,
+      );
+      await repository.finishDeletion(id);
+    },
     getPublicContent: async (
       id: string,
       events?: FileEvents,
@@ -74,7 +102,7 @@ export const createFilesService = ({
       return { contents, record };
     },
     upload: async (
-      { actor, source, visibility }: FileUploadInput,
+      { actor, context, source, visibility }: FileUploadInput,
       events?: FileEvents,
     ): Promise<UploadedFile> => {
       observe(() => events?.stage?.("validation"));
@@ -82,6 +110,16 @@ export const createFilesService = ({
         throw new ApplicationError("invalid", "fieldRequired", {
           field: "file",
         });
+      }
+      const imageContext = context === "logo" ? context : undefined;
+      if (context !== undefined) {
+        if (!imageContext)
+          throw new ApplicationError("invalid", "fieldInvalid", {
+            field: "context",
+          });
+        if (visibility !== undefined && visibility !== "public")
+          throw new ApplicationError("invalid", "visibilityInvalid");
+        visibility = "public";
       }
       if (visibility !== "public" && visibility !== "private") {
         throw new ApplicationError("invalid", "visibilityInvalid");
@@ -93,14 +131,17 @@ export const createFilesService = ({
       ) {
         throw new ApplicationError("forbidden", "publicUploadDenied");
       }
-      validateSize(source.size);
+      const maximum = imageContext
+        ? Math.min(uploadLimitBytes, await getImageUploadLimit(imageContext))
+        : uploadLimitBytes;
+      validateSize(source.size, maximum);
       const id = newId();
       const objectKey = `${id}/${safeObjectName(source.name || "upload")}`;
       const contentType = source.type || "application/octet-stream";
       observe(() => events?.stage?.("read"));
       const data = await source.read();
       const size = data.byteLength;
-      validateSize(size);
+      validateSize(size, maximum);
       const createdAt = now();
       observe(() => events?.stage?.("storage"));
       const stored = await storageOperation(
@@ -152,7 +193,7 @@ export const createFilesService = ({
           visibility,
         }),
       );
-      return { contentType, id, ...(url && { url }), visibility };
+      return { contentType, id, size, ...(url && { url }), visibility };
     },
   };
 };

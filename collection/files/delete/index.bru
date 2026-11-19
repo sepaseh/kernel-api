@@ -1,0 +1,27 @@
+meta {
+  name: Delete File
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{base_url}}/files/{{file_id}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  ## Purpose
+
+  Permanently removes an unused file and its stored object.
+
+  ## Authentication
+
+  Requires `files.delete`.
+
+  ## Response
+
+  Returns an empty `200 OK` after cleanup, `404 Not Found` when the ID is unknown,
+  or `409 Conflict` while the file is assigned to a settings logo.
+  Retry the same file ID after a storage cleanup failure.
+}

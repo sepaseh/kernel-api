@@ -1,6 +1,8 @@
 {
   "content_type": "image/svg+xml",
   "id": "uploaded-logo",
+  "is_used": false,
+  "size": 7,
   "url": "http://localhost:3000/files/uploaded-logo/content",
   "visibility": "public"
 }

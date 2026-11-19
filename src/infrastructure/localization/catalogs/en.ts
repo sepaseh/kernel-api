@@ -1,4 +1,9 @@
 export const en = {
+  fileInUse:
+    "This file is in use. Resolve its references before deleting the file.",
+  permissionFiles: "Files",
+  permissionFilesDelete: "Delete files",
+  permissionFilesRead: "View files",
   authThrottled: "Too many authentication attempts. Try again later.",
   bodyTooLarge: "The request body exceeds the size limit.",
   fieldInvalid: "{{field}} is invalid.",

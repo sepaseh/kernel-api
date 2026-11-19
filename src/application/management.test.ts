@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import { supportedLanguages } from "../contracts/locales.ts";
+import { defaultImageSettings } from "../contracts/settings.ts";
 import { createCalendarService } from "./calendar.ts";
 import type { Actor } from "./models.ts";
 import type { CalendarRepository } from "./ports/calendar.ts";
@@ -197,12 +198,14 @@ const branding = { dark_theme: palette, light_theme: palette };
 const settingsFixture = () => {
   const state = {
     darkTheme: palette,
+    imageSettings: defaultImageSettings,
     languageCode: "fa",
     lightTheme: palette,
   };
   const writes: Array<Parameters<SettingsRepository["save"]>[0]> = [];
   const repository: SettingsRepository = {
     read: async () => state,
+    readImageSettings: async () => state.imageSettings,
     readLanguageCode: async () => state.languageCode,
     save: async (input) => {
       writes.push(input);
@@ -228,6 +231,7 @@ test("settings expose canonical language metadata and only resolvable public log
       visibility: "private",
     },
     darkTheme: palette,
+    imageSettings: defaultImageSettings,
     languageCode: "fa",
     lightLogo: {
       bucket: "logos",
@@ -241,6 +245,11 @@ test("settings expose canonical language metadata and only resolvable public log
   const result = await service.get();
   assert.equal(service.listLanguages(), supportedLanguages);
   assert.equal(result.language, supportedLanguages[0]);
+  assert.deepEqual(result.image_settings, defaultImageSettings);
+  assert.equal(
+    await service.getImageUploadLimit("logo"),
+    defaultImageSettings.logo.size,
+  );
   assert.equal("dark_logo" in result, false);
   assert.deepEqual(result.light_logo, {
     id: "public",
@@ -249,6 +258,53 @@ test("settings expose canonical language metadata and only resolvable public log
   assert.equal(await service.getLanguageCode(), "fa");
   repository.readLanguageCode = async () => undefined;
   assert.equal(await service.getLanguageCode(), "en");
+});
+
+test("settings validate both image contexts before saving and preserve them when omitted", async () => {
+  const { repository, service, writes } = settingsFixture();
+  const { contents, logo } = defaultImageSettings;
+  for (const image_settings of [
+    null,
+    [],
+    { contents },
+    { contents, logo: { ...logo, height: 0 } },
+    { contents, logo: { ...logo, width: 8193 } },
+    { contents, logo: { ...logo, size: Number.MAX_SAFE_INTEGER + 1 } },
+    { contents: { ...contents, width: 10.5 }, logo },
+    { contents: { ...contents, size: "100" }, logo },
+  ]) {
+    await assert.rejects(
+      service.update(actor, { ...branding, image_settings }),
+      {
+        key: "fieldInvalid",
+        kind: "invalid",
+        values: { field: "image_settings" },
+      },
+    );
+  }
+  assert.equal(writes.length, 0);
+  const imageSettings = {
+    contents: { ...contents, width: 8192 },
+    logo: { ...logo, size: 1 },
+  };
+  const updated = await service.update(actor, {
+    ...branding,
+    image_settings: { ...imageSettings, extra: "discarded" },
+  });
+  assert.deepEqual(writes[0].imageSettings, imageSettings);
+  assert.deepEqual(updated.image_settings, imageSettings);
+  assert.equal(await service.getImageUploadLimit("logo"), 1);
+  assert.deepEqual(
+    (await service.update(actor, branding)).image_settings,
+    imageSettings,
+  );
+  assert.equal(Object.hasOwn(writes[1], "imageSettings"), false);
+
+  repository.readImageSettings = async () => undefined;
+  await assert.rejects(service.getImageUploadLimit("logo"), {
+    key: "settingsNotInitialized",
+    kind: "internal",
+  });
 });
 
 test("settings distinguish missing initialization and invalid persisted language", async () => {

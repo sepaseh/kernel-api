@@ -1,6 +1,11 @@
 import type { ApiTranslationResource } from "../../../application/localization.ts";
 
 export const ru = {
+  fileInUse:
+    "Этот файл используется. Устраните ссылки на него перед удалением.",
+  permissionFiles: "Файлы",
+  permissionFilesDelete: "Удалять файлы",
+  permissionFilesRead: "Просматривать файлы",
   authThrottled: "Слишком много попыток входа. Повторите позже.",
   bodyTooLarge: "Тело запроса превышает допустимый размер.",
   fieldInvalid: "Поле {{field}} недопустимо.",

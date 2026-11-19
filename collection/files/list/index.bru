@@ -1,0 +1,25 @@
+meta {
+  name: List Files
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/files
+  body: none
+  auth: inherit
+}
+
+docs {
+  ## Purpose
+
+  Lists stored file metadata. The list uses newest files first.
+
+  ## Authentication
+
+  Requires `files.read`.
+
+  ## Response
+
+  Returns `200 OK` with an array. The `is_used` field is true when a settings logo references the file. Private files have no public URL.
+}
