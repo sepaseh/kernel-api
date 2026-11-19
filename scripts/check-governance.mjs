@@ -121,7 +121,7 @@ export const reviewedOverrides = {
   "minimatch@10.2.6": "11.0.9",
   picomatch: `npm:${reviewedPicomatch.name}@${reviewedPicomatch.version}`,
 };
-const reviewedAuthCoreVersion = "1.7.25";
+const reviewedAuthCoreVersion = "1.7.26";
 export const overridesForPackage = (pkg) => ({
   ...reviewedOverrides,
   ...(pkg.dependencies?.["better-auth"]
@@ -322,16 +322,16 @@ const sourceFiles = [
 ];
 export const actions = {
   checkout: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
-  node: "actions/setup-node@820762786026740c76f36085b0efc47a31fe5020",
+  node: "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1",
   upload: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9",
   download:
     "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
   sonar:
-    "SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9",
+    "SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4",
   codeqlInit:
-    "github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+    "github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066",
   codeqlAnalyze:
-    "github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938",
+    "github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066",
 };
 const expression = (value) => "${{ " + value + " }}";
 const assert = (condition, message) => {
