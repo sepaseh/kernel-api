@@ -29,6 +29,7 @@ const observe = (notify: () => unknown) => {
 };
 
 type FilesDependencies = {
+  detectCoverImageType(data: Uint8Array): Promise<string | undefined>;
   getImageUploadLimit(context: FileContext): Promise<number>;
   newId(): string;
   now(): Date;
@@ -38,6 +39,7 @@ type FilesDependencies = {
 };
 
 export const createFilesService = ({
+  detectCoverImageType,
   getImageUploadLimit,
   newId,
   now,
@@ -154,6 +156,14 @@ export const createFilesService = ({
       const data = await source.read();
       const size = data.byteLength;
       validateSize(size, maximum);
+      if (
+        imageContext === "contents" &&
+        (await detectCoverImageType(data)) !== contentType.toLowerCase()
+      )
+        throw new ApplicationError(
+          "unsupported-media",
+          "contentCoverImageTypeInvalid",
+        );
       const createdAt = now();
       observe(() => events?.stage?.("storage"));
       const stored = await storageOperation(

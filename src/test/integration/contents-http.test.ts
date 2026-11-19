@@ -23,12 +23,8 @@ import {
 } from "../../infrastructure/db/schema.ts";
 import { en } from "../../infrastructure/localization/catalogs/en.ts";
 import { createLogger } from "../../infrastructure/logging/logger.ts";
+import { sampleCoverImage } from "../support/cover-image.ts";
 import { MemoryObjectStorage } from "../support/memory-object-storage.ts";
-
-const sampleImage = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVQIHWP4DwABAQEAG7buVgAAAABJRU5ErkJggg==",
-  "base64",
-);
 
 const readExample = async <T>(operation: string, status: number): Promise<T> =>
   JSON.parse(
@@ -139,7 +135,7 @@ const fixture = async (context: TestContext) => {
     const form = new FormData();
     form.set(
       "file",
-      new File([sampleImage], "cover.png", { type: "image/png" }),
+      new File([sampleCoverImage], "cover.png", { type: "image/png" }),
     );
     if (publicImage) form.set("context", "contents");
     else form.set("visibility", "private");
@@ -262,7 +258,7 @@ test("contents HTTP replaces editable fields atomically and enforces resource pe
   const image = await request(`${storedFile}/content`, "GET");
   assert.equal(image.status, 200);
   assert.equal(image.headers.get("Content-Type"), "image/png");
-  assert.deepEqual(Buffer.from(await image.arrayBuffer()), sampleImage);
+  assert.deepEqual(Buffer.from(await image.arrayBuffer()), sampleCoverImage);
   assert.equal((await request(storedFile, "DELETE", editor)).status, 200);
   assert.equal(storage.objects.size, 1);
 });
