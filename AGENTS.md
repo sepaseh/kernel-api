@@ -34,6 +34,12 @@ readiness require their own evidence.
 
 ## Git and review
 
+When reviewing a PR or addressing review feedback, read
+[Address review feedback](.agents/rules/code-review.md#address-review-feedback)
+at the start of the task, before switching branches or editing files. Record the
+outcome and verification for each finding. Reply in the original review thread
+when authorized.
+
 Use a verified feature branch and PR for changes to protected `main`.
 Honor existing authorization for the same action and scope. Follow the
 [Git workflow](.agents/rules/git.md) and
