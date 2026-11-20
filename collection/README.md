@@ -1,155 +1,79 @@
-# Kernel API — Bruno Collection
+# Kernel API Bruno collection
 
-The collection contains API operations used by the Kernel applications and
-saved response examples. The current publication's request groups are declared
-by `collectionGroups` in the [inventory](../.github/bootstrap-policy.json).
-Request directories and saved examples become available with their owning group.
+Use this collection to make local HTTP requests and inspect saved response
+examples. The [publication inventory](../.github/bootstrap-policy.json) lists
+the eleven published groups.
 
-## Open the collection
+## Connect Bruno to the local API
 
-1. Install and open Bruno.
-2. Choose **Open Collection**.
-3. Select this `collection` directory.
-4. Select an existing local environment, such as **development**, or create one.
-   Set `base_url` to the local API URL, `access_token` initially empty, and
-   `origin` to an exact origin allowed by `SERVER_ALLOWED_ORIGINS` or
-   `SERVER_ALLOWED_ORIGIN` on the server. The allowed origin may differ from
-   `base_url`; include its scheme and port when configured. The collection sends
-   it as the `Origin` header so requests with session cookies pass the server's
-   origin check. For individual resources, set `user_id`, `role_id`, `file_id`,
-   `content_id`, `content_category_id`, and `faq_id` to synthetic identifiers
-   created on the disposable local server. The sorting examples also use
-   `other_content_category_id` and `faq_second_id` for the second entry in each list.
-   For calendar deletion, set `calendar_date` in the active environment to the
-   date to remove in `YYYY-MM-DD` format.
-   Select a synthetic local file in Bruno before sending the upload request.
+1. Start the [disposable API fixture](../README.md#run-locally). For
+   a separately configured server with synthetic data, follow
+   [local development](../docs/development.md).
+2. Install [Bruno](https://www.usebruno.com/), choose **Open Collection**, and
+   open this `collection` directory.
+3. Create or select a local environment. Set `base_url` to the local API URL,
+   leave `access_token` empty, and set `origin` to an exact origin allowed by
+   `SERVER_ALLOWED_ORIGINS` or `SERVER_ALLOWED_ORIGIN`. Include the scheme and
+   any configured port. For the default fixture, use the API URL
+   `http://127.0.0.1:3100` and the website origin `http://127.0.0.1:3101`.
+4. Run [Login](auth/login/index.bru) with a synthetic account. Its saved input
+   matches the seeded administrator in the disposable fixture. A successful
+   response returns HTTP 200 and the request script puts its `access_token`
+   in the active environment. Authenticated operations use this bearer token.
 
-Keep local environments and real credentials out of version control. Run the
-full validation gate against an isolated export of the exact publication
-inventory, without private Bruno environments.
+The collection sends `origin` as the `Origin` header so browser-style requests
+using session cookies pass the origin check. Keep populated local environments,
+account credentials and tokens outside version control.
 
-## HTTP feature overview
+## Find an operation
 
-The API implements the features below. Use the inventory's published groups to
-determine which request directories and examples are included at this stage.
+| Group                                    | Operations                                                                                                                  |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| [Account](account)                       | Current account, profile and username updates, email verification and mobile verification.                                  |
+| [Authentication](auth)                   | Registration, login, OTP request, session refresh, password recovery and change, and logout.                                |
+| [Calendar](calendar)                     | List, add and delete configured dates.                                                                                      |
+| [Content categories](content-categories) | List, create, read, update, order and delete categories.                                                                    |
+| [Contents](contents)                     | List and filter, create, read, update and delete rich-text entries with a category and public cover image.                  |
+| [FAQs](faqs)                             | List, create, read, update, order and delete FAQ entries.                                                                   |
+| [Files](files)                           | Upload, list with byte size and usage status, retrieve public content and delete unused files.                              |
+| [Languages](languages)                   | List the supported languages with authentication.                                                                           |
+| [Roles](roles)                           | List, create, read, update and delete roles. List available permissions.                                                    |
+| [Settings](settings)                     | Read public settings and update themes, logos, image settings and the active language.                                      |
+| [Users](users)                           | List, create, read, update and delete users. Manage status, administrator access, passwords, roles and mobile verification. |
 
-- **Authentication.** Register, login, OTP request, refresh token, forgot password,
-  change password, and logout.
-- **Account.** Current account, profile and username updates, and email verification.
-- **Calendar.** List, create, and delete configured dates.
-- **Content categories and FAQs.** List, create, details, update, hard deletion,
-  and sorting. Each sort submits the complete set of IDs in the desired order.
-- **Contents.** Page, filter, create, read, update, and delete content with a
-  category and a public cover image.
-- **Files.** Upload, list with byte size and usage status, retrieve public
-  content, and permanently delete unused files.
-- **Roles.** List, create, details, update, and delete.
-- **Permissions.** Role-scoped list.
-- **System settings.** Public details and authenticated update of themes, logos,
-  image settings, and the configured language.
-- **Languages.** Authenticated list of supported languages.
-- **Users.** List, create, details, update, delete, status, system-admin, password,
-  roles, and mobile verification.
+Saved examples sit beside each operation and use the HTTP status code as the
+filename. Errors shown in the examples use English. Settings success examples
+illustrate Persian as the active language. A bodyless success has no JSON
+example.
 
-Clients may restore an in-memory token through `/auth/refresh-token`; the
-request is included even when the shared API client handles it without a feature
-page. Session cookies are also used by the authentication adapter.
+## Prepare request variables
 
-## First run
+Create synthetic data through the collection or load the [development seed](../docs/development.md)
+in a disposable database.
 
-Run the login request with a local test account. Its post-response script stores
-the returned access token as `access_token` in the active environment. The
-remaining authenticated requests use that token.
+- Set `user_id`, `role_id`, `file_id`, `content_id`, `content_category_id`
+  and `faq_id` to the IDs returned by the relevant operations.
+- For the two-record sort examples, also set `other_content_category_id` or
+  `faq_second_id`. For larger lists, replace the example with each current ID
+  exactly once in the desired order.
+- Set `calendar_date` to the date to delete in `YYYY-MM-DD` format.
+- Select a synthetic local file in [Upload File](files/upload/index.bru).
+  Use multipart `context=contents` for a public cover or `context=logo`
+  for branding. Create a category, upload a cover and pass their IDs to
+  [Create Content](contents/create/index.bru) as `content_category_id`
+  and `cover_image_id`.
 
-To create content, create a category and upload a public cover image using
-multipart `context=contents`. Set `content_category_id` and `file_id` to the
-returned IDs. Use `context=logo` for branding images. The upload response
-includes `size` in bytes and starts with `is_used: false`; the files list
-reflects whether settings or content now reference each file.
+## Shared HTTP behavior
 
-Send `page` to list users in one-based pages of 24. Existing consumers can
-continue sending `offset` and `size` for variable-size pages.
+- Uninitialized startup returns a bodyless 503. Initialized responses carry
+  `X-Request-Id` for [log correlation](../docs/backend-logging.md#request-correlation).
+- The [HTTP transport guide](../docs/http-transport.md) explains origins, caching,
+  translated error responses, attempt limits and the OTP resend cooldown.
+- Follow [input validation](../docs/input-validation.md) for JSON body limits
+  and [upload contexts](../docs/object-storage.md#upload-contexts) for file limits.
+- [Mobile verification](../docs/http-transport.md#mobile-number-changes)
+  requires issuing and confirming the code in the same session, for the same
+  user, number and flow. Local OTP uses a configured development code.
 
-Saved response files sit beside each published request and are named after its
-HTTP status code. Saved error examples use English messages. When the settings
-group is published, its success examples illustrate Persian as the active
-language. Bodyless successes have no JSON example.
-
-Authentication and mobile-change operations can return `429`. Saved
-`429.json` examples demonstrate one applicable error; code-issuance cooldowns
-and the in-process attempt limiter can return different messages. See the
-[HTTP transport limits](../docs/http-transport.md) for scopes and `Retry-After`.
-
-To change your own mobile number, request a code using
-`POST /account/request-mobile-verification`, then send the same `mobile` and
-its `otp` to `PATCH /account/update-profile`. To change a user's number through
-management, use `POST /users/{{user_id}}/request-mobile-verification` followed
-by `PATCH /users/{{user_id}}` with the same `mobile` and its `otp`. Management
-requires `users.update`; changing another user's number requires a system
-administrator. Issue and confirm the code in the same session, for the same
-user and flow. The local runtime uses a configured development code: production
-OTP delivery is not implemented. Use synthetic accounts and values with a
-disposable local server. See [HTTP transport](../docs/http-transport.md) and
-[authentication adapters](../docs/auth-adapters.md).
-
-Responses from the initialized HTTP app, including errors, preflight responses,
-and file content, include `X-Request-Id`. The initial 503 response before the
-app is ready does not include this header. Clients may send a value of 1–128 ASCII
-letters, digits, underscores, hyphens, or equals signs. Missing or invalid values
-are replaced with a UUID. Values that would be redacted as sensitive text (for
-example a mobile number or `token=...`) are also replaced, so the returned ID and
-the logged ID always agree. The returned header is the identifier used in server
-logs; it is correlation metadata, not proof of identity. CORS allows this request
-header and exposes it on responses. JSON response bodies are unchanged.
-
-Unexpected authentication-provider, database, and storage failures return `500`
-with the translated generic internal-error message, never a stack or SDK payload.
-Expected credential and validation failures retain their documented `400`
-responses. In particular, login, registration, password change, and user creation
-do not turn unexpected infrastructure failures into validation errors.
-
-Do not store real passwords or access tokens in this shared collection.
-
-## Local backend integration
-
-The standalone backend implements these contracts under `src`. Use `npm run dev`
-with explicit synthetic configuration; the command does not automatically load
-an environment file. Consult
-the [development guide](../docs/development.md) for local execution and the
-[validation manifest](../.agents/validation.json) for checks. Saved responses do
-not drive runtime output; update both the collection and the matching Hono route
-when behavior changes.
-
-See the [collection and backend integration guide](../.agents/rules/api-collection.md)
-for source-of-truth rules, change sequencing, and ownership.
-
-## Shared HTTP contract
-
-The executable operation requests remain in this collection. Feature-owned wire
-DTOs and constants live in `src/contracts/`.
-
-- JSON request bodies require `Content-Type: application/json` and are limited to
-  64 KiB, including streamed bodies without Content-Length. Invalid media type
-  returns 415; oversized JSON returns 413. File uploads retain their own limit.
-- Browser mutations require an exact configured Origin. Untrusted Origins and
-  cookie mutations without Origin return 403. Nonbrowser clients with no ambient
-  cookie/fetch metadata can continue using the existing bearer requests.
-- The persisted `settings.language_code` selects API response language from all
-  ten registered codes: `ar`, `de`, `en`, `es`, `fa`, `fr`, `it`, `pt`, `ru` and
-  `tr`. Request language headers, including `Accept-Language`, and visitor
-  cookies cannot override that setting. Responses passing language initialization include `Content-Language`.
-- Auth and account route processing sets `Cache-Control: private, no-store` after CORS and origin checks; preflight or earlier errors may omit it.
-- Login has a bounded single-process backstop of 20 attempts per identity per
-  15 minutes. Registration, OTP issue, recovery, email verification confirmation, and mobile-change OTP
-  issue and confirmation have 10 attempts per scope and identity (or actor/target)
-  per 15 minutes, in addition to OTP's 120-second resend cooldown. The in-process limiter returns 429 with Retry-After; the independent
-  OTP resend cooldown can return 429 without that header. This is not a
-  distributed/IP-based limiter;
-  shared deployments must supply an ingress/shared-store abuse policy.
-- Password change/reset invalidates all previous sessions. Logout is idempotent
-  and expires the actual Better Auth cookies, including HTTPS secure names.
-
-After initialization, errors handled by the API error serializer use
-`{ "message": "translated message" }` and include `X-Request-Id`; the initial
-readiness `503` is bodyless and omits that header. New shared HTTP errors are documented here rather than repeated as
-operation-specific response fixtures.
+See [changing contracts and handing them off to clients](../docs/collection-guide.md)
+for the owning DTOs, routes and tests.

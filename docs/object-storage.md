@@ -46,18 +46,42 @@ Local object keys reject `.` and `..` path segments. Reads and deletes also
 accept the exact legacy `<file-id>/.` key for uploads whose original filename
 was `.`, resolving it to the existing file at `<file-id>`.
 
+## Upload contexts
+
+Send `POST /files` with multipart `file` and a supported `context` to upload a
+public image. The [upload operation](../collection/files/upload/index.bru)
+also documents the legacy request with an explicit `visibility` and no context.
+
+| Context    | Allowed callers                                                              | Default width × height | Default size limit |
+| ---------- | ---------------------------------------------------------------------------- | ---------------------- | ------------------ |
+| `contents` | System administrator or a caller with `contents.create` or `contents.update` | 1200 × 630             | 2,000,000 bytes    |
+| `logo`     | System administrator or a caller with `settings.update`                      | 256 × 256              | 1,000,000 bytes    |
+
+Public `GET /settings` supplies the current values in `image_settings`. Use
+the width and height as crop dimensions in the client. The API enforces the
+smaller of the context size and the server upload limit. For a content cover,
+the API decodes the image, verifies its declared media type and limits the
+decoded input to 67,108,864 pixels across frames. Cover formats are AVIF, GIF,
+JPEG, PNG and WebP. Invalid, unsupported or mismatched covers return 415.
+See [HTTP upload limits](http-transport.md#file-uploads) for the multipart
+envelope and deadline.
+
 ## File management
 
-The authenticated list reports usage by settings logos and content covers.
-Private files include metadata without a public URL. When a file is in use,
-deletion returns a localized 409 and preserves its metadata and bytes.
+The authenticated list requires `files.read` and returns each file's ID, byte
+size and `is_used` flag. Usage includes references from settings logos and
+content covers. Only public files can have a URL.
 
-For unused files, the database transaction removes the file row and records a
-pending object deletion. The API removes the exact object, then clears the
-pending record. If either cleanup step fails, retry the DELETE for the original
-file ID. Local and MinIO deletion tolerate missing objects. For local storage,
-new requests to the old content URL fail once metadata is removed. MinIO serves
-its direct public URL until object removal completes. Existing cached public
+`DELETE /files/:fileId` requires `files.delete`. When a file is in use, the
+request returns a localized 409 and preserves its metadata and bytes. For an
+unused file, the database transaction removes the file row and records a pending
+object deletion. The API removes the exact object, clears the pending record
+and returns an empty 200. If cleanup fails before completion, retry
+`DELETE` with the original file ID. Local and MinIO deletion tolerate missing
+objects.
+
+New requests to the local content route fail once the metadata is removed.
+MinIO serves a direct public URL until object removal completes. Cached public
 responses can remain available until their cache lifetime ends.
 
 ## MinIO through the S3 SDK
@@ -98,7 +122,7 @@ failures. This is not an unbounded-file streaming interface. Deleting an absent
 object follows S3's idempotent delete behavior. `storage/operations.ts` can
 provide safe diagnostics without replacing the original operation failure.
 
-## Hard deletion and public references
+## MinIO hard deletion and public references
 
 Soft deletion is prohibited. Readiness and every write/delete require an absent
 bucket versioning status. Enabled, suspended and other present statuses fail;

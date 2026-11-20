@@ -1,8 +1,8 @@
 # API trust boundaries and threats
 
-This model describes the published runtime-operations snapshot, not a completed
-production assessment. The API owns authentication, authorization, persistence
-and object storage; independent clients use its HTTP contracts. Operators own
+This model describes the published `local-runtime` source. The API owns
+authentication, authorization, persistence and object storage. Independent
+clients use its HTTP contracts. Operators own
 the host, network, secrets, storage configuration and release process.
 
 ## Assets and boundaries
@@ -22,7 +22,7 @@ the host, network, secrets, storage configuration and release process.
   lexical path checks cannot prevent a host user from inserting symlinks. MinIO
   requires owned buckets and TLS outside `localhost` or literal loopback endpoints.
 
-## Important scenarios
+## Browser trust and account recovery
 
 Browser mutations with an untrusted Origin are rejected. A mutation without an
 Origin is also rejected when it carries a cookie or browser fetch metadata;
@@ -36,6 +36,23 @@ administrator who controls the replacement number can change it without the
 account owner's consent. The operator must account for this recovery risk. The
 OTP is bound to the actor, session, target and old and new numbers, with the
 authorization and update rechecked transactionally.
+
+## Rich text, file uploads and deletion
+
+Treat submitted HTML and uploaded bytes as untrusted. Content writes sanitize
+the body to a limited set of text and list tags and require text after cleanup.
+Content cover uploads check permission and size, then decode the image and check
+its media type before writing bytes. Review these controls when changing HTML
+rendering or adding supported cover formats.
+
+Settings logos and content covers protect their file references. Content records
+also protect their categories. The API blocks a hard deletion while these
+references exist. After deleting an unused file's metadata, object cleanup may
+require an authorized retry. Public storage or caches can still serve bytes
+until cleanup or cache expiry. See [object storage](../object-storage.md#file-management)
+and the [content integration tests](../../src/test/integration/contents-http.test.ts).
+
+## Operational limits
 
 Production OTP delivery is not implemented. The local authentication limiter
 is per process, and privileged changes to bucket configuration can race storage

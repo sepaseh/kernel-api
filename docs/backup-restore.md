@@ -6,6 +6,8 @@ objective for the actual service. Kernel provides this procedure and a
 backups, an operator restore command or a promised recovery time. Never rehearse against the
 developer data or an active production database.
 
+## Capture and verify a recovery point
+
 Preserve one matched recovery point: SQLite plus remaining WAL/journal sidecars,
 all local-private/local-public objects or both MinIO buckets and access policies,
 release/migration identity, driver/paths/origins and protected secret-store version
@@ -22,16 +24,25 @@ and private objects. Recover secrets through the protected secret store separate
 4. Store backups outside live data/release directories. Record timestamp, sizes,
    checksums, counts and read-only object-reference inventory in a protected manifest.
    Verify completion before restarting the original instance and checking health.
-5. Restore into NEW isolated DB/storage locations using the matching release and
-   protected configuration. Disable development seed and preserve backup originals.
-6. Before API startup, run `PRAGMA integrity_check` (expect ok) and
+
+## Restore and verify the service
+
+1. Restore into new isolated database and storage locations using the matching
+   release and protected configuration. Disable development seeding and preserve
+   the original backups.
+2. Before API startup, run `PRAGMA integrity_check` (expect `ok`) and
    `PRAGMA foreign_key_check` (expect no rows) on the restored SQLite copy. Verify
    migration history; startup applies pending migrations, so rehearse upgrades on
    a further copy rather than overwriting the recovery point.
-7. Start the isolated API; check health, authorized login, roles, settings, calendar,
-   counts and every referenced object. Verify private objects remain inaccessible
-   publicly and public logos/content types match. Record recovered data timestamp,
-   elapsed recovery time and discrepancies before approving the recovery point.
+3. Start the isolated API and check health, authorized login, roles, settings
+   and calendar data. If the backup contains content and FAQs, verify category
+   and FAQ order, content records and cover references. Check counts and every
+   referenced object. Confirm public images and their content types match and
+   private objects remain inaccessible through public URLs.
+4. Include pending object deletions in the inventory. Reconcile any mismatch
+   before approving the recovery point. Follow the [file deletion retry procedure](object-storage.md#file-management)
+   if object cleanup was pending at backup time. Record the recovered data
+   timestamp, elapsed recovery time and discrepancies.
 
 Restoration also restores old sessions and OTP records. Decide whether to revoke
 them before returning service, particularly after an authentication incident.
@@ -44,10 +55,10 @@ Do not merge recovery points or downgrade data by editing migration files.
 
 Run `npm run test:recovery` from this checkout. The command runs four executable
 acceptance cases in [recovery-drill.test.ts](../src/test/integration/recovery-drill.test.ts).
-They cover cleanup after a client-close failure, a matched restore, rejection of
-damaged or mismatched recovery points, and a synthetic storage incident.
-They also run inside the required `test:coverage` gate and CI. No additional dependency, Docker engine,
-browser, external bucket, real environment file or production service is needed.
+They cover operation and cleanup failures, a matched restore, rejection of
+damaged or mismatched recovery points, and a synthetic storage incident. The
+cases also run under `npm run test:integration`, the local full profile and CI.
+The fixtures need only the locked dependencies and pinned Node runtime.
 
 The cases create a uniquely named `kernel-recovery-drill-*` directory directly
 under the system temporary directory. Configuration is explicitly synthetic;

@@ -1,17 +1,17 @@
 # Database schema and migrations
 
-The executable schema is [src/infrastructure/db/schema.ts](../src/infrastructure/db/schema.ts);
-reviewed SQL migrations and Drizzle metadata live in [drizzle/](../drizzle). The
-fifteen tables store identities, revocable sessions, authorization, settings,
-calendar dates, OTP challenges, content, FAQ entries and object metadata.
-File bytes stay in local public/private
-storage or MinIO.
+The [Drizzle schema](../src/infrastructure/db/schema.ts) defines the SQLite
+tables. Reviewed SQL migrations and Drizzle metadata live in [drizzle/](../drizzle).
+The database stores identities, sessions, authorization, settings, calendar
+dates, OTP challenges, content, FAQs and object metadata. File bytes live in
+[local object storage or MinIO](object-storage.md).
 
 ## Representation and columns
 
-Independent entities use text IDs; generated application IDs use crypto.randomUUID().
-SQLite integers represent booleans and timestamps, mapped by Drizzle to boolean and
-Date. Theme palettes are JSON text. Join tables use composite primary keys.
+Independent entities generally use text IDs. Generated IDs use
+`crypto.randomUUID()`. Drizzle maps SQLite integers to booleans and dates.
+Theme palettes and image settings are stored as JSON text. Join tables use
+composite primary keys.
 
 | Table                  | SQL columns (? means nullable)                                                                                                                                                 |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -30,6 +30,8 @@ Date. Theme palettes are JSON text. Join tables use composite primary keys.
 | content_categories     | id, name, position                                                                                                                                                             |
 | contents               | id, title, normalized_title, body, excerpt, content_category_id, cover_image_id, created_at                                                                                    |
 | pending_file_deletions | id, bucket, object_key                                                                                                                                                         |
+
+## Identity columns and profile updates
 
 The TypeScript field user.email maps to SQL auth_email, the required internal
 Better Auth identity. user.profileEmail maps to SQL email, the optional verified
@@ -106,6 +108,19 @@ erDiagram
   IDs. Logo references are optional and may match. Verification identifiers and
   calendar dates have no declared entity relation.
 
+## Editorial records
+
+Contents store sanitized HTML in `body` and a lowercase copy of the title in
+`normalized_title` for literal substring filtering. Indexes cover
+`content_category_id` and `cover_image_id`. Contents require an existing category
+and an eligible public cover file.
+
+Content categories and FAQs store an indexed `position` for display order.
+Creation appends to the saved order and sorting updates positions in one
+transaction after comparing the submitted IDs with the current set. Position
+is internal to persistence. See the
+[ordering contract](collection-guide.md#content-category-and-faq-ordering).
+
 ## Migration and validation boundaries
 
 The database factory opens the explicitly supplied URL and returns its client and
@@ -122,10 +137,11 @@ rebuilds settings while preserving every row and its language, theme and logo
 values. Tests verify foreign keys are enabled after the migration runner restores
 them and that post-upgrade foreign-key integrity is clean.
 
-The file management migration backfills image settings defaults and adds pending
-object deletion tracking. The content migration adds categories and content with
-restrictive references to categories and cover files. The FAQ migration adds the
-FAQ table and its position index.
+- [0006](../drizzle/0006_add_image_settings_and_file_management.sql) backfills
+  image settings defaults and adds pending object deletion tracking.
+- [0007](../drizzle/0007_add_content_management.sql) adds categories and content
+  with restrictive references to categories and cover files.
+- [0008](../drizzle/0008_add_faqs.sql) adds the FAQ table and its position index.
 
 The Drizzle libSQL migrator delegates the SQL batch to libSQL, which disables
 foreign keys on the migration connection before beginning the transaction and

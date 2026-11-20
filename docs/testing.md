@@ -1,23 +1,41 @@
-# API testing
+# Write and maintain tests
 
+Run the smallest test that exercises the changed behavior. Use the
+[validation manifest](../.agents/validation.json) to select related checks.
+Before an authorized commit or PR, run the full profile as described in
+[validation](validation.md).
 The [publication inventory](../.github/bootstrap-policy.json) declares what is
-actually published. The [canonical manifest](../.agents/validation.json) owns all
-required source-phase checks. Run its entire full profile on the exact proposed
-tree before an authorized commit or PR.
+published. Install dependencies with `npm ci` using the
+[pinned Node.js version](../.nvmrc).
+
+## Choose a suite
 
 Use pure tests with synthetic feature ports for application policy and operation
 ordering. Publish real owned temporary database, authentication, filesystem,
 object-storage and HTTP tests with each corresponding adapter. Fake ports and
 governance tests cannot establish those behaviors.
 
-The manifest separates Unit tests, API integration tests and Governance tests.
-Unit tests use synthetic ports for application policy and isolated module
-behavior. API integration tests exercise owned database, authentication,
-filesystem, signed object-storage SDK, HTTP, process and recovery boundaries.
-Governance tests cover repository controls, tooling, hooks, collection integrity
-and synthetic operations. Collection suites also compare saved responses with
-in-process Hono routes using synthetic dependencies. Select the actual behavior
-owner when assigning a new test, and keep each test in exactly one suite.
+| Command                    | When to use it                                                                                            |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit`        | Application policy with synthetic ports or isolated module behavior.                                      |
+| `npm run test:integration` | Disposable database, authentication, filesystem, signed storage SDK, HTTP, process and recovery behavior. |
+| `npm run test:governance`  | Repository controls, tooling, hooks, collection integrity and synthetic operations.                       |
+
+Collection suites also compare saved responses with in-process Hono routes
+using synthetic dependencies. Assign each new test to one suite based on the
+behavior it exercises. See [test placement](../.agents/rules/testing.md#test-placement).
+
+The integration suites cover settings and file management, category and content
+management, and FAQ permissions, validation and ordering. For a focused run
+during development, pass the relevant test file to Node directly:
+
+```sh
+node --test src/test/integration/faqs-http.test.ts
+```
+
+See [source navigation](source-navigation.md) for the owner and related suites.
+
+## Interpret coverage
 
 Each suite emits measured LCOV and raw V8 coverage. The audit helper retains its
 own measurements within Governance. The coverage summary combines the verified
@@ -27,6 +45,8 @@ minimums for the audit helper before publishing the combined LCOV. Use the pinne
 Node runtime; changes to its native coverage interfaces require matching merger
 and regression updates. [Validation](validation.md) describes artifact identity
 and rerun responsibilities.
+
+## Test behavior at the owning boundary
 
 Cover exact publication scope, native protection requirements, CodeQL triggers
 and query settings, minimal upload permissions, workflow privilege boundaries and

@@ -1,83 +1,54 @@
 # Kernel API
 
-Standalone TypeScript project for Kernel's backend API.
+Kernel API is the standalone TypeScript backend for Kernel applications. It
+serves HTTP with Hono, manages sessions with Better Auth, persists application
+data with libSQL and Drizzle, and stores files on disk or in MinIO.
 
-## Published scope
+## Run locally
 
-The current **local-runtime** phase publishes pure feature contracts,
-framework-free application services and feature ports, core policies, ten flat
-API catalogs, and infrastructure for configuration, translation, logging, fatal
-process failures and local or S3-compatible MinIO object storage. It also includes
-the libSQL/Drizzle schema, reviewed migrations, feature persistence,
-authentication/OTP adapters, initialization and initial administrator provisioning.
-Thin Hono routes, manual composition and a local Node listener connect these
-owners into a runnable local API.
+1. Use the Node.js version in [.nvmrc](.nvmrc). From the repository root, install
+   the locked dependencies and start the disposable API fixture.
 
-Application services cover account, authentication, calendar, files, roles,
-settings and users. Their tests use synthetic ports. Catalog tests preserve
-vocabulary, placeholders, literal data and canonical identity. Real i18next tests
-exercise resolution and interpolation for all ten languages. Pino and isolated
-subprocess tests cover structured redaction and fatal logging/flush/exit behavior.
+   ```sh
+   npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+   npm run test:fixture:website
+   ```
 
-Configuration parses an explicit environment object or `process.env` without
-loading private files. The published `.env.example` contains synthetic values.
-Local-storage tests use fresh owned temporary directories. MinIO tests use the
-real signed S3 SDK against an owned loopback HTTP fixture with synthetic
-credentials and isolated host-profile state. They establish protocol behavior,
-not a deployed MinIO integration. See [logging](docs/backend-logging.md) and
-[object storage](docs/object-storage.md).
+2. Open `http://127.0.0.1:3100/health`. Once the server is ready, it returns
+   HTTP 200 and `{"status":"ok"}`.
+3. Stop the fixture with **Ctrl+C**. The runner closes the API and removes
+   its temporary database and uploads.
 
-Real tests use owned temporary or in-memory databases to verify fresh and
-populated-upgrade migrations, schema/metadata parity, foreign keys, atomic
-rollback, reference conflicts and preserved system language. Synthetic Better
-Auth tests exercise stored identities, credentials, OTP persistence and
-administrator provisioning. See [database schema](docs/database-schema.md) and
-[authentication adapters](docs/auth-adapters.md).
+For a server with your own local configuration, follow the
+[development guide](docs/development.md). To send API requests and inspect
+saved responses, open the [Bruno collection](collection/README.md).
 
-HTTP tests exercise authorization, origin and input checks, localized errors,
-uploads and request logging with synthetic services and real disposable database
-fixtures. Local runtime tests cover startup, cleanup and shutdown, non-cacheable
-503 responses before readiness, and occupied-port failure before database or
-storage initialization. See [HTTP transport](docs/http-transport.md) and
-[development](docs/development.md) for explicit local configuration and execution.
+## Included capabilities
 
-Operational tooling adds owned release packaging, Docker/native deployment
-references, configuration/health checks and Drizzle generation compatibility
-tests. Synthetic recovery drills exercise matched database/object recovery and
-HTTP/log correlation. CodeQL configuration and manual release, staging and
-smoke workflows require separate provider setup. The manual DAST workflow
-stops after target validation while staging-only scanner egress is unavailable. See
-[deployment](docs/deployment.md), [release operations](docs/release-operations.md)
-and [backup/recovery](docs/backup-restore.md).
+The API supports authentication and account management, users and roles,
+calendar dates, system settings and languages, and file management.
+Content management includes sortable categories, sanitized rich-text content
+with public cover images, and sortable FAQs. The
+[collection guide](docs/collection-guide.md) links to the available requests
+and contract tests.
 
-`applicationReady` remains false. A runnable local API does not establish
-production OTP delivery, deployment readiness or a deployed integration.
+The [publication inventory](.github/bootstrap-policy.json) defines the
+`local-runtime` phase and all eleven Bruno request groups. It records
+`applicationReady` as `false`. Production OTP delivery is unavailable. Deployed
+integrations and production readiness require separate verification.
 
-See the [documentation map](docs/README.md), [architecture](docs/architecture.md),
-[contribution guide](CONTRIBUTING.md) and [security policy](SECURITY.md).
+## Documentation
 
-## Install and validate
+- [Documentation index](docs/README.md) for guides by task.
+- [Architecture](docs/architecture.md) for system boundaries and source ownership.
+- [Development](docs/development.md) for local setup and source changes.
+- [Validation](docs/validation.md) for required checks and evidence.
+- [Deployment](docs/deployment.md) for packaging and deployment.
 
-Use the Node.js release in [.nvmrc](.nvmrc). Validate an isolated export of the
-exact [publication inventory](.github/bootstrap-policy.json):
+## Get help and contribute
 
-```sh
-npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
-npm run validate -- full
-```
+Use repository issues for bugs and feature requests. Report suspected
+vulnerabilities privately. [Issues](https://github.com/sepaseh/kernel-api/issues) · [Security policy](SECURITY.md)
 
-The [canonical manifest](.agents/validation.json) owns the required source-phase
-checks, including the published HTTP and local runtime suites. Their disposable
-fixtures establish local behavior. Deployed database and MinIO integrations,
-production OTP delivery and deployment readiness require separate evidence.
-Native and Docker smoke commands are opt-in and run separately from the full profile.
-
-All eight Bruno groups are published: account, authentication, calendar, files,
-languages, roles, settings and users. Their complete saved requests, responses
-and feature suites follow the inventory. Local contract evidence does not
-establish production OTP delivery or deployed integrations.
-
-Published [assistant evaluation guidance](.agents/evaluation/README.md) and optional local hooks
-keep instructions and contracts discoverable. Their integrity and portability
-tests do not establish automatic host loading; evaluation templates remain
-not-run with unknown observations until a separately reported exercise.
+Follow the contribution workflow to propose a change. Assistants start at the
+repository's assistant entry point. [Contributing](CONTRIBUTING.md) · [Assistant entry point](AGENTS.md)

@@ -1,23 +1,49 @@
 # HTTP transport adapters
 
-The local API wires the Hono route adapters to the existing
-application services and concrete infrastructure through manual composition.
-It includes a local Node server entry point, runnable with explicit configuration
-through `npm run dev` or `npm start`. Local execution does not establish deployment
-readiness or production OTP delivery. Frontends communicate over HTTP and
-incompatible contract changes require coordinated rollout.
+The Hono adapters translate HTTP requests into application operations.
+Use the [Bruno collection](../collection/README.md) for the method, fields and
+responses of a specific operation. See [local development](development.md) for
+startup and the [client handoff](collection-guide.md#client-screen-contract-handoff)
+for contract changes that affect independent frontends.
+
+## Readiness and shared responses
 
 The listener binds before database or storage initialization. Until ready it
 serves bodyless 503 responses with `Cache-Control: no-store`; an occupied port
 fails before those resources initialize. Initialized application responses use
 the HTTP adapters and their request/error logging. Local startup, cleanup and
-shutdown tests use disposable fixtures, not an operator's environment or data.
+shutdown tests use disposable fixtures.
 
 Adapters validate input, map semantic errors to localized status responses,
 enforce authorization and origin checks, and log request identifiers without
-credentials or raw paths. The authentication attempt limiter is local to a
-single process and cannot enforce distributed rate limits; production ingress
-must provide independent throttling.
+credentials or raw paths. The error serializer returns a JSON
+`{ "message": "translated message" }` envelope. Unexpected provider, database
+and storage failures return a generic translated 500. Responses are labeled with
+`Content-Language` after language resolution and use the persisted language.
+See [API localization](localization.md).
+
+Initialized responses include `X-Request-Id`, including CORS preflight and
+file responses. The initial readiness 503 omits this header. See
+[request correlation](backend-logging.md#request-correlation).
+
+## Origins and caching
+
+Mutations require an exact configured origin when the client sends `Origin`,
+`Cookie` or `Sec-Fetch-Site`. A missing required origin or a supplied untrusted
+origin returns 403. Nonbrowser bearer requests can omit `Origin` when they send
+neither cookies nor Fetch Metadata.
+
+Authentication, accounts, calendar, categories, contents, FAQs, languages,
+users, roles, and file management responses carry
+`Cache-Control: private, no-store` after CORS and the origin check. Public
+`GET /settings` sends `Cache-Control: no-store`. Public file content from
+`GET /files/:fileId/content` sends `Cache-Control: public, max-age=3600`.
+Preflight and earlier failures can omit the route's cache header.
+
+## Authentication attempt limits
+
+The attempt limiter runs within a single process. Shared deployments need
+independent ingress or shared-store throttling.
 
 The bounded in-process limiter retains active identity windows until expiry. At
 its 10,000-window capacity, new identities are rejected until space becomes
@@ -71,23 +97,22 @@ or mismatched codes are rejected; a failed update does not partially consume the
 code. Existing internal authentication identity is preserved.
 
 Production OTP delivery is not available in this phase. Local development/test
-flows use explicit fixed-code configuration; clients must not assume a production
-delivery path. This is an incompatible change to mobile-update behavior:
-coordinate API and independently deployed consumer rollout and rollback, so
-clients request a code and submit `otp` before a number change.
+flows use explicit fixed-code configuration. Coordinate rollout and rollback
+with independently deployed consumers so they request a code and submit `otp`
+before changing a number.
+
+## File uploads
 
 File uploads are authenticated before reading multipart data. The transport
 counts actual streamed bytes rather than trusting `Content-Length`, and caps the
-whole multipart body at the configured file limit plus 64 KiB of framing and
-fields. Body reading has a 60-second deadline. An incomplete body at the
+whole multipart body at the server upload limit plus 64 KiB of framing and
+fields. The application applies the file and [context limits](object-storage.md#upload-contexts)
+after parsing. Body reading has a 60-second deadline. An incomplete body at the
 deadline is canceled and receives a localized
-[`408` response](../collection/files/upload/408.json). The deadline covers
-receiving the body. The application independently validates the file bytes.
+[`408` response](../collection/files/upload/408.json).
 The process handles up to four uploads at once, counting each from before
 multipart reading through the storage and metadata writes. An authenticated
 request arriving at capacity receives a localized, non-cacheable
 [`503` response](../collection/files/upload/503.json) before the body is read.
-Tests exercise synthetic service ports and the local Node adapter with disposable
-fixtures, not a deployed storage integration. Coordinate rollout and rollback
-with independently deployed HTTP clients; a local server test does not establish
-production readiness.
+See [object storage](object-storage.md) for file visibility, content covers
+and deletion.

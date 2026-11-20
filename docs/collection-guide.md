@@ -7,6 +7,9 @@ against the owning routes and DTOs.
 
 Open `collection/` in Bruno with a synthetic local environment; follow the
 [collection setup guide](../collection/README.md).
+
+## Change an HTTP contract
+
 Operations use `index.bru` for method, path, authentication, input and contract
 notes, with status-named JSON examples where applicable. Bodyless successes may
 omit a JSON example. Hono routes and application services implement the wire
@@ -22,8 +25,25 @@ Tests establish real fixture state or send invalid input to obtain errors. There
 is no mock-status query/header or response-inspection endpoint. Database schema,
 storage layout and deployment are implementation/operations contracts, documented
 in [architecture](architecture.md), [database](database-schema.md) and
-[deployment](deployment.md). Run the relevant HTTP and published collection tests, `npm run check:boundaries` and
-`npm run validate -- full` before an authorized commit or PR handoff.
+[deployment](deployment.md). Run the relevant HTTP and published collection
+tests and `npm run check:boundaries`. Follow the
+[validation guide](validation.md) before an authorized commit or PR.
+
+## Rich-text content
+
+[Create](../collection/contents/create/index.bru) and
+[update](../collection/contents/update/index.bru) both require `title`,
+`excerpt`, `body`, `content_category_id` and `cover_image_id`. A PATCH
+replaces all editable fields. If the category or public cover is unavailable,
+the request returns 404 and preserves the existing content. Use the normalized
+`body` returned from a successful save to update the editor.
+
+The [server sanitizer](../src/infrastructure/content/rich-text.ts) preserves
+paragraphs, headings, block quotes, breaks, bold, italic, underline, and
+ordered and unordered lists. A list item may keep `data-list="bullet"` or
+`data-list="ordered"`. The sanitizer removes links, images and other
+unsupported markup. It discards script, style and other non-text elements
+with their contents. A body with no meaningful text after sanitization returns 400. See the [HTTP behavior tests](../src/test/integration/contents-http.test.ts).
 
 ## Client screen contract handoff
 
@@ -46,8 +66,9 @@ endpoint, permission, field or error to make a design appear complete.
 - Trace session/cookie and forbidden/unauthenticated behavior through the
   `database-auth` and `http-contract` tasks and [session sequence](sequences.md). Preserve the consuming
   frontend's transport/session guards; this API does not choose its components.
-- For media, distinguish public URLs from private metadata, allowed upload
-  visibility, multipart fields and size/type failures through `deployment`.
+- For media, identify public URLs, private metadata, upload permissions,
+  multipart fields and size/type failures from the
+  [upload contexts](object-storage.md#upload-contexts).
   A settings logo uses a public file from `POST /files`; an object key is not proof
   of public readability. See [file service](../src/application/files.ts).
 - Use the persisted language object returned by the API, including its direction,
@@ -55,7 +76,9 @@ endpoint, permission, field or error to make a design appear complete.
   Trace the settings service and persistence owner with [localization](localization.md). Component libraries,
   layout, accessibility and visual verification belong to the frontend's own guide.
 
-For a branding/logo/language screen, [settings routes](../src/presentation/http/routes/settings.ts)
+### Settings
+
+For a branding, logo or language screen, the [settings routes](../src/presentation/http/routes/settings.ts)
 expose public `GET /settings` with `Cache-Control: no-store`, authenticated
 `GET /languages`, and protected `PUT /settings`. Read the
 [settings service](../src/application/settings.ts),
@@ -72,23 +95,41 @@ written, protecting a concurrent administrator change. Apply returned settings a
 success and account for the documented invalid, unauthenticated, forbidden and
 missing-language/logo responses. No list/pagination contract is needed for this screen.
 Settings responses include `image_settings` for `contents` and `logo`. A PUT
-without `image_settings` preserves the stored values. When it sends them, it
-supplies both contexts with integer `width`, `height`, and maximum byte `size`.
+without `image_settings` preserves the stored values. To change them, send
+both contexts with integer `width` and `height` from 1 to 8,192 and a positive
+safe integer `size` in bytes.
 
-For content management, `GET /contents` uses one-based pages of 24 and supports
-filters for `title` and `content_category_id`. The authorized category list supplies
-the filter and editor choices. Use the same public cover image ID from
-`POST /files` in `cover_image_id` when it remains selected during an edit.
-Upload with multipart `context=contents` for a cover or `context=logo` for a logo.
-These contexts use the corresponding `image_settings` entry to describe crop
-dimensions and upload size. Use `size` in bytes and `is_used` for the file
-management list. An in-use file or category returns a localized 409 when
-deleted.
+### Content and files
 
-Content categories and FAQs are listed in the saved order. Their sort operations
-accept the complete ordered ID list and return 409 if the submitted IDs do not
-match the current set of records. Reload the list and retry after a 409. If only
-the saved order has changed, a valid sort request replaces it.
+`GET /contents` requires `contents.read` and returns `{ items, total }` in
+one-based pages of 24. The optional `title` filter matches a literal
+case-insensitive substring. The optional `content_category_id` filter matches
+an exact ID. When supplied together, both filters apply to the items and total.
+Results sort by creation time and then ID. See the
+[list operation](../collection/contents/list/index.bru).
+
+The category list supplies filter and editor choices to a caller with
+`content-categories.read`, `contents.read`, `contents.create` or
+`contents.update`. Upload a cover with multipart `context=contents` and use
+the returned ID as `cover_image_id`. Repeat that ID on an edit that keeps the
+cover. Use `size` in bytes and `is_used` in the file management list. A category
+or file currently in use returns 409 on deletion. See the
+[category list](../collection/content-categories/list/index.bru) and
+[file management guide](object-storage.md#file-management).
+
+### Content category and FAQ ordering
+
+Lists return entries in saved order. `PATCH /content-categories/sort` requires
+`content-categories.update`. `PATCH /faqs/sort` requires `faqs.update`.
+Each operation accepts an `ids` array containing every current ID exactly once
+in the desired order. A successful sort returns an empty 200. If records were
+added or removed since the last read, a stale list returns 409 and preserves the
+saved order. Reload the list and submit the revised order. A different ordering
+of the same set of IDs can replace the previous order. See the
+[category sort](../collection/content-categories/sort/index.bru) and
+[FAQ sort](../collection/faqs/sort/index.bru) operations.
+
+### Users
 
 The users screen sends `page` to `GET /users` for one-based pages of 24. Clients
 using the existing `offset` and `size` parameters retain variable-size pages.

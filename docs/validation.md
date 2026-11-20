@@ -1,7 +1,8 @@
-# API validation
+# Validate a source change
 
-The [canonical manifest](../.agents/validation.json) owns commands and profiles.
-Run `npm run validate -- full` against an isolated export of the exact
+The [validation manifest](../.agents/validation.json) defines check commands,
+profiles and execution order.
+Run `npm run validate -- full` on an isolated export of the exact
 [publication inventory](../.github/bootstrap-policy.json) before each authorized
 commit or PR. Preserve unrelated files in the working checkout.
 
@@ -15,7 +16,9 @@ changes, without changed-path or target-branch filters. Use pure and fake-port
 tests for service behavior, and real synthetic fixtures for database,
 authentication adapter, storage and HTTP behavior.
 
-CI displays each real suite separately and partitions the canonical full gate:
+## Continuous integration
+
+The [CI workflow](../.github/workflows/ci.yml) partitions the canonical full gate.
 
 | Job                   | Manifest profile | Required work                                                                             |
 | --------------------- | ---------------- | ----------------------------------------------------------------------------------------- |
@@ -52,6 +55,8 @@ aggregation. Scanner execution and the provider's quality-gate result are
 separate evidence. Missing configuration, failed audit requests, absent reports,
 stale source or provider skips must remain visible.
 
+## Local checks
+
 Local `full` validation runs the same required checks and coverage summary in
 the manifest's declared order. `test:coverage` remains a convenience coordinator
 for the three test suites and coverage summary; `test:audit` retains its focused
@@ -67,7 +72,8 @@ native coverage interfaces. The merger fails when that runtime or interface
 changes. When updating Node, update the coverage compatibility guard and its
 regressions, then run the complete gate with the proposed runtime. The
 [coverage merger](../scripts/merge-coverage.mjs) and
-[its tests](../scripts/merge-coverage.test.mjs) own this boundary.
+[its tests](../scripts/merge-coverage.test.mjs) own this boundary. The
+[runtime pin](../.nvmrc) specifies the exact version for the gate.
 
 `npm run check:actions` runs the official actionlint binary over the actual
 `.github/workflows` files. The runner pins its version and verifies the release
@@ -97,6 +103,8 @@ import rule. These are source-syntax
 checks against the literal Node entry-point names `process`, `globalThis`,
 `global` and `module`; they do not resolve locally shadowed bindings or perform
 general alias or data-flow tracking.
+
+## Hosted security and operations checks
 
 The [CodeQL workflow](../.github/workflows/codeql.yml) analyzes admitted JavaScript, TypeScript
 and GitHub Actions workflows using `security-extended` queries without installing dependencies

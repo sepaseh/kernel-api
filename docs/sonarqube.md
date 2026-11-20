@@ -1,31 +1,30 @@
 # SonarQube Cloud and CodeRabbit
 
-Use CI-based analysis for the public project in the `sepaseh` organization.
+Use CI-based analysis. Disable SonarQube Cloud automatic analysis for the same
+project to avoid duplicate scans.
+Use the public project in the `sepaseh` organization.
 Bind the recreated GitHub repository to the actual Sonar project; prior
 repository installation or analysis does not prove this binding.
 
 ## Setup and evidence
 
 Give the SonarQube Cloud and CodeRabbit apps access to this repository.
-Choose CI-based analysis and disable Sonar automatic analysis to avoid a second
-independent scan. Configure `SONAR_TOKEN` as the repository Actions secret and
+Configure `SONAR_TOKEN` as the repository Actions secret and
 separately as a Dependabot secret when Dependabot analysis is needed.
 Set `SONAR_PROJECT_KEY` to the actual imported key; `SONAR_HOST_URL` defaults
 to `https://sonarcloud.io`. Inspect names only, never secret values.
 
-The current source phase analyzes its published `src` and `scripts` and imports
-`coverage/lcov.info` produced by the successful **check** job. **Unit tests**,
+The [scanner job](../.github/workflows/ci.yml) analyzes the published `src` and
+`scripts` and imports `coverage/lcov.info` produced by the successful **check**
+job. **Unit tests**,
 **API integration tests** and **Governance tests** each execute their own tests
 once and publish measured LCOV, raw V8 coverage and provenance. Governance also
 publishes the audit helper's separately measured coverage.
 
-`check` requires every job to succeed, verifies the three suite artifacts using
-their actual producer attempts, and computes the native coverage summary. It
-retains the independent 80% line, branch and function gates for non-audit sources
-and the audit helper. Its combined attestation at
-`coverage/combined/ci-evidence.json` binds the measured report to the tested
-commit and tree, PR head and base, workflow, producing attempt, and the identities
-and hashes of all three input manifests.
+`check` requires the five [validation jobs](validation.md#continuous-integration)
+to pass and verifies the provenance of the three test suite artifacts before
+combining coverage. It publishes the report and its attestation at
+`coverage/combined/ci-evidence.json`.
 
 Analysis downloads `coverage-combined-<run>-<attempt>` directly from that
 successful check and verifies its identity and report bytes before installing

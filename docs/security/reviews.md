@@ -1,10 +1,21 @@
 # Security review and checks
 
-For changes to a trust boundary, use the [threat model](threat-model.md); for
-authentication changes, use the [session checklist](authentication-review.md).
-Review findings according to exploitability, exposure and release impact. Record
-an owner and resolution; do not treat a checked-in workflow as evidence that a
-deployed system has been assessed.
+Use the [threat model](threat-model.md) for trust-boundary changes and the
+[session checklist](authentication-review.md) for authentication changes. Use
+the [security policy](../../SECURITY.md) to report findings privately.
+
+## Review changes
+
+- Trace each affected permission, input boundary and failure case to the owning
+  implementation and tests. For content and files, review HTML sanitization,
+  image validation, visibility and reference-protected deletion together.
+- Review workflow changes for minimum token permissions, pinned actions,
+  trusted checkouts, fork isolation and provider identity. See
+  [branch protection](../branch-protection.md#published-phase-and-trust).
+- Review findings by exploitability, exposure and release impact. Record an
+  owner and resolution.
+
+## Verify available checks
 
 The repository's full validation profile runs the checks listed in
 [the validation manifest](../../.agents/validation.json), including dependency
@@ -23,12 +34,10 @@ authorized staging origin. See [staging](../deployment.md#protected-manual-api-c
 for prerequisites. Use synthetic credentials and data for local tests. Production
 deployment and third-party security review require separate evidence.
 
-The following is a proposed review practice, not an established release policy:
-review trust-boundary changes against the threat model and auth/session changes
-against the checklist, and arrange qualified human review before production launch.
-Triage findings by exploitability, exposure and release impact; assign owner and
-deadline. Under the proposal, critical/actively exploited issues block deployment;
-high issues require remediation or an explicit time-limited owner exception with
-compensating controls. Adoption and exception authority require owner approval.
-This proposed deployment triage does not waive required CI or the Sonar/CodeRabbit
-preflight.
+## Proposed deployment triage
+
+The proposed practice adds qualified human review before launch and a deadline
+for each finding. It blocks deployment for critical or actively exploited issues.
+High-severity issues require remediation or an explicit, time-limited owner
+exception with compensating controls. Adoption and exception authority require
+owner approval. Required CI and the Sonar/CodeRabbit preflight still apply.

@@ -1,104 +1,75 @@
-# Architecture and publication scope
+# Kernel API architecture
 
-The [inventory](../.github/bootstrap-policy.json) and
-[validation manifest](../.agents/validation.json) declare the exact published
-phase. `applicationReady` remains false.
+Kernel API owns database access, migrations, authentication and object storage.
+Independent frontends consume its HTTP contracts. The publication inventory
+defines what ships in the `local-runtime` phase and records
+`applicationReady: false`. See the [publication inventory](../.github/bootstrap-policy.json)
+and [validation manifest](../.agents/validation.json).
 
-The local-runtime phase includes pure feature contracts, core policies,
-eight feature ports, seven framework-free application services and their
-synthetic-port tests. All ten literal API catalogs, their registry and integrity
-tests remain published, alongside the earlier governance controls and foundation.
-Hono routes, manual composition and a Node listener now connect the services to
-the concrete database, authentication and storage adapters for local execution.
+## Request flow and ownership
 
-Concrete infrastructure provides configuration parsing, real i18next
-translation, Pino logging and sanitization, fatal process handlers, local
-filesystem and S3-compatible MinIO storage, driver selection and URL validation.
-These dependencies stay in their infrastructure owners; application services
-remain framework free. `pino-pretty` is a development dependency used only for
-development output.
+| Layer                                         | Responsibility                                                                                                             |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [HTTP presentation](../src/presentation/http) | Hono routes parse input, authenticate and authorize requests, map errors, serialize responses and record request outcomes. |
+| [Application](../src/application)             | Framework-free services implement use cases and business policy behind feature-specific ports.                             |
+| [Infrastructure](../src/infrastructure)       | Adapters connect libSQL and Drizzle, Better Auth, OTP persistence, object storage, translation and logging to those ports. |
+| [Contracts](../src/contracts)                 | Feature-owned modules define wire shapes and shared constants. Import them directly from their owners.                     |
 
-Contracts have no catch-all barrel. Locale metadata, permissions, OTP concepts
-and profile bounds retain one local definition. Application vocabulary imports
-are erased types; application services never load catalogs or a translation
-engine. Catalogs contain literal nonempty strings, not executable fallbacks.
-The narrowly named Sonar duplication exception covers only their ten data files;
-the registry and locale metadata retain duplication analysis, and all source,
-rules and measured coverage remain analyzed.
+The [composition root](../src/composition.ts) and
+[dependency wiring](../src/dependencies.ts) connect the layers manually.
+The [Node listener](../src/index.ts) binds before initializing the database and
+storage. Clients receive a bodyless, non-cacheable 503 until the composed app is
+ready. See [runtime sequences](sequences.md) and [local development](development.md).
 
-Configuration consumes a supplied environment object or `process.env` without
-loading environment files. Invalid drivers and numeric settings fail; selecting
-MinIO requires explicit credentials and endpoint settings. The public
-`.env.example` is synthetic configuration evidence, not a running environment.
+Application services use plain TypeScript and erased imports from the
+[message vocabulary](../src/application/localization.ts). The infrastructure
+translation engine loads the ten literal API catalogs. Sonar's duplication
+exception applies to the ten data files. The catalog registry, locale metadata
+and measured source coverage retain their checks. See [API localization](localization.md)
+and [SonarQube](sonarqube.md).
 
-The API owns database access, migrations, authentication and storage. Services
-depend on feature ports; concrete infrastructure implements storage, feature
-persistence, Better Auth and OTP persistence. Database SDKs and their types stay
-in the reviewed infrastructure owners, never in application ports. Thin Hono
-routes adapt input, authorization, errors and HTTP responses; they do not own
-database queries or application policy. `src/composition.ts` and
-`src/dependencies.ts` wire the reviewed owners manually, and `src/index.ts`
-starts the local server. Independent frontends communicate through HTTP.
+## Features and data integrity
 
-The schema and reviewed migrations enforce business-reference restrictions.
-Persistence owns transactions and derives full names from provided changes and
-current database columns in one bound update. Deleting an entity in use raises
-a semantic conflict without partial effects or automatic unlinking; HTTP maps it
-to a localized 409 response. Only owned technical identity rows may cascade.
-Soft deletion remains prohibited.
-Initialization, optional development seeding and initial administrator
-provisioning are included. Production OTP delivery is not implemented.
+The published HTTP contract covers authentication, accounts, calendar dates,
+content categories, rich-text content, FAQs, files, languages, roles, settings
+and users. The [Bruno collection](../collection/README.md) provides requests and
+saved responses for all eleven groups. Read the
+[client contract handoff](collection-guide.md#client-screen-contract-handoff)
+before changing an independently released consumer.
 
-Fake-port tests establish application policy and operation ordering. Engine tests
-exercise every catalog through real resolution and interpolation. Logging tests
-use real Pino; isolated subprocesses establish fatal logging, flushing and exit
-behavior. Filesystem tests verify exact bytes, exclusive creation, hard deletion
-and path rejection using owned disposable directories. Storage SDK tests verify
-signed requests against an owned loopback HTTP fixture with synthetic credentials,
-isolated empty AWS profiles and external-network protection.
+Persistence owns transactions and checks mutable business references within
+them. It derives full names from current stored columns and the fields supplied
+by a patch. Deleting a record in use returns a localized 409 and preserves its
+references. Allowed deletes remove rows permanently, including any owned
+technical rows. Unused-file deletion records pending object cleanup so the
+caller can retry a storage failure. See [database constraints](database-schema.md)
+and [object storage](object-storage.md).
 
-Real libSQL/Drizzle tests use owned temporary or in-memory databases to verify
-fresh and populated-upgrade migrations, schema/metadata parity, foreign keys,
-transaction rollback, reference conflicts and preserved language/settings.
-Authentication tests exercise real adapters with synthetic identities and
-credentials, OTP records and administrator provisioning. See
-[database schema](database-schema.md) and [authentication adapters](auth-adapters.md).
+## Local and deployed behavior
 
-HTTP suites exercise the Hono adapters with synthetic services and real disposable
-databases. The listener binds before database or storage initialization and
-returns bodyless, non-cacheable 503 responses until the composed app is ready.
-An occupied port fails before those resources initialize. Local runtime suites
-cover readiness, startup failure, cleanup and shutdown, using real Unix signals
-or the Windows signal-message simulation in their respective environments.
+The API reads configuration from the supplied environment. Use the synthetic
+[configuration template](../.env.example) and [local development](development.md)
+for startup, optional seeding and initial administrator provisioning. Local OTP
+flows use explicit fixed-code settings. Production OTP delivery remains unavailable.
+Local console formatting uses the development-only `pino-pretty` dependency.
+See [authentication adapters](auth-adapters.md) and [backend logging](backend-logging.md).
 
-Operational owners provide exclusive immutable release packaging, validated
-Docker/native references, health/configuration checks, migration tooling and
-manual verification/release workflows. Real toolchain tests generate and migrate
-only owned scratch schemas/databases. Static/template, parser, loopback and
-cleanup tests exercise the published tooling. Recovery workers restore matched
-synthetic database/object fixtures and verify authenticated HTTP behavior and
-redacted incident correlation.
+Application tests use synthetic ports. Infrastructure tests exercise real libSQL,
+Better Auth, i18next, Pino, local files and signed S3 SDK requests against an owned
+loopback fixture. HTTP and listener suites exercise the local composition with
+disposable data, including startup, cleanup and shutdown. See the
+[test guide](testing.md) for suites and coverage.
 
-The storage protocol evidence is not a deployed MinIO integration. Local HTTP,
-server and recovery tests do not establish deployed services, production OTP
-delivery or production readiness. Native/Docker smoke commands are separate
-opt-in execution, not part of the full validation profile. Checked-in templates
-and workflows do not prove their operator setup or remote execution. See
-[deployment](deployment.md), [backup/recovery](backup-restore.md), [HTTP transport](http-transport.md),
-[development](development.md), [logging](backend-logging.md) and
-[object storage](object-storage.md) for execution and evidence limits.
+Published [deployment tooling](deployment.md) covers release packaging,
+Docker and native references, migration tooling and manual verification.
+[Recovery tests](backup-restore.md) use matched synthetic database and object
+fixtures and verify authenticated HTTP behavior and redacted log correlation.
+Deployed integrations, operator setup and production delivery need their own
+evidence. Native and Docker smoke commands require separate execution.
 
-Read [backend](../.agents/rules/backend.md),
-[data lifecycle](../.agents/rules/data-lifecycle.md),
-[localization](../.agents/rules/localization.md) and
-[validation](validation.md) for the owning constraints.
+## Further reading
 
-All eight Bruno groups are published: account, authentication, calendar, files,
-languages, roles, settings and users. Their complete saved requests, responses
-and feature suites follow the inventory. Local contract evidence does not
-establish production OTP delivery or deployed integrations.
-
-Published [assistant evaluation guidance](../.agents/evaluation/README.md) and optional local hooks
-keep instructions and contracts discoverable. Their integrity and portability
-tests do not establish automatic host loading; evaluation templates remain
-not-run with unknown observations until a separately reported exercise.
+- [Change API behavior](feature-development.md)
+- [Find source and tests by task](source-navigation.md)
+- [Run the validation gate](validation.md)
+- [Evaluate assistant guidance](../.agents/evaluation/README.md)

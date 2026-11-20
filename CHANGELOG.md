@@ -1,8 +1,9 @@
 # Changelog
 
-This file records published release notes for kernel-api. The current package and
-Release Please manifest versions are configuration baselines; they do not claim
-that a release or tag has already been published.
+Release Please generates versioned entries from the commit history.
+For capabilities in the current source tree, see the
+[API overview](README.md#included-capabilities).
 
-Release Please updates this file. Review the generated notes before merging a
-release PR. See the [manual release guide](docs/releasing.md).
+Review the notes before merging the release PR. After dispatching the workflow
+on `main`, verify the tag and GitHub release.
+[Release metadata guide](docs/releasing.md)
