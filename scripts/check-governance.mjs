@@ -1448,6 +1448,14 @@ function* explicitHtmlAnchors(tag, tail) {
   }
 }
 
+// GitHub's Markdown renderer preserves explicit IDs on these elements.
+const markdownHtmlAnchorTags = new Set(
+  `a b blockquote br code dd del details div dl dt em
+  h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p picture pre q rp rt ruby
+  s samp section source span strike strong sub summary sup table tbody td
+  tfoot th thead tr tt ul var`.split(/\s+/),
+);
+
 const markdownHtmlAnchors = (markup) => {
   const tagAttributes = `[^"'<>]*(?:(?:"[^"]*"|'[^']*')[^"'<>]*)*`;
   const tags = new RegExp(
@@ -1470,7 +1478,7 @@ const markdownHtmlAnchors = (markup) => {
     if (heading) heading.text += markup.slice(previousEnd, match.index);
     previousEnd = match.index + token.length;
     const tag = name?.toLowerCase();
-    if (!/^(?:a|h[1-6])$/.test(tag)) continue;
+    if (!markdownHtmlAnchorTags.has(tag)) continue;
 
     if (closing) {
       if (heading?.tag === tag) {
@@ -1479,7 +1487,7 @@ const markdownHtmlAnchors = (markup) => {
       }
       continue;
     }
-    if (tag !== "a") heading = { tag, offset: match.index, text: "" };
+    if (/^h[1-6]$/.test(tag)) heading = { tag, offset: match.index, text: "" };
 
     for (const anchor of explicitHtmlAnchors(tag, tail)) anchors.add(anchor);
   }
