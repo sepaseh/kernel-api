@@ -1430,6 +1430,23 @@ const headingText = (node) => {
   return (node.children ?? []).map(headingText).join("");
 };
 
+const decodeHtmlReferences = (text) =>
+  text.replace(/&(?:#\d+|#x[\da-f]+|[a-z][\da-z]*);/gi, (entity) => {
+    const paragraph = markdownParsers.markdown.parse(`x${entity}`).children[0];
+    return paragraph.children[0].value.slice(1);
+  });
+
+function* explicitHtmlAnchors(tag, tail) {
+  const attributes = /([^\s"'<>/=]+)\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>]+)/g;
+  for (const [, name, value] of tail.matchAll(attributes)) {
+    const attribute = name.toLowerCase();
+    if (attribute !== "id" && (tag !== "a" || attribute !== "name")) continue;
+
+    const unquoted = /^["']/.test(value) ? value.slice(1, -1) : value;
+    if (unquoted) yield decodeHtmlReferences(unquoted);
+  }
+}
+
 const markdownHtmlAnchors = (markup) => {
   const tagAttributes = `[^"'<>]*(?:(?:"[^"]*"|'[^']*')[^"'<>]*)*`;
   const tags = new RegExp(
@@ -1442,8 +1459,6 @@ const markdownHtmlAnchors = (markup) => {
     ].join("|"),
     "gi",
   );
-  const attributes =
-    /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/g;
   const anchors = new Set();
   const headings = [];
   let heading;
@@ -1454,47 +1469,50 @@ const markdownHtmlAnchors = (markup) => {
     if (heading) heading.text += markup.slice(previousEnd, match.index);
     previousEnd = match.index + token.length;
     const tag = name?.toLowerCase();
-    const isHeading = /^h[1-6]$/.test(tag);
-    if (!isHeading && tag !== "a") continue;
+    if (!/^(?:a|h[1-6])$/.test(tag)) continue;
 
     if (closing) {
-      if (isHeading && heading?.tag === tag) {
+      if (heading?.tag === tag) {
         headings.push(heading);
         heading = undefined;
       }
       continue;
     }
-    if (isHeading) heading = { tag, offset: match.index, text: "" };
+    if (tag !== "a") heading = { tag, offset: match.index, text: "" };
 
-    for (const [, name, double, single, unquoted] of tail.matchAll(
-      attributes,
-    )) {
-      const attribute = name.toLowerCase();
-      const value = double ?? single ?? unquoted;
-      if (
-        value &&
-        (attribute === "id" || (tag === "a" && attribute === "name"))
-      )
-        anchors.add(value);
-    }
+    for (const anchor of explicitHtmlAnchors(tag, tail)) anchors.add(anchor);
   }
   return { anchors, headings };
 };
 
-const decodeHeadingEntities = (text) =>
-  text.replace(/&(?:#[0-9]+|#x[\da-f]+|[a-z][\da-z]*);/gi, (entity) => {
-    const paragraph = markdownParsers.markdown.parse(`x${entity}`).children[0];
-    return paragraph.children[0].value.slice(1);
-  });
+function* markdownNodes(root) {
+  const nodes = [root];
+  while (nodes.length) {
+    const node = nodes.pop();
+    yield node;
+    nodes.push(...(node.children ?? []).toReversed());
+  }
+}
+
+const markdownFragmentLinks = (nodes) => {
+  const definitions = new Map();
+  const links = [];
+  for (const node of nodes) {
+    if (node.type === "definition" && !definitions.has(node.identifier))
+      definitions.set(node.identifier, node.url);
+    if (node.type === "link" || node.type === "linkReference") links.push(node);
+  }
+  return links
+    .map((node) => node.url ?? definitions.get(node.identifier))
+    .filter((url) => url !== undefined);
+};
 
 const markdownFragments = (content) => {
-  const links = [];
+  const nodes = [...markdownNodes(markdownParsers.markdown.parse(content))];
   const headings = [];
   const html = [];
   let offset = 0;
-  const nodes = [markdownParsers.markdown.parse(content)];
-  while (nodes.length) {
-    const node = nodes.pop();
+  for (const node of nodes) {
     if (node.type === "heading")
       headings.push({ offset, text: headingText(node) });
     if (["html", "text", "inlineCode"].includes(node.type)) {
@@ -1506,13 +1524,11 @@ const markdownFragments = (content) => {
       html.push(chunk);
       offset += chunk.length;
     }
-    if (["link", "definition"].includes(node.type)) links.push(node.url);
-    nodes.push(...(node.children ?? []).toReversed());
   }
 
   const parsedHtml = markdownHtmlAnchors(html.join(""));
   for (const { offset, text } of parsedHtml.headings)
-    headings.push({ offset, text: decodeHeadingEntities(text) });
+    headings.push({ offset, text: decodeHtmlReferences(text) });
   headings.sort((left, right) => left.offset - right.offset);
 
   const headingSlugs = new Set();
@@ -1532,7 +1548,12 @@ const markdownFragments = (content) => {
   const lineCount =
     content.split(/\r\n|[\r\n]/).length -
     Number(content === "" || /[\r\n]$/.test(content));
-  return { anchors: parsedHtml.anchors, headingSlugs, lineCount, links };
+  return {
+    anchors: parsedHtml.anchors,
+    headingSlugs,
+    lineCount,
+    links: markdownFragmentLinks(nodes),
+  };
 };
 
 const validMarkdownLineFragment = (fragment, lineCount) => {

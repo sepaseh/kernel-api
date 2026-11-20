@@ -1541,6 +1541,10 @@ test("guidance validates same-file and cross-file Markdown heading fragments", a
       "",
       '<a title=\'id="attribute-only"\' id="Manual"></a>',
       '<a name="Legacy"></a>',
+      '<a name="caf&#233;"></a>',
+      "<a id=Terms&amp;Conditions></a>",
+      "<h3 id='Guide&#xC9;'>Entity example</h3>",
+      '<a name="Literal&amp;copy=1"></a>',
       "",
       "<div title='<a id=\"nested-attribute\">'></div>",
       "",
@@ -1578,6 +1582,10 @@ test("guidance validates same-file and cross-file Markdown heading fragments", a
     `[Mixed collision](${target}#mixed-1-1)`,
     `[Explicit title](${target}#ManualTitle)`,
     `[Legacy](${target}#Legacy)`,
+    `[Encoded name](${target}#caf%C3%A9)`,
+    `[Named entity](${target}#Terms%26Conditions)`,
+    `[Encoded id](${target}#Guide%C3%89)`,
+    `[Decode once](${target}#Literal%26copy%3D1)`,
     "[Manual][anchor]",
     "",
     `[anchor]: ${target}#Manual`,
@@ -1596,6 +1604,9 @@ test("guidance validates same-file and cross-file Markdown heading fragments", a
     `${target}#mixed-2`,
     `${target}#manual`,
     `${target}#legacy`,
+    `${target}#guide%C3%A9`,
+    `${target}#Terms%26amp%3BConditions`,
+    `${target}#Literal%C2%A9%3D1`,
     `${target}#example-only`,
     `${target}#inline-example`,
     `${target}#attribute-only`,
@@ -1614,6 +1625,31 @@ test("guidance validates same-file and cross-file Markdown heading fragments", a
       return true;
     });
   }
+});
+
+test("guidance validates only the effective Markdown reference fragments", async (context) => {
+  const { root, put } = await fixture(context);
+  const links = [
+    "# Setup",
+    "",
+    "[Full][  GUIDE\tKey] [Guide Key][] [Guide Key] [No definition]",
+    "",
+  ].join("\n");
+
+  await put(
+    "README.md",
+    `${links}\n> [guide key]: #setup\n\n[GUIDE KEY]: #shadowed\n[Unused]: #unused\n`,
+  );
+  await inspectGuidance(root);
+
+  await put(
+    "README.md",
+    `${links}\n[guide key]: #missing\n[GUIDE KEY]: #setup\n`,
+  );
+  await assert.rejects(
+    inspectGuidance(root),
+    /published Markdown section: README\.md: #missing\./,
+  );
 });
 
 test("guidance validates Markdown source line fragments in the plain view", async (context) => {
