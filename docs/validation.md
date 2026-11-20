@@ -55,6 +55,29 @@ aggregation. Scanner execution and the provider's quality-gate result are
 separate evidence. Missing configuration, failed audit requests, absent reports,
 stale source or provider skips must remain visible.
 
+### GitLab and Gitea
+
+The [GitLab pipeline](../.gitlab-ci.yml) runs on pushes to the default branch
+and on merge requests from branches in the same project. The
+[Gitea workflow](../.gitea/workflows/ci.yaml) runs on pushes to `main` and on
+open, synchronize and reopen events for pull requests from branches in the same
+repository. GitLab displays the `full-validation` job in the merge request
+pipeline. Gitea displays **Full validation** with the pull request checks.
+Each job runs the manifest's `full` profile and logs its constituent checks.
+
+Use a Linux x64 Docker executor tagged `kernel-linux-x64` for GitLab. Enable
+repository Actions in Gitea and provide a Linux x64 Docker runner with the
+`kernel-linux-x64:docker://node:24.18.0-bookworm` label. Both use the public
+Node image matched to [.nvmrc](../.nvmrc). Update the GitLab image and Gitea
+runner label mapping when changing the Node pin. Runs need access to the npm
+registry and approved actionlint release downloads. Gitea also needs access to
+the pinned checkout action on GitHub and to its own repository. If a job stays
+queued, check runner eligibility and the configured tag or label.
+
+The GitHub check identities, CodeQL analysis, Sonar quality gate, CodeRabbit
+result and merge protection have separate hosted evidence. Record the provider
+and exact tested revision when reporting a job result.
+
 ## Local checks
 
 Local `full` validation runs the same required checks and coverage summary in

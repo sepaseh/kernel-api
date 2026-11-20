@@ -1,0 +1,23 @@
+name: CI
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+jobs:
+  full-validation:
+    name: Full validation
+    if: ${{ gitea.event_name != 'pull_request' || gitea.event.pull_request.head.repo.full_name == gitea.repository }}
+    runs-on: kernel-linux-x64
+    steps:
+      - uses: https://github.com/actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Verify pinned Node
+        run: node -e 'require("node:assert/strict").equal(process.version, "v" + require("node:fs").readFileSync(".nvmrc", "utf8").trim())'
+      - name: Install validation dependencies
+        run: npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+      - run: npm run validate -- full
