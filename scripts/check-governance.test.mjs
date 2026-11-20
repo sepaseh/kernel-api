@@ -1635,7 +1635,7 @@ test("guidance finds explicit anchors after lengthy boolean HTML attributes", as
     `<a ${attribute} id="manual"></a>\n\n[Manual](#manual)\n`,
   );
 
-  await inspectGuidance(root);
+  await assert.doesNotReject(inspectGuidance(root));
 });
 
 test("guidance validates only the effective Markdown reference fragments", async (context) => {
