@@ -1627,6 +1627,17 @@ test("guidance validates same-file and cross-file Markdown heading fragments", a
   }
 });
 
+test("guidance finds explicit anchors after lengthy boolean HTML attributes", async (context) => {
+  const { root, put } = await fixture(context);
+  const attribute = "x".repeat(80_000);
+  await put(
+    "README.md",
+    `<a ${attribute} id="manual"></a>\n\n[Manual](#manual)\n`,
+  );
+
+  await inspectGuidance(root);
+});
+
 test("guidance validates only the effective Markdown reference fragments", async (context) => {
   const { root, put } = await fixture(context);
   const links = [

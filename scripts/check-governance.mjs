@@ -1437,7 +1437,8 @@ const decodeHtmlReferences = (text) =>
   });
 
 function* explicitHtmlAnchors(tag, tail) {
-  const attributes = /([^\s"'<>/=]+)\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>]+)/g;
+  const attributes =
+    /(?:^|\s)([^\s"'<>/=]+)\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>]+)/g;
   for (const [, name, value] of tail.matchAll(attributes)) {
     const attribute = name.toLowerCase();
     if (attribute !== "id" && (tag !== "a" || attribute !== "name")) continue;
