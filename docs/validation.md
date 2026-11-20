@@ -1,7 +1,8 @@
-# API validation
+# Validate a source change
 
-The [canonical manifest](../.agents/validation.json) owns commands and profiles.
-Run `npm run validate -- full` against an isolated export of the exact
+The [validation manifest](../.agents/validation.json) defines check commands,
+profiles and execution order.
+Run `npm run validate -- full` on an isolated export of the exact
 [publication inventory](../.github/bootstrap-policy.json) before each authorized
 commit or PR. Preserve unrelated files in the working checkout.
 
@@ -15,7 +16,9 @@ changes, without changed-path or target-branch filters. Use pure and fake-port
 tests for service behavior, and real synthetic fixtures for database,
 authentication adapter, storage and HTTP behavior.
 
-CI displays each real suite separately and partitions the canonical full gate:
+## Continuous integration
+
+The [CI workflow](../.github/workflows/ci.yml) partitions the canonical full gate.
 
 | Job                   | Manifest profile | Required work                                                                             |
 | --------------------- | ---------------- | ----------------------------------------------------------------------------------------- |
@@ -52,6 +55,31 @@ aggregation. Scanner execution and the provider's quality-gate result are
 separate evidence. Missing configuration, failed audit requests, absent reports,
 stale source or provider skips must remain visible.
 
+### GitLab and Gitea
+
+The [GitLab pipeline](../.gitlab-ci.yml) runs on pushes to the default branch
+and on merge requests from branches in the same project. The
+[Gitea workflow](../.gitea/workflows/ci.yaml) runs on pushes to `main` and on
+open, synchronize and reopen events for pull requests from branches in the same
+repository. GitLab displays the `full-validation` job in the merge request
+pipeline. Gitea displays **Full validation** with the pull request checks.
+Each job runs the manifest's `full` profile and logs its constituent checks.
+
+Use a Linux x64 Docker executor tagged `kernel-linux-x64` for GitLab. Enable
+repository Actions in Gitea and provide a Linux x64 Docker runner with the
+`kernel-linux-x64:docker://node:24.18.0-bookworm` label. Both use the public
+Node image matched to [.nvmrc](../.nvmrc). Update the GitLab image and Gitea
+runner label mapping when changing the Node pin. Runs need access to the npm
+registry and approved actionlint release downloads. Gitea also needs access to
+the pinned checkout action on GitHub and to its own repository. If a job stays
+queued, check runner eligibility and the configured tag or label.
+
+The GitHub check identities, CodeQL analysis, Sonar quality gate, CodeRabbit
+result and merge protection have separate hosted evidence. Record the provider
+and exact tested revision when reporting a job result.
+
+## Local checks
+
 Local `full` validation runs the same required checks and coverage summary in
 the manifest's declared order. `test:coverage` remains a convenience coordinator
 for the three test suites and coverage summary; `test:audit` retains its focused
@@ -67,7 +95,8 @@ native coverage interfaces. The merger fails when that runtime or interface
 changes. When updating Node, update the coverage compatibility guard and its
 regressions, then run the complete gate with the proposed runtime. The
 [coverage merger](../scripts/merge-coverage.mjs) and
-[its tests](../scripts/merge-coverage.test.mjs) own this boundary.
+[its tests](../scripts/merge-coverage.test.mjs) own this boundary. The
+[runtime pin](../.nvmrc) specifies the exact version for the gate.
 
 `npm run check:actions` runs the official actionlint binary over the actual
 `.github/workflows` files. The runner pins its version and verifies the release
@@ -97,6 +126,8 @@ import rule. These are source-syntax
 checks against the literal Node entry-point names `process`, `globalThis`,
 `global` and `module`; they do not resolve locally shadowed bindings or perform
 general alias or data-flow tracking.
+
+## Hosted security and operations checks
 
 The [CodeQL workflow](../.github/workflows/codeql.yml) analyzes admitted JavaScript, TypeScript
 and GitHub Actions workflows using `security-extended` queries without installing dependencies

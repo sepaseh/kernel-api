@@ -1,4 +1,7 @@
-# Main-branch protection
+# Verify branch protection
+
+Use this guide to verify live branch protection and the evidence needed to merge
+a pull request. Confirm the repository and actual PR base.
 
 Repository configuration files do not activate GitHub protection by themselves.
 An authorized administrator applies the [main ruleset](../.github/rulesets/main.json)
@@ -7,18 +10,25 @@ provider applications; change remote requirements only with explicit authorizati
 
 ## Required controls
 
-Require a PR, at least one approving review, stale-approval dismissal, approval of
-the most recent push, resolved conversations, an up-to-date branch and linear
-history. Disallow force pushes, deletion and administrative bypass. Use squash
-merges; do not enable automatic merging as part of this setup.
+Require an approving review, dismiss stale approvals, resolve conversations,
+require the branch to be up to date and enforce linear history. Block force
+pushes, branch deletion and administrative bypass.
+Require a PR and approval of the most recent push. Use squash merges and leave
+automatic merging disabled during this setup.
 
-Require the stable `check` aggregate over Static checks, Dependency audit and
-Governance tests, the native CodeQL security check, successful Sonar scanner execution
-and the actual Sonar provider
-quality gate and the native CodeRabbit result. Use the native approval count;
-no separate publisher or custom approval check is required. A PR author cannot
-supply their own approving review. CodeRabbit disables the author-triggered
-approval shortcut.
+Require all five status contexts from the [main ruleset](../.github/rulesets/main.json).
+
+| Context                    | Evidence                                                       |
+| -------------------------- | -------------------------------------------------------------- |
+| `check`                    | All five CI jobs and combined coverage pass.                   |
+| `CodeQL`                   | The native CodeQL security result passes.                      |
+| `SonarQube Cloud analysis` | The GitHub Actions scanner job succeeds.                       |
+| `SonarCloud Code Analysis` | The Sonar provider reports a passing quality gate.             |
+| `CodeRabbit`               | Check the native status and verify the review for the PR head. |
+
+The [CI job breakdown](validation.md#continuous-integration) lists the five jobs
+under `check`. Use the native approval count. Count approvals from eligible
+reviewers. CodeRabbit disables the author's approval shortcut.
 
 Inspect actual evidence for the current PR head. A successful CodeRabbit status
 can represent a skipped or rate-limited review, and the native approval count
@@ -30,7 +40,7 @@ to hide failures or unblock publication.
 
 ## Published phase and trust
 
-The runtime-operations phase keeps `applicationReady: false`. Require the
+The `local-runtime` phase keeps `applicationReady: false`. Require the
 complete canonical CI profile for the published HTTP, database, authentication,
 storage and operations owners, along with CodeQL, the Sonar scanner and quality
 gate, and CodeRabbit. Those checks do not establish production readiness.

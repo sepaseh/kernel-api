@@ -1,7 +1,11 @@
-# Task navigation
+# Find the owning source and tests
 
-Start with [AGENTS.md](../AGENTS.md). The machine-readable
-[task map](../.agents/navigation.json) lists the published owners and their tests.
+Start with [AGENTS.md](../AGENTS.md). Use the [source policy](../.github/bootstrap-policy.json)
+to find admitted files, the [settings index](../.agents/settings.json) to find
+assistant rules and the [task map](../.agents/navigation.json) to find source
+owners, tests and checks.
+
+## Repository guidance and Git
 
 For rules and assistant workflows, read [.agents/README.md](../.agents/README.md),
 [settings](../.agents/settings.json) and [guidance](../.agents/rules/guidance.md).
@@ -13,6 +17,8 @@ own hosted JavaScript/TypeScript and GitHub Actions security scan configuration.
 The [actionlint runner](../scripts/run-actionlint.mjs) and its [regressions](../scripts/run-actionlint.test.mjs)
 validate the actual workflow files as part of Static checks.
 
+## Application foundation
+
 For foundation behavior, follow `src/application/authorization.ts`, `errors.ts`,
 `identity.ts`, `localization.ts`, `models.ts`, `permissions.ts` and `validation.ts`.
 The import closure also includes `src/application/ports/auth.ts` and the
@@ -23,15 +29,23 @@ evidence. Select the relevant source, type, lint and test checks from the
 [canonical manifest](../.agents/validation.json), then run the full profile
 before an authorized commit or PR.
 
+## Application services and catalogs
+
 The `services-and-catalogs` task covers the ten application services, their
-feature ports/contracts and the ten literal API catalogs. Inspect each service's
-synthetic-port suite and the catalog integrity tests; those establish application
-policy and data boundaries, not adapter behavior.
+feature ports and contracts, and the ten literal API catalogs. Use the mapped
+synthetic-port tests for application policy in account, auth, calendar, files,
+roles, settings and users. For content categories, contents and FAQs, the
+primary behavior suites run through HTTP and disposable libSQL. The catalog
+integrity tests cover key parity and locale metadata.
+
+## Configuration and storage
 
 The `configuration-and-storage` task owns explicit configuration parsing, real
 translation, structured logging, fatal process handlers and local/MinIO storage.
 Use the engine, subprocess, filesystem and signed loopback SDK tests for evidence.
 Read [logging](backend-logging.md) and [object storage](object-storage.md).
+
+## Database and authentication
 
 The `database-auth` task covers `drizzle/`, `src/infrastructure/db`,
 `src/infrastructure/persistence`, `src/infrastructure/auth`, the administrator
@@ -43,6 +57,8 @@ gateway tests and owned fixture-cleanup tests listed in the task map. Use fresh
 owned databases and synthetic configuration; never inspect an existing database
 or environment as a comprehension fixture.
 
+## HTTP and client contracts
+
 The `http-contract` task owns Hono routes under `src/presentation/http`, manual
 composition in `src/composition.ts` and `src/dependencies.ts`, and the local
 listener in `src/index.ts`. Read [HTTP transport](http-transport.md),
@@ -53,8 +69,22 @@ transport, uploads, logging and deletion conflicts; runtime and seed scripts use
 disposable databases/storage to exercise startup, readiness, cleanup and shutdown.
 For an API-backed screen, provide the feature DTOs, route behavior and error
 evidence; visual/component decisions belong to the consuming frontend. Follow
-the [client screen contract handoff](collection-guide.md#client-screen-contract-handoff),
-using Bruno operations only when their groups are published.
+the [client screen contract handoff](collection-guide.md#client-screen-contract-handoff).
+
+For file management, use the [file HTTP suite](../src/test/integration/file-management-http.test.ts)
+and [object storage guide](object-storage.md#file-management).
+For editorial workflows, follow the
+[category suite](../src/test/integration/content-categories-http.test.ts),
+[rich-text content suite](../src/test/integration/contents-http.test.ts) and
+[FAQ suite](../src/test/integration/faqs-http.test.ts). The tests cover route
+permissions, serialization, ordered lists and transaction failures.
+
+The `collection-contracts` task owns Bruno requests and response examples.
+The inventory declares the eleven published groups in `collectionGroups`.
+The full validation profile covers their feature suites. See
+[collection setup](../collection/README.md) and [HTTP contracts](collection-guide.md).
+
+## Deployment and recovery
 
 The `deployment` task covers owned packaging, deployment references, migration
 tooling, recovery workers and manual workflow targets. Start with
@@ -68,18 +98,7 @@ Use the real CLI toolchain fixtures, template/parser tests, loopback checks and
 resource-cleanup tests as evidence. Native/Docker smoke execution is opt-in;
 publishing its command or testing cleanup helpers does not prove a smoke run.
 
-Read actual owners and tests before making claims. Map entries, successful
-configuration parsing and installed applications do not establish that an
-assistant loaded instructions or that remote review ran.
-
-Collection group owners follow their corresponding published source.
-Do not register unpublished paths as live owners or interpret
-ambient local source as part of a checked partial publication.
-
-The collection-contracts task owns the published Bruno requests and response
-examples. Follow the inventory collectionGroups field and the registered feature
-suites; all eleven published groups are covered by the full profile. Read the
-[collection setup](../collection/README.md) and [handoff guide](collection-guide.md).
+## Assistant evaluation and hooks
 
 The guidance task also owns the [evaluation prompts](../.agents/evaluation/README.md),
 optional hooks and their integrity/portability suites. Static checks validate

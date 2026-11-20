@@ -1,9 +1,9 @@
-# Investigating unreliable tests
+# Investigate unreliable tests
 
-A failure followed by a pass still requires investigation. Record the first
-failure, exact command, runtime, platform and owned synthetic fixture. Distinguish
-a policy defect, race, resource leak and unavailable dependency. Reproduce the
-same conditions rather than rerunning until green.
+Investigate the first failure even when a rerun passes. Preserve the exact
+command, runtime, platform, error output and synthetic fixture in use. Identify the responsible suite using [testing](testing.md#choose-a-suite)
+and recreate the same conditions. Use the error and fixture lifecycle to
+distinguish a policy defect, race, resource leak or unavailable dependency.
 
 Prefer deterministic completion and isolated owned resources. Never hide a
 required failure with retries, skips or weakened assertions. Close processes,
@@ -15,7 +15,6 @@ hypotheses, disclose checks that could not run, and do not include credentials o
 real user data. Create a local report only on explicit request under ignored
 `test-results/`.
 
-The published suites cover foundation, service, database, authentication,
-storage, HTTP, local runtime and operations behavior. Use evidence from the
-owning suite to investigate a failure. See [testing](testing.md) and
-[validation](validation.md).
+After correcting the cause, rerun the owning test or suite. Complete the
+[validation gate](validation.md) on the exact proposed tree before an
+authorized commit or PR.

@@ -1,42 +1,62 @@
 # API translation catalogs
 
-The current publication inventory declares which source owners are published.
-This rule applies when its corresponding owner is published. Unpublished local
-source and rule text do not establish validated behavior.
+Follow the [published scope](../README.md#published-scope).
 
-API messages belong to src/infrastructure/localization/catalogs/<code>.ts. The local
-index composes all ten codes from supportedLanguages in src/contracts/locales.ts.
-This pure metadata list owns codes, direction, calendar and public names in the public
-settings order; settings consume it directly and LocaleCode derives from it. Do not
-maintain a second codes/directions registry. Keep genuine, nonempty,
-complete key sets and i18next {{variable}} parity in every registered language.
-Do not use English spreads, copied fallback catalogs, duplicate aliases or blank values.
-Frontend UI/common/calendar catalogs belong to their independent frontend repositories.
+## Message ownership
 
-src/application/localization.ts defines the pure message-key/resource types without
-reading runtime catalogs. Application imports from it must be erased type references.
-During the foundation phase, when runtime catalogs are outside the publication
-inventory, adding or retiring a message updates the vocabulary only. Catalog
-updates and parity validation are deferred until the catalog owner is published;
-do not add unpublished catalogs to a foundation change. Changes to
-`supportedLanguages` metadata alone do not add or retire message keys.
-Once the catalog owner is published, update this vocabulary and all ten catalogs
-together when adding or retiring a message;
-src/infrastructure/localization/catalogs.test.ts checks exact parity, data purity and registry/settings consistency.
-Only infrastructure/localization/i18n.ts initializes i18next.
+Store API messages in `src/infrastructure/localization/catalogs/<code>.ts`.
+[The catalog index](../../src/infrastructure/localization/catalogs/index.ts)
+registers one catalog per `LocaleCode` from
+[`supportedLanguages`](../../src/contracts/locales.ts). This list owns the
+language codes, directions, calendars, names and public settings order. Settings
+uses it directly.
 
-Persisted API settings select response language. Fresh settings default to English;
-preserve existing values. Request headers/cookies/query cannot override it. Only
-isSystemAdmin may change the persisted language. Keep settings.update branding
-rights: language_code is optional, and ordinary saves must always omit the language
-column, including accepted explicitly unchanged codes. This protects concurrent
-system-administrator changes; compare-only authorization is insufficient. Unsupported
-codes resolve to English for translation and Content-Language without rewriting state;
-the public settings DTO still rejects invalid language. System-administrator repair is
-separate. The website's explicit-error policy belongs to its own HTTP consumer.
+When adding or retiring a message, update the
+[application message types](../../src/application/localization.ts) and every
+registered catalog together.
 
-Run relevant localization and application/HTTP tests and typecheck for a locale change.
-`node --test src/infrastructure/localization/catalogs.test.ts src/infrastructure/localization/i18n.test.ts`
-is a focused check and does not replace the full profile.
-Each repository owns its messages independently; assess public wire compatibility when
-releasing changes. See [Localization](../../docs/localization.md).
+Keep message keys and placeholders consistent across all catalogs. Give every
+key a genuine, nonempty translation in each supported language.
+Preserve i18next `{{variable}}` placeholders. Keep English fallback copies,
+English spreads and duplicate aliases out of the catalogs. Language metadata changes alone leave message keys intact.
+The [catalog tests](../../src/infrastructure/localization/catalogs.test.ts)
+check parity, data purity and consistency with the language list and settings.
+Consume runtime catalogs only in infrastructure. Catalogs contain plain message
+data and use erased application message types. Follow the
+[type import rules](imports.md#erased-type-imports-and-exports).
+Only the [translation adapter](../../src/infrastructure/localization/i18n.ts)
+initializes i18next. Frontend repositories own their UI, shared and calendar
+messages.
+
+## Response language
+
+Persisted API settings select the response language. Fresh settings default to
+English. Preserve existing values and ignore request locale headers, cookies and
+query parameters. Only a system administrator may change the persisted language.
+The persisted language record supplies authoritative direction, calendar and
+names. Changing the single system-wide setting leaves stored user content
+intact.
+
+Editors with `settings.update` retain branding rights and omit the optional
+`language_code` request field. Their writes must omit the language column even
+when the API accepts an explicitly unchanged value. This preserves concurrent
+system-administrator changes.
+
+An unsupported stored language resolves to English for translation and
+`Content-Language`. The fallback preserves the stored value. Public settings
+validation rejects the invalid value. A system administrator can use the
+authorized update path to repair it. The website owns its explicit-error policy.
+
+## Verify a change
+
+Choose [focused checks](testing.md#choose-checks) for a locale change, including
+typechecking and affected application or HTTP tests. This command checks
+catalog and engine behavior.
+
+```sh
+node --test src/infrastructure/localization/catalogs.test.ts src/infrastructure/localization/i18n.test.ts
+```
+
+When language changes affect the wire, follow the
+[HTTP contract workflow](api-collection.md#change-a-contract). See the
+[localization guide](../../docs/localization.md).

@@ -1,8 +1,6 @@
 # API data lifecycle
 
-The current publication inventory declares which source owners are published.
-This rule applies when its corresponding owner is published. Unpublished local
-source and rule text do not establish validated behavior.
+Follow the [published scope](../README.md#published-scope).
 
 Read this rule for delete, deactivation, assignment, foreign-key or retention work.
 Trace the owning application service, transaction, schema, Bruno operation and tests.
@@ -13,8 +11,8 @@ the complete contract.
 ## Hard deletion only
 
 Soft deletion is prohibited in the database, models, persistence adapters, queries
-and HTTP contracts. Do not add deleted_at, deleted_by, is_deleted, tombstones,
-hidden deletion filters, recycle bins, a deleted status or include_deleted queries.
+and HTTP contracts. Do not add `deleted_at`, `deleted_by`, `is_deleted`, tombstones,
+hidden deletion filters, recycle bins, a deleted status or `include_deleted` queries.
 A successful delete permanently removes the record.
 
 An explicit active/inactive business status is separate from deletion. It must not
@@ -50,15 +48,21 @@ a usage conflict.
 
 ## Implementation and evidence
 
-User deletion rejects uploaded-file ownership and role memberships atomically;
-assigned-role deletion also returns a conflict. Once business usage is resolved,
-allowed deletion is physical and owned technical rows are removed. Inspect the
-owning services, ports, foreign keys and transactions when extending this policy;
-do not assume a cascade or SET NULL permits discarding business usage. Schema
-behavior does not imply a public delete endpoint that is not actually implemented.
+Current examples include users with owned uploads or role memberships, assigned
+roles, files used as logos or content covers, and categories assigned to
+content. These references block deletion. Consult the
+[database relationships](../../docs/database-schema.md) and
+[HTTP transport reference](../../docs/http-transport.md) for the owners and
+available endpoints.
 
-Update the owning [collection contract](api-collection.md), transaction/failure
-tests and operating guidance when behavior changes. Tests use disposable synthetic
-state and cover unused-record success, in-use conflict with no partial writes and
-concurrent reference creation. Never delete real records or run production
-migrations to demonstrate a rule.
+File deletion atomically removes metadata and records pending object cleanup
+after the usage check succeeds. The pending record retains the storage
+coordinates for a retry if object deletion fails. Normal reads use the file
+metadata and exclude deleted files immediately. See
+[Object storage](../../docs/object-storage.md).
+
+Follow the [HTTP contract workflow](api-collection.md#change-a-contract) when
+behavior changes. Use [disposable fixtures](testing.md#test-behavior-and-fixtures)
+to cover unused-record success, in-use conflict with no partial writes and
+concurrent reference creation. Keep deletion and migration tests confined to
+those fixtures.

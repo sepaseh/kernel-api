@@ -1508,6 +1508,204 @@ test("guidance resolves only published task paths, canonical commands, and safe 
   }
 });
 
+test("guidance validates same-file and cross-file Markdown heading fragments", async (context) => {
+  const { root, put } = await fixture(context);
+  const target = ".agents/rules/safety.md";
+  await put(
+    target,
+    [
+      "## API Safety",
+      "## API Safety",
+      "## API Safety-1",
+      "## API Safety",
+      "## **Review** `OTP`",
+      "## Café",
+      "",
+      "Setup details",
+      "-------------",
+      "",
+      "## Deploy",
+      "",
+      "<h2>Deploy-1</h2>",
+      "",
+      "## Deploy",
+      "",
+      "<h3>Mixed</h3>",
+      "",
+      "## Mixed",
+      "## Mixed-1",
+      "",
+      '<h3 id="ManualTitle">Release <em>caf&#233;</em></h3>',
+      "",
+      "See <h3>Inline <em>title</em></h3> below.",
+      "",
+      '<a title=\'id="attribute-only"\' id="Manual"></a>',
+      '<a name="Legacy"></a>',
+      '<a name="caf&#233;"></a>',
+      "<a id=Terms&amp;Conditions></a>",
+      "<h3 id='Guide&#xC9;'>Entity example</h3>",
+      '<a name="Literal&amp;copy=1"></a>',
+      "",
+      '<div id="ManualSection" name="div-name-only"></div>',
+      "",
+      'See the <span id="inline-note">note</span>.',
+      "",
+      '<custom-widget id="removed-tag"></custom-widget>',
+      "",
+      "<div title='<a id=\"nested-attribute\">'></div>",
+      "",
+      '<!-- <a id="comment-only"></a><h3>Hidden heading</h3> -->',
+      "",
+      '<script id="script-element"><a id="script-only"></a></script>',
+      "",
+      'Inline <textarea><a id="raw-text-only"></a><h3>Raw text heading</h3></textarea>.',
+      "",
+      "`<h3>Inline example</h3>`",
+      "",
+      "~~~md",
+      "## Example only",
+      "[Ignored](#missing)",
+      "~~~",
+      "",
+    ].join("\n"),
+  );
+  const readme = [
+    "# Local link",
+    "",
+    "[Valid](#local-link)",
+    "[Top](#top)",
+    "[Same page query](?view=readme#local-link)",
+    `[First](${target}#API-Safety)`,
+    `[Repeat](${target}#api-safety-2)`,
+    `[Collision](${target}#api-safety-1-1)`,
+    `[Formatted](${target}#review-otp)`,
+    `[Encoded](${target}#caf%C3%A9)`,
+    `[Setext](<${target}#setup-details> "Setup")`,
+    `[Query](${target}?plain=0#setup-details)`,
+    `[HTML title](${target}#Release-Caf%C3%A9)`,
+    `[Inline HTML](${target}#inline-title)`,
+    `[Mixed repeats](${target}#deploy-2)`,
+    `[Mixed collision](${target}#mixed-1-1)`,
+    `[Explicit title](${target}#ManualTitle)`,
+    `[Legacy](${target}#Legacy)`,
+    `[Encoded name](${target}#caf%C3%A9)`,
+    `[Named entity](${target}#Terms%26Conditions)`,
+    `[Encoded id](${target}#Guide%C3%89)`,
+    `[Decode once](${target}#Literal%26copy%3D1)`,
+    `[HTML block ID](${target}#ManualSection)`,
+    `[Inline HTML ID](${target}#inline-note)`,
+    "[Manual][anchor]",
+    "",
+    `[anchor]: ${target}#Manual`,
+    "",
+    "[Source](scripts/check-governance.mjs#L1404)",
+    "",
+  ].join("\n");
+  await put("README.md", readme);
+  await inspectGuidance(root);
+
+  for (const broken of [
+    "#missing",
+    "?view=readme#missing",
+    `${target}#api-safety-3`,
+    `${target}#deploy-1-1`,
+    `${target}#mixed-2`,
+    `${target}#manual`,
+    `${target}#legacy`,
+    `${target}#manualsection`,
+    `${target}#div-name-only`,
+    `${target}#removed-tag`,
+    `${target}#guide%C3%A9`,
+    `${target}#Terms%26amp%3BConditions`,
+    `${target}#Literal%C2%A9%3D1`,
+    `${target}#example-only`,
+    `${target}#inline-example`,
+    `${target}#attribute-only`,
+    `${target}#nested-attribute`,
+    `${target}#comment-only`,
+    `${target}#hidden-heading`,
+    `${target}#script-only`,
+    `${target}#script-element`,
+    `${target}#raw-text-only`,
+    `${target}#raw-text-heading`,
+    `${target}?plain=0#L1`,
+  ]) {
+    await put("README.md", readme + `[Bad](${broken})\n`);
+    await assert.rejects(inspectGuidance(root), (error) => {
+      assert.match(error.message, /published Markdown section/);
+      assert.ok(error.message.includes(`README.md: ${broken}`));
+      return true;
+    });
+  }
+});
+
+test("guidance finds explicit anchors after lengthy boolean HTML attributes", async (context) => {
+  const { root, put } = await fixture(context);
+  const attribute = "x".repeat(80_000);
+  await put(
+    "README.md",
+    `<a ${attribute} id="manual"></a>\n\n[Manual](#manual)\n`,
+  );
+
+  await assert.doesNotReject(inspectGuidance(root));
+});
+
+test("guidance validates only the effective Markdown reference fragments", async (context) => {
+  const { root, put } = await fixture(context);
+  const links = [
+    "# Setup",
+    "",
+    "[Full][  GUIDE\tKey] [Guide Key][] [Guide Key] [No definition]",
+    "",
+  ].join("\n");
+
+  await put(
+    "README.md",
+    `${links}\n> [guide key]: #setup\n\n[GUIDE KEY]: #shadowed\n[Unused]: #unused\n`,
+  );
+  await inspectGuidance(root);
+
+  await put(
+    "README.md",
+    `${links}\n[guide key]: #missing\n[GUIDE KEY]: #setup\n`,
+  );
+  await assert.rejects(
+    inspectGuidance(root),
+    /published Markdown section: README\.md: #missing\./,
+  );
+});
+
+test("guidance validates Markdown source line fragments in the plain view", async (context) => {
+  const { root, put } = await fixture(context);
+  const target = ".agents/rules/safety.md";
+  await put(target, "# Safety\r\n\r\nRead the guide.\r\n");
+  const readme = [
+    "# Local link",
+    "",
+    "[Same file](?plain=1#L5)",
+    `[Range](${target}?view=readme&plain=1#L1-L3)`,
+    `[Last line](${target}?plain=1#L3)`,
+  ].join("\n");
+
+  await put("README.md", readme);
+  await inspectGuidance(root);
+
+  for (const broken of [
+    "?plain=1#local-link",
+    `${target}?plain=1#safety`,
+    `${target}?plain=1#L0`,
+    `${target}?plain=1#L4`,
+    `${target}?plain=1#L1-L4`,
+  ]) {
+    await put("README.md", `${readme}\n\n[Bad](${broken})\n`);
+    await assert.rejects(inspectGuidance(root), (error) => {
+      assert.match(error.message, /published Markdown source line/);
+      assert.ok(error.message.includes(`README.md: ${broken}`));
+      return true;
+    });
+  }
+});
+
 test("formatting checks the inventory directly without an ignore-file escape or ambient source", async (context) => {
   const { root, put } = await fixture(context);
   for (const file of files.filter((file) =>
@@ -2178,6 +2376,18 @@ test("disabled publications load their isolated entrypoint without guidance asse
   await put(
     "node_modules/yaml/index.mjs",
     'export const parseDocument = () => { throw new Error("Unexpected YAML parsing in guidance inspection."); };\n',
+  );
+  await json("node_modules/prettier/package.json", {
+    name: "prettier",
+    type: "module",
+    exports: { "./plugins/markdown": "./markdown.mjs" },
+  });
+  await put(
+    "node_modules/prettier/markdown.mjs",
+    await readFile(
+      new URL(import.meta.resolve("prettier/plugins/markdown")),
+      "utf8",
+    ),
   );
   await assert.rejects(
     readFile(path.join(root, "scripts/check-guidance-assets.mjs")),

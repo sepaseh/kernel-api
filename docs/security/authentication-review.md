@@ -1,8 +1,6 @@
-# Authentication and session review
+# Review authentication and sessions
 
 Use this checklist when changing authentication, sessions or related operations.
-It describes review questions and existing boundaries; it does not certify an
-external audit or production readiness.
 
 1. For authenticated operations, check that the actor has an active session
    and any required current permission at the point of the operation. Login and
@@ -20,9 +18,12 @@ external audit or production readiness.
 4. Check browser Origin and CORS rules, cookie attributes and response/log
    redaction. The authentication attempt limiter is process-local, not a shared
    distributed control.
-5. Verify initial administrator provisioning uses protected JSON standard input,
-   refuses an existing user database, creates the identity atomically and does
-   not issue a session. Tests must use disposable synthetic databases.
+5. Verify initial administrator provisioning uses protected JSON on standard
+   input and rejects invalid input before opening the database. Check that it
+   disables development seeding, refuses databases with existing users and
+   creates the identity atomically without issuing a session. The operator
+   performs production configuration preflight separately. Tests use disposable
+   synthetic databases.
 6. Assess incompatible HTTP changes and rollout with independent clients. Local
    tests do not prove that a deployed client, OTP provider or infrastructure is
    configured correctly.
@@ -31,10 +32,6 @@ See [authentication adapters](../auth-adapters.md), [mobile-update behavior](../
 [threat model](threat-model.md), and the integration tests
 [`auth-bootstrap-integration.test.mjs`](../../scripts/auth-bootstrap-integration.test.mjs)
 and [`auth-identity-integration.test.mjs`](../../scripts/auth-identity-integration.test.mjs).
-
-The offline bootstrap reads protected JSON STDIN, rejects invalid input before
-opening DB, disables seeding and refuses every preexisting user. No session/token
-is issued. Production prevalidation is a required separate operator step.
 
 API tests cover concurrency, failed transactions, secure logout, invalid origins,
 password bounds, provider failures and log redaction. Consumer proxy/bearer tests

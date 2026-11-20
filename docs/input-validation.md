@@ -1,29 +1,29 @@
 # Input validation
 
-The reused profile-name bound lives in `src/contracts/profile.ts`; wire DTOs live
-in the owning `account.ts`, `auth.ts` and `settings.ts` contract modules. Application
-validation trims strings before checking length and distinguishes omitted/blank
-optional patches (preserve existing value) from supplied nonstrings or out-of-bound
-values (reject before any partial write). Registration checks name/password policy
-before consuming OTP or writing through the auth provider. Account and managed-user
-profile updates share those limits. Database constraints and transactions remain
-separate protections.
+HTTP adapters check the request format and size. Application services validate
+feature fields and enforce business requirements. See the
+[Bruno operations](../collection/README.md) for endpoint-specific fields and
+statuses.
 
-JSON request bodies handled by the API require application/json and are bounded to
-64 KiB of actual bytes, including streams without Content-Length. The upload route
-authenticates first, then bounds actual multipart bytes to the configured file limit
-plus 64 KiB for framing and fields before parsing. The
-application separately validates file size before and after reading the file.
-The default Nginx envelope is 6 MiB around the default 5 MiB application upload
-limit; keep these values aligned deliberately. Run relevant validation and HTTP
-tests and `npm run validate -- full` before an authorized commit or PR handoff.
-Review HTTP compatibility for affected consumers.
+## Request bodies
+
+JSON requests require `Content-Type: application/json` and a non-null object.
+Malformed JSON, arrays and primitive roots return 400. Unsupported media types
+return 415. Bodies above 64 KiB of actual bytes return 413, even with an absent
+or misleading `Content-Length`.
+
+Uploads use [multipart and context limits](http-transport.md#file-uploads).
+The default Nginx envelope is 6 MiB and the default application upload limit
+is 5 MiB. Keep the envelope large enough for the configured file limit and
+multipart framing.
 
 ## Profile-name behavior
 
-The bound is 1,000 JavaScript UTF-16 code units after trimming, rather than bytes
-or visible graphemes. Registration, user creation, managed-user updates and account
-profile updates use the same constant.
+The [profile contract](../src/contracts/profile.ts) limits names to 1,000
+JavaScript UTF-16 code units after trimming. Registration, user creation,
+managed-user updates and account profile updates use the same limit.
+Registration validates names and passwords before consuming an OTP or writing
+through the auth provider.
 
 | Input                                     | Creation/registration | Profile/user patch      |
 | ----------------------------------------- | --------------------- | ----------------------- |
@@ -39,6 +39,19 @@ described in [HTTP transport](http-transport.md). Unknown fields are not persist
 mean all endpoints reject unknown keys. Existing stored values are not rewritten.
 Errors keep the message envelope, request ID, statuses and configured language.
 
-JSON roots must be non-null objects. Malformed JSON, arrays and primitive roots
-receive 400, unsupported media types 415 and oversized bodies 413. Actual streamed
-bytes enforce the 64 KiB cap even with an absent or misleading Content-Length.
+## Content and FAQ fields
+
+- Content creation and updates require `title`, `excerpt`, `body`,
+  `content_category_id` and `cover_image_id`. The API sanitizes `body` and
+  returns 400 if no meaningful text remains. See the
+  [rich-text contract](collection-guide.md#rich-text-content).
+- FAQ creation and updates require a nonblank `question` and `answer`. After
+  trimming, the [FAQ contract](../src/contracts/faqs.ts) allows up to 300 and
+  5,000 UTF-16 code units, respectively. Missing or invalid text returns 400.
+- Category and FAQ sort requests require an `ids` array of distinct nonblank
+  strings. Malformed or duplicate IDs return 400. A valid array that differs
+  from the current set of records returns 409.
+
+For changes to validation, cover the fields and failure paths in the relevant
+application and HTTP tests. Follow the [validation guide](validation.md) before
+an authorized commit or PR.

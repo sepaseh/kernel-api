@@ -1,15 +1,19 @@
-# API Docker deployment reference
+# Docker deployment
 
-API deployment templates are not evidence of production readiness. Real OTP
-delivery and deployed integration remain unverified.
+Use this guide to prepare and verify deployment on an authorized Linux Docker
+engine. See [deployment](../../docs/deployment.md) for the release and verification
+procedure.
+Real OTP delivery, deployed integration and production readiness remain
+unverified.
 
-Use a Linux Docker engine and Compose with required `env_file` support. Provision
-the API and host configuration in protected files outside Git. This source snapshot
-includes [API](api.env.example) and [host](hosts.env.example) templates; copy and
-customize them outside Git, keeping real secrets protected. Set a generated auth secret,
-immutable RELEASE_ID, API_HOST,
-API_PUBLIC_ORIGIN, exact external SERVER_ALLOWED_ORIGINS, absolute API_ENV_FILE and
-TLS_CERT_DIRECTORY. The configuration preflight rejects placeholders.
+## Configure the host
+
+Use a Linux Docker engine and Compose with required `env_file` support. Copy the
+[API environment template](api.env.example) and [host environment template](hosts.env.example)
+to protected files outside Git. Set a generated `BETTER_AUTH_SECRET`, immutable
+`RELEASE_ID`, `API_HOST`, `API_PUBLIC_ORIGIN`, exact `SERVER_ALLOWED_ORIGINS`, and
+absolute `API_ENV_FILE` and `TLS_CERT_DIRECTORY` paths. The configuration
+preflight rejects placeholders.
 
 Supply real DNS and an existing certificate for API_HOST before starting. The TLS
 directory must contain real `fullchain.pem` and `privkey.pem` files; gateway startup
@@ -18,6 +22,11 @@ use a standalone ACME client while its required ports are free. The gateway
 redirects HTTP to HTTPS and does not serve an ACME webroot. After renewal,
 publish the updated certificate files, validate the Nginx configuration and
 reload Nginx. Keep the certificate directory and API env root-protected.
+
+## Start the API and gateway
+
+From the repository root, use the same hosts file and Compose project for each
+command.
 
 ```sh
 docker compose --env-file /etc/kernel-api/hosts.env -f deploy/docker/compose.yaml config --quiet
@@ -34,7 +43,12 @@ API port 3000 stays internal. The named `api-data` volume is mounted at
 Compose project name when replacing a release so the volume is reused. Never run
 `down --volumes` against real state. One API replica owns the SQLite file.
 The gateway uses Docker's embedded DNS to refresh the API service address every
-10 seconds; a container replacement can still cause a brief interruption.
+10 seconds; a container replacement can still cause a brief interruption. The
+gateway has a 6 MiB request-body limit to allow multipart overhead above the
+default 5 MiB API upload cap. If you change the API cap, review the ingress cap
+and the per-image limits described in [HTTP transport](../../docs/http-transport.md).
+
+## Provision the administrator and verify
 
 Provision the first administrator only once on an empty installation. Validate the
 API environment, prepare protected JSON containing first_name, last_name, mobile,
@@ -47,8 +61,12 @@ docker compose --env-file /etc/kernel-api/hosts.env -f deploy/docker/compose.yam
 
 No account reset, session or token is created by bootstrap. Delete the temporary
 protected input according to your secret policy. Registration/recovery/email
-verification still need real OTP delivery. Verify `/health`, login, permissions,
-public/private objects and `/_kernel/release` against the intended release ID.
+verification still need real OTP delivery. Check `/health`, sign in and verify
+permissions. Confirm a public object is readable and a private object cannot be
+accessed through the public API route. Compare the gateway's `/_kernel/release`
+and the API startup log's release ID with the approved release.
+
+## Upgrade or roll back
 
 For update, pause writes, stop the API and confirm its clean shutdown before
 capturing a coordinated DB/object backup. Build/pull a new immutable tag, then
@@ -56,8 +74,10 @@ run `up -d --wait`. Keep prior tags and protected configuration.
 A previous image does not undo migrations: restore the matching DB/objects when
 schema rollback requires it. [Recovery procedure](../../docs/backup-restore.md)
 and [release operations](../../docs/release-operations.md) define checks.
-External MinIO is optional; configure TLS, explicit credentials/bucket/public origin
-in the API env. Changing driver does not migrate existing metadata or objects.
+External MinIO is optional. See [object storage](../../docs/object-storage.md)
+for the required TLS, credentials, buckets and public origin configuration.
+
+## Run the local Docker smoke test
 
 `npm run test:deploy:docker` is an opt-in local synthetic HTTPS smoke test. It forces
 the local engine endpoint, creates random credentials/certificates, uses a unique

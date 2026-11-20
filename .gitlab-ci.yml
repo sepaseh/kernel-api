@@ -1,0 +1,15 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_PROJECT_ID == $CI_PROJECT_ID && $CI_MERGE_REQUEST_PROJECT_ID == $CI_PROJECT_ID'
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+full-validation:
+  image: node:24.18.0-bookworm
+  tags:
+    - kernel-linux-x64
+  rules:
+    - when: on_success
+  script:
+    - node -e 'require("node:assert/strict").equal(process.version, "v" + require("node:fs").readFileSync(".nvmrc", "utf8").trim())'
+    - npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+    - npm run validate -- full

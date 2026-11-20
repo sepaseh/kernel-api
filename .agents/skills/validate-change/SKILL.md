@@ -5,37 +5,44 @@ description: Select Kernel checks for the actual change and run the complete can
 
 # Validate a change
 
-Read the affected source, rules, [validation policy](../../../docs/validation.md)
-and [canonical manifest](../../validation.json). Inspect status/diffs when working
-in Git; an isolated export has no Git history and must retain its recorded source
-commit/tree. Preserve unrelated local work.
+Read the [publication policy](../../../.github/bootstrap-policy.json) for the
+phase, readiness and admitted files. Read the affected source, tests and rules.
+Inspect the working tree and staged changes under the
+[working-checkout rule](../../rules/branches.md#working-checkout).
 
-1. Start with the smallest relevant published check or test. Behavior changes need
-   a regression for the observable failure. Use only commands declared for the
-   actual published phase; later application tooling does not establish a current check.
-2. Before an authorized commit, push or PR handoff, run
-   `npm run validate -- full` on the exact final proposed snapshot in a fresh
-   verification-only export. Follow the documented isolation, locked installation
-   and synthetic-fixture procedure. The manifest owns every required entry,
-   command and order; never substitute a copied count or partial command list.
-3. Resolve failures within scope and reverify. Never omit, downgrade or replace a
-   required check with a faster profile, suppress findings or lower coverage to
-   obtain a pass. Do not stage or commit while a required check fails or cannot run.
-4. Record the checked revision/tree, actual results and remaining limits. Read
-   admitted files and `applicationReady` from [the publication policy](../../../.github/bootstrap-policy.json).
-   While readiness is false, governance and synthetic tests cannot establish an
-   assembled application. Application admission requires its genuine complete gate;
-   configuration, component tests and installed services do not replace execution.
-5. Report unavailable commands or provider evidence honestly. Local success does
-   not establish hosted CI, provider analysis, review approval or deployment.
+## Focused checks
 
-Existing explicit authorization and preferences remain valid throughout the task.
-Static guidance checks verify paths and consistency, not automatic assistant
-loading, instruction comprehension or improved model performance.
+Start with the smallest relevant published check from the
+[validation manifest](../../validation.json). Add a focused regression for
+changed observable behavior under the [testing rules](../../rules/testing.md).
 
-For later API phases, select the published type, lint, boundary and unused-code
-checks when their source or dependency boundaries change. HTTP/DTO/Bruno changes
-need relevant API and contract tests plus collection-quality review. Delete,
-status and relation changes need data-lifecycle review and synthetic transaction,
-failure, authentication and storage evidence. Governance checks do not validate
-unpublished API source or replace its full application gate.
+- For source or dependency boundary changes, select type, lint and boundary checks.
+- For HTTP, DTO and Bruno changes, use the owning API and contract tests and
+  [collection review](../../rules/collection-quality.md).
+- For delete, status and relation changes, follow the
+  [data lifecycle rule](../../rules/data-lifecycle.md) and run the applicable
+  synthetic transaction, failure, authentication and storage tests.
+
+## Full verification
+
+Record the source revision and exact proposed tree before exporting. Before an
+authorized commit, push or PR handoff, run `npm run validate -- full` on a fresh
+verification-only export of the exact proposed snapshot. Follow the
+[locked installation and isolation procedure](../../../CONTRIBUTING.md#validation-and-authorization)
+and use disposable synthetic fixtures.
+
+Resolve required failures within the task's scope and reverify. Preserve
+required checks, genuine failing assertions and coverage. Leave staging and
+committing pending while a required check fails or cannot run.
+
+## Report evidence
+
+Report the phase, readiness, checked revision or tree, commands, actual results
+and unavailable checks. Use the
+[provider evidence rules](../../rules/pull-requests.md#provider-evidence-and-required-checks)
+for hosted checks and approval, and the
+[guidance evidence rules](../../rules/guidance.md) for instruction discovery.
+
+Identify the published source and synthetic fixtures responsible for the local
+evidence and disclose unpublished capabilities. Tie production readiness claims
+to the declaration and actual deployed evidence.

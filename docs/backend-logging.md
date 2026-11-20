@@ -19,16 +19,9 @@ and exercise startup, readiness, cleanup and signal-driven shutdown. Synthetic
 Published native service references and local tests do not provision a deployed
 service or an external collector.
 
-Initialized HTTP responses expose a bounded `X-Request-Id`. Valid supplied IDs
-propagate; invalid or sensitive-looking values become UUIDs. Exactly one final
-request event records the outcome, with user identity only after authentication.
-Initial bodyless 503 responses are served before request middleware is installed
-and omit this header.
-
 Run the logging and fatal-lifecycle suites through the complete
 [canonical profile](../.agents/validation.json) on the exact proposed inventory.
-These tests establish local logging behavior, not a deployed service or an
-external collector. See [validation](validation.md).
+See [validation](validation.md) for local check scope.
 
 ## Configuration and events
 
@@ -61,10 +54,20 @@ the original error. A throwing logger does not replace that failure. Upload
 events contain safe metadata, never bytes. Compensation failure has a separate
 event and must not replace the original metadata failure.
 
-Request IDs accept 1-128 ASCII letters, digits, underscore, hyphen or equals.
-They are untrusted correlation metadata, not authentication or an immutable
-audit identifier. Request logs use the matched route, status and duration;
-raw URL queries and credentials are omitted.
+## Request correlation
+
+Initialized HTTP responses expose an `X-Request-Id` header. Clients can supply
+1–128 ASCII letters, digits, underscores, hyphens or equals signs. Missing,
+invalid or sensitive-looking values become UUIDs. The same ID appears in the
+response and the request log. CORS allows the request header and exposes it on
+responses. The initial bodyless readiness 503 bypasses request logging and omits
+the header.
+
+Exactly one final request event records the matched route, status and duration.
+It includes user identity only after authentication and omits raw URL queries
+and credentials. Client-provided IDs are untrusted correlation metadata.
+
+## Redaction and process lifecycle
 
 Never log raw requests, bodies, headers, auth/session/config objects, SQL, file
 bytes or SDK payloads. Keep event messages fixed and explicitly select metadata.

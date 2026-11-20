@@ -1,10 +1,11 @@
 # Authentication adapters
 
-The authentication adapters provide Better Auth, credential and OTP persistence,
-database initialization and initial administrator provisioning. These owners are
-published from the database-persistence phase onward. The local Node server
-connects them to [HTTP routes](http-transport.md). Adapter and HTTP suites exercise their
-respective layers with synthetic configuration and disposable databases.
+The authentication adapters connect Better Auth, credential persistence and OTP
+persistence to the application. The local Node server connects them to
+[HTTP routes](http-transport.md). Adapter and HTTP suites use synthetic
+configuration and disposable databases.
+
+## Credentials and sessions
 
 Better Auth uses the database-owned user, account and session records. The
 stored internal email identifies the credential and does not change with a mobile
@@ -14,15 +15,16 @@ transaction. Password recovery binds the OTP to the account at issuance and
 checks that the same active account still owns the destination mobile in the
 reset transaction. Failure rolls back OTP consumption and credential changes.
 
-The initial administrator command reads JSON from standard input, refuses an
-existing user database, and creates the user and credential atomically without
-creating a session. Tests must use disposable synthetic databases and explicit
-synthetic configuration; never point tests at an existing environment or database.
+To provision an administrator for a database with no users, follow
+[administrator provisioning](development.md#database-initialization-and-administrator-provisioning).
+The command creates the user and credential in one transaction and leaves
+session creation to login.
 
-The current OTP adapter has no delivery provider. Its fixed code is restricted to
-explicit development or test configuration. Issuance without that configuration
-fails; this is not evidence of a production OTP delivery path. A real delivery
-adapter and its operational tests are required before using those flows in production.
+## OTP issuance and verification
+
+The current OTP adapter issues a fixed code with explicit development or test
+configuration. Issuance fails without that configuration. Production delivery
+requires a delivery adapter and operational verification.
 
 New OTP records use a versioned HMAC-SHA256 digest. Only the newest record for
 the destination, purpose and subject, where applicable, can verify. A new code

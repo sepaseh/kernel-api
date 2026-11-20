@@ -1,53 +1,71 @@
-# Independent API deployment
+# Build, package and deploy
 
-The runtime-operations phase includes independent deployment templates for:
-[Docker/Compose](../deploy/docker/README.md) and [native Linux systemd/Nginx](../deploy/native/README.md).
-These templates and fixture tests do not establish deployed or production readiness;
-real OTP delivery remains unimplemented. They build and run only this repository.
-Configure public API origin and exact
-external admin/website origins; no other application checkout or shared Docker
-network is required. When cohosting applications, use one operator-managed edge
-and distinct upstream ports. Integrate the named server blocks into that edge with
-only one pair of default host-rejection blocks per listen address; loading several
-complete independent templates would duplicate `default_server`. Do not bind
-several gateways to the same host ports.
+Use this guide to prepare an immutable release and verify an authorized
+deployment.
+Choose the [Docker Compose reference](../deploy/docker/README.md) for a
+containerized API and gateway, or the [native Linux reference](../deploy/native/README.md)
+for systemd and Nginx. The `local-runtime` phase publishes both references and
+keeps `applicationReady` set to `false`.
 
-API uses native Node.js 24 TypeScript and reviewed startup migrations. Durable
-SQLite and public/private object state live outside immutable releases. Deployment
-preflight rejects placeholder credentials, insecure public origins, relative local
-state, database/upload paths inside the immutable release (including resolved
-directory links), development OTP/seed flags and missing release identity. The checked-in release-ID placeholders must be replaced with an actual immutable
-release identifier. Unknown HTTP hosts are dropped and unknown TLS names fail their handshake. Docker entrypoint
-and native ExecStartPre enforce it. Native bootstrap is a separate explicit operator
-operation on an empty database, using protected JSON STDIN and supplied environment.
-The preflight accepts only a local SQLite `file:` URL with an absolute persistent
-path outside the release and no host, query or fragment. Remote libSQL deployment
-is not validated by this package.
+## Before deployment
 
-Commands: `deploy:package` creates an exclusive API release; `deploy:render` substitutes
-validated public fields from stdin into a fixed `bootstrap` or `kernel` template and
-writes to stdout without corrupting Nginx variables; `deploy:check -- api`
-validates supplied production configuration; `deploy:health -- api` checks semantic
-readiness. None load developer env files or provision DNS/certificates. `test:deploy`
-uses only synthetic local fixtures. `test:deploy:docker` requires an available local
-Linux Docker engine, generates its own TLS/credentials/volumes and never uses a
-remote Docker context. No remote deployment is triggered by normal CI.
+- Use the [pinned Node.js runtime](../.nvmrc) and the reviewed migrations. Store
+  SQLite and [object storage](object-storage.md) outside the immutable release.
+  Deployment preflight requires an absolute persistent SQLite `file:` URL
+  without a host, query or fragment.
+- Set the public HTTPS API origin, exact external frontend origins, a generated
+  auth secret and an immutable release ID. Provide the settings explicitly to
+  the runtime. Docker's entrypoint and systemd's `ExecStartPre` validate the
+  production environment. The edge drops unknown HTTP hosts and rejects unknown
+  TLS names.
+- When cohosting applications, use one operator-managed edge and distinct
+  upstream ports. Integrate the named Nginx server blocks with one default
+  host-rejection pair per listen address.
+- Bootstrap the first administrator in a database without users using protected
+  JSON on standard input. Existing accounts can sign in with a password.
+  Registration, password recovery and email verification require production OTP
+  delivery, which is still unimplemented. Production preflight rejects fixed
+  development codes and development seeding.
 
-Real SMS/email OTP delivery remains unimplemented. Bootstrap permits existing-account
-password login; registration/recovery/email-verification production journeys require
-a delivery adapter. Fixed development OTP is prohibited in production. Backups are
-operator-owned procedures, not scheduled automation. Read [backup/recovery](backup-restore.md)
-and [release/rollback](release-operations.md) before activating an upgrade.
+Review the [backup and recovery procedure](backup-restore.md) and
+[release operations](release-operations.md) before activating a release.
+
+## Commands
+
+Run these commands from the trusted source checkout. Supply protected production
+configuration only when performing authorized deployment preflight.
+
+| Command                                  | Purpose                                                                              |
+| ---------------------------------------- | ------------------------------------------------------------------------------------ |
+| `npm run deploy:package -- --release=ID` | Write an exclusive native release to `dist/releases/ID`.                             |
+| `npm run deploy:render -- --template …`  | Read public settings from standard input and render Nginx.                           |
+| `npm run deploy:check -- api`            | Validate the supplied production environment.                                        |
+| `npm run deploy:health -- api`           | Check that the local `/health` returns `200` and `ok`.                               |
+| `npm run test:deploy`                    | Run deployment tooling tests with synthetic local fixtures.                          |
+| `npm run test:deploy:native`             | Install production dependencies in a test release and check local startup and login. |
+| `npm run test:deploy:docker`             | Exercise the API and gateway using a local Linux Docker engine.                      |
+
+The renderer accepts `bootstrap` and `kernel` as template names. See the linked
+deployment references for smoke prerequisites and expected results.
 
 ## Protected manual API checks
 
-Staging and deployment-smoke workflows are manual dispatch only and perform
-read-only semantic `/health` and `/_kernel/release` checks. Configure protected
-STAGING_ALLOWED_API_HOST or SMOKE_ALLOWED_API_HOST and EXPECTED_DEPLOYMENT_ID;
-dispatch inputs cannot redefine the trusted allowlist/release. Staging also requires
-PRODUCTION_HOST and rejects that host. URLs must be exact HTTPS origins without
-credentials/path/query/hash. The expected release is independently supplied from
-protected settings, not trusted from the remote response.
+Dispatch [API staging verification](../.github/workflows/staging.yml) or
+[API smoke verification](../.github/workflows/deployment-smoke.yml) with `api_url`
+set to an authorized HTTPS origin without credentials, a path, a query or a
+fragment. Configure the following in the corresponding protected GitHub
+environment before dispatching it.
+
+| Environment | Required variables                                                      |
+| ----------- | ----------------------------------------------------------------------- |
+| `staging`   | `STAGING_ALLOWED_API_HOST`, `PRODUCTION_HOST`, `EXPECTED_DEPLOYMENT_ID` |
+| `smoke`     | `SMOKE_ALLOWED_API_HOST`, `EXPECTED_DEPLOYMENT_ID`                      |
+
+Staging rejects the configured production host. Both workflows make read-only
+requests and require a healthy `/health` response plus an exact release ID match
+from `/_kernel/release`. Set `EXPECTED_DEPLOYMENT_ID` from the approved release.
+The release marker comes from the gateway, so also verify the running API's
+release ID through its startup logs during cutover.
 
 The manual DAST workflow validates the initial HTTPS origin against the
 protected `STAGING_ALLOWED_API_HOST` and `PRODUCTION_HOST` settings, then stops

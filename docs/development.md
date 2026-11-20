@@ -1,42 +1,57 @@
-# API development
+# Develop Kernel API
 
-Use the Node version in `.nvmrc` and install dependencies with `npm ci`. The API
-is a standalone project; do not link runtime source from another checkout. Read
-the current [README](../README.md) and [architecture](architecture.md) before
-changing setup or composition. Preserve private environment files and existing
-local data; tests use their own synthetic fixtures.
-
-Use [source navigation](source-navigation.md) to locate the relevant layers,
-[feature changes](feature-development.md) for behavioral changes, and
-[validation](validation.md) before publication. The separate API consumers may
-need coordinated rollout when an HTTP contract changes.
-
-The current runtime-operations phase includes Hono adapters, manual composition
-and a local Node server. Local execution establishes neither production OTP
-delivery nor deployment readiness. Owned packaging, deployment references and
-manual checks are described in [deployment](deployment.md); their presence is
-not evidence of an activated service.
+Use this guide to run the API with your own local configuration. For a
+temporary database, uploads and seeded test data, use the
+[disposable API fixture](../README.md#run-locally).
 
 ## Local execution
 
-The root `.env.example` is a synthetic configuration template. `npm run dev`
-does not load it automatically; supply the required environment explicitly. Keep
-real credentials and private environment files outside Git. The example's
-suggested `.env.local` filename does not make it an automatically loaded file.
+1. Use the Node.js version in [`.nvmrc`](../.nvmrc). From the repository root,
+   install the locked dependencies.
 
-After installing the locked dependencies, supply configuration in the launching
-process environment and use `npm run dev` or `npm start`. Both run the local Node
-entry point. Select an intended local database and storage directory; use fresh
-owned disposable paths for tests. The server binds before opening the database
-or initializing storage, returns non-cacheable 503 responses until ready, then
-serves the composed application. An occupied port fails before those resources
-are initialized. See [HTTP transport](http-transport.md).
+   ```sh
+   npm ci --strict-peer-deps --ignore-scripts --no-audit --no-fund
+   ```
 
-Local OTP flows require an explicitly configured development/test code. A fixed
-code is rejected in production, and no production delivery provider is supplied.
+2. For a new local setup, create an ignored `.env.local` from the
+   [synthetic configuration template](../.env.example). Preserve any existing
+   file. Set `BETTER_AUTH_SECRET` to a new random value and choose a fresh
+   database and upload location. For example, create `server/data/development`
+   if it is unused and set `DATABASE_URL=file:server/data/development/kernel.sqlite`
+   and `LOCAL_STORAGE_PATH=server/data/development/uploads`. Relative database
+   and upload paths resolve from the repository root. Use `STORAGE_DRIVER=local`
+   for disk storage. The API creates the directories as needed.
+3. Keep `HOST` on loopback for local development. Match `BETTER_AUTH_URL` to the
+   API origin, including the port, and set `SERVER_ALLOWED_ORIGINS` to the
+   comma-separated origins of any browser clients. If port 3000 is occupied,
+   choose an available port and update both `PORT` and `BETTER_AUTH_URL`.
+4. Load the configuration explicitly and start the API.
 
-`npm run test:fixture:website` starts a disposable test API on
-`http://127.0.0.1:3100` by default. For concurrent runs or a port conflict, set
+   ```sh
+   node --env-file=.env.local src/index.ts
+   ```
+
+   The launching process's environment takes precedence over the file. If you
+   supply configuration through the process environment, use `npm run dev` or
+   `npm start`. Both commands run the same entry point and require you to load
+   any environment file yourself.
+
+5. Open `/health` on the configured API origin, such as
+   `http://localhost:3000/health`. It returns HTTP 200 and `{"status":"ok"}`
+   after initialization. A temporary HTTP 503 during startup means the listener
+   is up and initialization is still in progress. Check the startup log if the
+   server exits. See the [HTTP transport guide](http-transport.md).
+
+Keep credentials and private environment files outside Git. To exercise OTP
+flows locally, set `OTP_FIXED_CODE` explicitly with `NODE_ENV=development` or
+`NODE_ENV=test`. Production OTP delivery is unavailable.
+
+## Website test fixture
+
+`npm run test:fixture:website` starts the disposable API on
+`http://127.0.0.1:3100` with seeded data. Follow the
+[Bruno setup](../collection/README.md#connect-bruno-to-the-local-api)
+to sign in with the fixture's test account. For concurrent runs or a port conflict, set
 `WEBSITE_TEST_API_PORT` to a distinct available port and configure the website test
 client to use that same API origin. The allowed website origin remains
 `http://127.0.0.1:3101`.
@@ -48,13 +63,20 @@ configured database. Source publication does not authorize changing existing
 runtime data. Obtain explicit authorization and a verified matching backup
 before migrating an existing database; do not use another checkout's data.
 
-`npm run server:bootstrap` reads initial administrator JSON from standard input.
-It refuses a database with existing users and creates the user and credential
-atomically without starting a session. It uses explicit configuration and does
-not load private environment files. See [authentication adapters](auth-adapters.md)
-and [database schema](database-schema.md).
+`npm run server:bootstrap` reads a JSON object with `first_name`, `last_name`,
+`mobile`, `username` and `password` from standard input. Provide it from a
+private input source with the intended database configuration in the process
+environment. When using `.env.local`, you can invoke
+`node --env-file=.env.local src/bootstrap-admin.ts` with the same input.
+The command requires a database with no users and creates the administrator and
+credential atomically without starting a session. It prints
+`Initial administrator created.` on success. See the
+[authentication adapter guide](auth-adapters.md) and
+[database schema](database-schema.md).
 
-Development seeding is opt-in and must use one instance. It refuses a nonempty
+For sample data in a fresh local database, set `SERVER_SEED_DEVELOPMENT_DATA=true`
+with `NODE_ENV=development` or `NODE_ENV=test` and start one instance.
+Seeding refuses a nonempty
 business database without the complete expected sample administrator and fails
 explicitly on an incomplete earlier seed. The emptiness check and sample
 business records share a transaction; migrations and initial settings happen
@@ -65,7 +87,14 @@ requiring database credentials. `npm run server:migrate` applies reviewed
 migrations using an explicit `DATABASE_URL`; select only an owned fixture or a
 database you are authorized to change. The startup initializer applies reviewed
 SQL and does not generate migrations. Toolchain tests copy the configuration
-into owned fixtures and exercise the real CLI independently of private state.
+into owned fixtures and exercise the real CLI using synthetic state.
+
+## Find the code and tests
+
+Use [source navigation](source-navigation.md) to locate the owning layers,
+[feature development](feature-development.md) for contract changes, and
+[validation](validation.md) before publication. Coordinate incompatible HTTP
+changes with independently released API consumers.
 
 ## Dependency compatibility
 
@@ -75,19 +104,12 @@ the installed TypeScript/ESLint peer ranges and upgrade `better-auth`,
 Refresh the lockfile and run the full validation profile after dependency
 changes. Do not use `--force` or `--legacy-peer-deps` to hide an incompatible tree.
 
-The development lint chain uses a pinned `@ryotsu/picomatch` backport for
-[CVE-2026-112366](https://github.com/advisories/GHSA-fc5q-39xc-vjpf).
-Snapshot validation checks the exact registry integrity and the development-only
-lockfile scope. Revisit the override when upstream publishes a compatible fix.
+The lint toolchain currently pins the `@ryotsu/picomatch` backport. The
+[original GitHub advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
+was withdrawn on November 18, 2026. Snapshot validation still checks the
+override's exact registry integrity and development-only lockfile scope.
 
 Drizzle Kit's legacy loader uses the reviewed scoped esbuild override `0.28.2`.
-Keep that compatibility choice aligned with the lockfile and real toolchain
-tests; do not broaden it to unrelated esbuild consumers. Additional unused-code
-tooling remains outside this phase.
-
-Release packaging and rendering use `deploy:package` and `deploy:render`.
-Configuration and semantic health checks use `deploy:check` and `deploy:health`;
-see the deployment guide for authorized targets and protected inputs. The full
-profile includes synthetic operational/recovery tests. Native and Docker smoke
-commands are explicit opt-in checks; record their actual platform/results
-separately rather than inferring them from local unit tests or templates.
+Keep that compatibility choice aligned with the lockfile and the real
+toolchain tests. See the [deployment guide](deployment.md) for packaging,
+runtime configuration checks and opt-in Docker or native checks.

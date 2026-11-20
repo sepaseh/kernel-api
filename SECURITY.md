@@ -1,18 +1,27 @@
 # Security policy
 
-Do not publish credentials, private environment files, database contents, uploads
-or sensitive error details in issues, pull requests, logs or chat.
+## Report a vulnerability privately
 
-Coordinate sensitive reports privately with the repository owner. If GitHub
-private vulnerability reporting is available for this repository, use that
-feature. Do not assume it is enabled merely because this policy exists.
+Use **Report a vulnerability** in the repository's GitHub **Security** tab when
+private reporting is available. Otherwise, ask the repository owner for a
+secure channel before sharing technical details. Keep reports and sensitive
+details out of public issues, pull requests, commits and logs.
 
-The first publication contains governance tools and configuration. It does not
-establish a deployed API, production OTP delivery or operational readiness.
-Future API changes must preserve authentication, authorization, transaction,
-hard-deletion and storage constraints in the published assistant rules.
+Include the affected revision, feature or endpoint, expected and observed
+behavior, potential impact and steps using synthetic data. Redact credentials,
+tokens, personal information and sensitive payloads from the report and any
+attachments. Review error messages and nested causes before sharing them.
 
-Review configuration changes for token permissions, immutable trusted checkouts,
-pinned actions, fork boundaries and provider identity. Never execute unreviewed
-PR code with privileged default-branch credentials. Do not bypass protection,
-suppress required security findings or claim a skipped scan is a successful scan.
+Keep real configuration, records and uploads out of public reports. Keep
+sensitive report details out of assistant messages.
+[Repository security](https://github.com/sepaseh/kernel-api/security)
+
+## Scope
+
+The [publication inventory](.github/bootstrap-policy.json) lists the reviewed API
+source and tooling. The published API includes local authentication,
+authorization, persistence, HTTP and storage. `applicationReady` is `false`.
+Production OTP delivery is unavailable.
+
+For trust boundaries and contributor checks, see the [threat model](docs/security/threat-model.md)
+and [security review guide](docs/security/reviews.md).
