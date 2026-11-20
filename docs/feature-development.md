@@ -25,13 +25,18 @@ application service, adapter and tests.
 
 Check incoming business references and perform hard deletion in one transaction.
 A record in use returns a localized 409 that asks the caller to resolve
-dependent records first. Preserve the record and its references when the
-operation fails. An allowed user delete can remove owned sessions and
+dependent records first. A conflict or transaction rollback preserves the
+record and its references. An allowed user delete can remove owned sessions and
 authentication accounts. An allowed role delete can remove owned role
 permissions. Memberships and uploaded-file ownership are business references
 that block user deletion. Contents similarly protect their categories and cover
 files from deletion. See the [data lifecycle rule](../.agents/rules/data-lifecycle.md)
 and [database constraints](database-schema.md).
+
+If object removal fails after the file deletion transaction commits, the
+request returns an error and the file record stays deleted. The pending
+deletion remains so the caller can retry with the original file ID. See
+[file management](object-storage.md#file-management).
 
 Exercise the allowed delete, conflict and rollback paths. Preserve current
 session, assignment and file guarantees and consider concurrent references.
