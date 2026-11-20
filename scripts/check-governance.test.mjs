@@ -1508,6 +1508,83 @@ test("guidance resolves only published task paths, canonical commands, and safe 
   }
 });
 
+test("guidance validates same-file and cross-file Markdown heading fragments", async (context) => {
+  const { root, put } = await fixture(context);
+  const target = ".agents/rules/safety.md";
+  await put(
+    target,
+    [
+      "## API Safety",
+      "## API Safety",
+      "## API Safety-1",
+      "## API Safety",
+      "## **Review** `OTP`",
+      "## Café",
+      "",
+      "Setup details",
+      "-------------",
+      "",
+      '<a title=\'id="attribute-only"\' id="manual"></a>',
+      "",
+      "<div title='<a id=\"nested-attribute\">'></div>",
+      "",
+      '<!-- <a id="comment-only"></a> -->',
+      "",
+      '<script><a id="script-only"></a></script>',
+      "",
+      'Inline <textarea><a id="raw-text-only"></a></textarea>.',
+      "",
+      "~~~md",
+      "## Example only",
+      "[Ignored](#missing)",
+      "~~~",
+      "",
+    ].join("\n"),
+  );
+  const readme = [
+    "# Local link",
+    "",
+    "[Valid](#local-link)",
+    "[Top](#top)",
+    "[Same page query](?plain=1#local-link)",
+    `[First](${target}#api-safety)`,
+    `[Repeat](${target}#api-safety-2)`,
+    `[Collision](${target}#api-safety-1-1)`,
+    `[Formatted](${target}#review-otp)`,
+    `[Encoded](${target}#caf%C3%A9)`,
+    `[Setext](<${target}#setup-details> "Setup")`,
+    `[Query](${target}?plain=1#setup-details)`,
+    "[Manual][anchor]",
+    "",
+    `[anchor]: ${target}#manual`,
+    "",
+    "[Source](scripts/check-governance.mjs#L1404)",
+    "",
+  ].join("\n");
+  await put("README.md", readme);
+  await inspectGuidance(root);
+
+  for (const broken of [
+    "#missing",
+    "?plain=1#missing",
+    `${target}#api-safety-3`,
+    `${target}#example-only`,
+    `${target}#attribute-only`,
+    `${target}#nested-attribute`,
+    `${target}#comment-only`,
+    `${target}#script-only`,
+    `${target}#raw-text-only`,
+    `${target}?plain=1#missing`,
+  ]) {
+    await put("README.md", readme + `[Bad](${broken})\n`);
+    await assert.rejects(inspectGuidance(root), (error) => {
+      assert.match(error.message, /published Markdown section/);
+      assert.ok(error.message.includes(`README.md: ${broken}`));
+      return true;
+    });
+  }
+});
+
 test("formatting checks the inventory directly without an ignore-file escape or ambient source", async (context) => {
   const { root, put } = await fixture(context);
   for (const file of files.filter((file) =>
@@ -2178,6 +2255,18 @@ test("disabled publications load their isolated entrypoint without guidance asse
   await put(
     "node_modules/yaml/index.mjs",
     'export const parseDocument = () => { throw new Error("Unexpected YAML parsing in guidance inspection."); };\n',
+  );
+  await json("node_modules/prettier/package.json", {
+    name: "prettier",
+    type: "module",
+    exports: { "./plugins/markdown": "./markdown.mjs" },
+  });
+  await put(
+    "node_modules/prettier/markdown.mjs",
+    await readFile(
+      new URL(import.meta.resolve("prettier/plugins/markdown")),
+      "utf8",
+    ),
   );
   await assert.rejects(
     readFile(path.join(root, "scripts/check-guidance-assets.mjs")),

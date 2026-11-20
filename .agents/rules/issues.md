@@ -1,30 +1,32 @@
 # Issues
 
-An issue is a durable handoff, not a transcript.
+## Issue content
 
-- Use a bug report when observed behavior contradicts expected behavior; use a
-  change proposal for planned work, maintenance, refactoring, or documentation.
-- State the impact, affected workflow, observed behavior, expected outcome,
-  strongest available evidence, and objective verification.
-- Keep one issue focused on one independently verifiable outcome. Search for
-  duplicates before publishing.
-- Separate facts, inferences, and unanswered questions. Do not invent
-  reproduction steps, severity, or acceptance criteria.
-- Exclude credentials, tokens, personal data, production payloads, and sensitive
-  security details. Use an available authorized private reporting channel for
-  suspected vulnerabilities; do not assume an unpublished security-policy file exists.
-- Verify the repository and any existing labels/templates before using them; do
-  not invent a template path, label, assignee or milestone. If no template exists,
-  keep the problem, evidence, desired outcome and acceptance criteria readable.
-- Link a true duplicate or related issue without changing it unless that remote
-  action is authorized. Use blocking language only for a dependency that actually
-  prevents the work; record unknown facts and what was checked.
+Write one issue for each independently verifiable outcome. Use a specific title
+without redundant type, priority or assignee prefixes.
 
-Use a specific outcome-oriented title without redundant type, priority or assignee
-prefixes. For a bug, cover impact, observed and expected behavior, reproduction
-or evidence, environment and verification. For a proposal, cover the problem,
-desired outcome, acceptance criteria, scope and context. Omit empty optional
-sections and identify required unknown facts with what was checked.
+- Use a bug report when observed behavior contradicts expected behavior. Cover
+  the affected workflow, impact, observed and expected behavior, environment,
+  reproduction or strongest available evidence, and objective verification.
+- Use a change proposal for planned work, maintenance, refactoring or
+  documentation. Cover the problem, desired outcome, acceptance criteria, scope
+  and context. Include impact.
+- Separate facts, inferences and unanswered questions. Base reproduction steps,
+  severity and acceptance criteria on available evidence and the user's request.
+  Identify required unknowns and what was checked. Omit empty optional sections.
+- Exclude credentials, tokens, personal data, production payloads and sensitive
+  security details. Follow [private security reporting](../../SECURITY.md) for
+  suspected vulnerabilities and verify that the private reporting channel is
+  available.
 
-Publishing or modifying remote metadata requires authorization for that action;
-a finding or draft request alone does not authorize it.
+## Repository metadata
+
+Verify the repository and search for duplicates before publishing. Use the
+repository's **Bug report** or **Feature request** template when available.
+Use the issue structure above when a template is unavailable. Verify labels,
+assignees and milestones before using them. Link verified duplicates or related
+issues.
+Describe a dependency as blocking only when it prevents the work.
+
+Follow [Git authorization](git.md#authorization) before publishing or modifying
+an issue or its metadata.

@@ -1,66 +1,61 @@
 # Pull requests
 
-A pull request explains why a change is needed, what changed, and how to verify
-it. Use the repository's pull-request conventions in `CONTRIBUTING.md`.
+Use the [contribution guide](../../CONTRIBUTING.md) and
+[pull request template](../../.github/PULL_REQUEST_TEMPLATE.md).
 
 ## Before creation
 
-- Verify the intended base from the request or repository metadata and review the
-  complete base-to-head diff for unrelated work; do not assume a base branch.
-- Before opening a PR, aim for 80 or fewer GitHub changed-file entries initially.
-  Split independent changes when useful and explain why a larger cohesive change
-  belongs together. Count additions, deletions, renames and binaries; a rename
-  counts as one GitHub entry. File count is advisory: exceeding 100 files alone
-  must not fail CI or require deleting and recreating a PR.
-- Run the declared phase's required gate on an isolated checkout/export of the
-  exact proposed commit snapshot. Record the phase, commit/tree and actual checks.
-  A full pass over local untracked source does not validate a partial published PR.
-  Publishing runnable code still requires the full canonical application gate in
-  `CONTRIBUTING.md`; bootstrap evidence cannot replace it.
-- Use a Conventional Commit title; squash merging makes it the release commit.
+- Verify the intended base from the request or repository metadata. Review the
+  complete base-to-head diff for unrelated work.
+- Count additions, deletions, renames and binaries. Count one entry per rename.
+- Aim for 80 or fewer GitHub changed-file entries initially. Split independent
+  changes when useful and explain why a larger cohesive change belongs together.
+  File count is advisory. Exceeding 100 entries alone must not fail CI or require
+  deleting and recreating a PR.
+- Follow the [validation procedure](../skills/validate-change/SKILL.md) for the
+  exact proposed inventory, including drafts and documentation changes. Include
+  the relevant real source tests for each newly published owner.
+- Use a [Conventional Commit title](commits.md#commit-message). Squash merging
+  makes it the release commit.
 
 ## Body and linkage
 
-- Explain the problem and chosen approach, not just changed files.
+- Explain the problem, chosen approach and resulting behavior.
 - Use `Closes #123` or `Fixes #123` only when the pull request fully resolves an issue.
 - Use `Refs #123` or `Related to #123` when linkage is contextual or partial.
 - Report only checks actually run and disclose limitations or residual risks.
 - Include screenshots or recordings for visible UI changes.
-- Complete required local work before authorized publication and honor the user's
-  existing Ready for review or draft preference. A remote CI run may still be
-  pending after creation; disclose that status and never claim approval from it.
+- Record the declared phase, source commit and tree, and unpublished capabilities.
+
+## Publish a pull request
+
+Complete required local verification before [authorized publication](git.md#authorization).
+An explicit request to publish a PR includes the necessary branch push.
+Keep incomplete work in draft unless the user requests ready-for-review status.
+Honor that request after required local work is complete and disclose any pending
+provider results. Merging requires separate authorization and verified review
+prerequisites.
 
 ## Provider evidence and required checks
 
-- Merging requires the ordinary native CI, CodeQL, CodeRabbit and SonarCloud checks,
-  at least one approving review and resolved review conversations. Apply
-  protection to administrators, dismiss stale approvals and require an up-to-date
-  branch. Use the native approval count; no separate publisher or custom approval
-  check is required. See [branch protection](../../docs/branch-protection.md).
-- Verify actual provider evidence for the current PR head. Missing, pending,
-  failed, skipped or quota-limited review/analysis must not be reported as a
-  completed review or passing analysis. Do not remove checks to hide a failure.
-- Match protection to the declared published phase, changing remote requirements
-  only with explicit authorization. A foundation with `applicationReady: false`
-  requires its actual phase CI, CodeQL, scanner, Sonar quality gate and CodeRabbit; it
-  must not claim unpublished application checks. Before runnable API publication,
-  restore the complete application gate and complete the relevant real source,
-  HTTP, database, authentication and storage validation. Observe required jobs
-  pass and expand protection with the complete canonical application gate.
-- Inspect actual check details, review results and project binding for the latest
-  PR head. Configuration files, installed apps and a successful status alone do
-  not prove analysis or review ran; success may represent a skipped review.
-- Before any CodeRabbit request, complete the preflight below. A skipped automatic
-  review does not authorize an immediate manual request.
-- Treat Sonar scanner execution and its provider quality gate as separate results.
-  Import genuinely measured LCOV from the same checkout and describe its actual
-  source scope. Do not attribute governance-script coverage to unpublished runtime
-  code. For setup/status checks, inspect secret names only, never token values.
-- Verify the proposed source tree directly; unrelated integration evidence does
-  not establish this application's activation or successful execution.
-- A `pull_request_target` guard must execute only trusted default-branch code,
-  pinned to the immutable workflow commit with `github.workflow_sha`. Never execute
-  unreviewed PR head/base code in that context; keep token permissions minimal.
+- Match the checks to the [published phase and inventory](../../.github/bootstrap-policy.json).
+  Apply the [required branch protection controls](../../docs/branch-protection.md#required-controls)
+  to PRs targeting `main`. CI and CodeQL run for every PR base. When a
+  prerequisite PR merges, retarget its dependent PR and obtain fresh checks for
+  the current head and base. See the [workflow trust rules](../../docs/branch-protection.md#published-phase-and-trust)
+  for privileged Actions workflows.
+- Inspect actual check details, project binding and substantive review results
+  for the current PR head. Call out missing, pending, failed, skipped, stale or
+  quota-limited evidence. A successful status can represent a skipped review.
+  Verify substantive review and approval in the provider's review records.
+  Skipped and conversational replies never count as completed reviews.
+- Follow [Sonar setup and evidence](../../docs/sonarqube.md#setup-and-evidence)
+  for the separate scanner and provider quality gate and LCOV from the same
+  checkout. Attribute coverage to the measured source scope. Follow
+  [secret handling](safety.md#secrets-and-local-state) when checking setup.
+- Report test scope for the admitted owners. `applicationReady` remains false.
+  Application activation requires authorization and genuine current-revision
+  evidence. Verify the proposed tree and its own test results.
 
 ## CodeRabbit request preflight
 
@@ -81,19 +76,8 @@ it. Use the repository's pull-request conventions in `CONTRIBUTING.md`.
   checks used to bypass this prerequisite.
 - Only after this preflight passes and remote-request authorization exists, request
   one manual review by posting only `@coderabbitai review`. Do not duplicate an
-  in-flight request for the same head. Wait at least one hour after the last
-  CodeRabbit review request and latest substantive review in this repository;
-  respect the provider's actual allowance and any later retry time.
-
-See [validation](../../docs/validation.md),
-[testing](../../docs/testing.md),
-[Sonar guidance](../../docs/sonarqube.md) and [safety](safety.md).
-
-Post standalone PR comments only with prior explicit user authorization.
-Authorization to fix, commit, push or reply to review threads does not authorize
-a standalone comment.
-
-Do not create, update, mark ready, merge or close a pull request without explicit
-authorization covering that action. Honor authorization and preferences already
-provided in the conversation; do not introduce another approval step for the same
-authorized action. A request to publish a PR includes the necessary branch push.
+  in-flight request for the same head. Wait at least one hour since both the
+  latest manual request and the latest substantive review in this repository.
+  Respect the provider's actual allowance and any later retry time.
+- Keep automatic and incremental CodeRabbit reviews disabled. Apply the full
+  preflight after any skipped review.

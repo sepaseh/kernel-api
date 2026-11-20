@@ -2,45 +2,67 @@
 
 Read this guidance before shell commands, sensitive-file access, Git changes or
 remote actions. Keep work within the authorized repository and preserve unrelated
-tracked, staged and untracked files.
+tracked, staged and untracked work.
+
+## Authorization
+
+Follow the [Git workflow](git.md#authorization) for local changes, history changes
+and remote actions. Honor authorization already given for the same action and
+scope.
 
 ## Destructive commands
 
-Do not run destructive commands unless the user explicitly authorizes the action
-and the exact target has been verified. Avoid `git reset --hard`, `git clean -fd`,
-force pushes and recursive moves/deletes against computed paths. Inspect status
-and relevant diffs before changing Git state. Existing authorization in the current
-conversation remains valid; do not ask again for the same authorized action.
+Get explicit user authorization and verify the exact target before running a
+destructive command. Inspect status and relevant diffs before changing Git
+state. Avoid `git reset --hard`, `git clean -fd` and recursive moves or deletions
+against computed paths.
 
 Before recursive cleanup, verify the resolved target stays within the owned root.
 Delete only resources created for the task and preserve operation and cleanup
-failures rather than suppressing either.
+failures.
 
 ## Secrets and local state
 
-Do not read, print, edit or commit secrets without explicit authorization for that
-specific access. Treat real `.env` files, private keys, credential files, tokens,
-passwords, databases and uploads as sensitive. Never dump the full environment or
-run broad secret searches. Authentication tools may use existing credentials
-without exposing their values; status checks need names and metadata only.
+Get explicit authorization before reading, printing, editing or committing
+secrets. Treat real `.env` files, private keys, credential files, tokens,
+passwords, databases and uploads as sensitive. Never dump the full environment
+or run broad secret searches. Authentication tools may use existing credentials
+without exposing their values. Use only names and metadata for status checks.
 
-Never use operator environments, existing services, databases, buckets or uploads
-as test fixtures. Use synthetic disposable resources. Keep machine-specific tool
-settings in ignored `.agents/settings.local.json` rather than changing shared
-product rules; do not read or publish that local file while reviewing guidance.
+Use synthetic disposable fixtures for tests and evaluations. Keep real
+environments, credentials, databases, buckets, uploads and existing services
+out of fixtures.
+
+Keep machine-specific tool settings in ignored `.agents/settings.local.json`.
+Keep that file private and leave it unread while reviewing guidance.
+
+## Local artifacts
+
+Keep repository-specific scratch exports, validation evidence and recovery files
+in ignored subdirectories of this repository, such as `coverage/`. Use this
+location for repository artifacts that would otherwise go in global Codex
+directories or external worktree collections.
 
 ## External systems
 
-Do not contact production/mainnet endpoints for local experiments or push directly
-to protected main/master. Publication, remote messages/reviews, issues, merges and
-remote configuration require explicit authorization covering that action. Honor
-existing session authorization and user preferences without inventing additional
-approval steps; preparation alone does not authorize remote effects.
+Use authorized targets for external actions. Keep local experiments away from
+production and mainnet endpoints. Never push directly to protected `main` or
+`master`.
+
+Confirm authorization for messages and changes under the
+[Git action boundaries](git.md#authorization).
+
+### Standalone PR comments
 
 Post standalone PR comments only with prior explicit user authorization.
 Authorization to fix, commit, push or reply to review threads does not authorize
 a standalone comment.
 
-Keep files outside the authorized project scope untouched. Optional safety hooks
-are a host convenience, not a complete security boundary, permission grant,
-runtime dependency or substitute for the full validation gate.
+## Optional safety hooks
+
+Optional safety hooks are a host convenience. Keep authorization and the full
+validation gate in effect whether or not a host loads them. The application can
+run independently of the hooks, which neither grant permission nor provide a
+complete security boundary.
+
+Keep files outside the authorized project scope untouched.

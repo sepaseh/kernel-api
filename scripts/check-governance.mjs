@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
+import { parsers as markdownParsers } from "prettier/plugins/markdown";
 import { parseDocument } from "yaml";
 
 import { coverageSourceFiles } from "./merge-coverage.mjs";
@@ -1403,10 +1404,10 @@ function* markdownTargets(content) {
 
 export const validateMarkdownLinks = (filename, content, files) => {
   for (const target of markdownTargets(content)) {
-    if (target.startsWith("#") || /^https?:\/\//i.test(target)) continue;
+    if (/^(?:[?#]|https?:\/\/)/i.test(target)) continue;
     let local;
     try {
-      local = decodeURIComponent(target.split("#")[0]);
+      local = decodeURIComponent(target.split(/[?#]/, 1)[0]);
     } catch {
       throw new Error("Documentation links must use valid URL encoding.");
     }
@@ -1419,6 +1420,95 @@ export const validateMarkdownLinks = (filename, content, files) => {
         !local.includes("\\") &&
         referencesPublishedPath(files, relative),
       `Documentation links must resolve within the published inventory: ${filename}.`,
+    );
+  }
+};
+
+const headingText = (node) => {
+  if (["text", "inlineCode"].includes(node.type)) return node.value;
+  if (node.type === "image" || node.type === "imageReference") return node.alt;
+  return (node.children ?? []).map(headingText).join("");
+};
+
+function* explicitMarkdownAnchors(markup) {
+  const tagAttributes = `[^"'<>]*(?:(?:"[^"]*"|'[^']*')[^"'<>]*)*`;
+  const tags = new RegExp(
+    [
+      String.raw`<!--[\s\S]*?(?:-->|$)`,
+      String.raw`<!\[CDATA\[[\s\S]*?(?:\]\]>|$)`,
+      String.raw`<\?[^>]*(?:>|$)`,
+      String.raw`<(script|style|textarea|title)(?=[\s/>])${tagAttributes}>[\s\S]*?(?:<\/\1(?=[\s>])${tagAttributes}>|$)`,
+      String.raw`<([A-Za-z][\w:-]*)(?=[\s/>])(${tagAttributes})>`,
+    ].join("|"),
+    "gi",
+  );
+  const attributes =
+    /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/g;
+  for (const [, , tag, tail] of markup.matchAll(tags)) {
+    if (!/^(?:a|h[1-6])$/i.test(tag ?? "")) continue;
+    for (const [, name, double, single, unquoted] of tail.matchAll(
+      attributes,
+    )) {
+      const attribute = name.toLowerCase();
+      const value = double ?? single ?? unquoted;
+      if (
+        value &&
+        (attribute === "id" ||
+          (tag.toLowerCase() === "a" && attribute === "name"))
+      )
+        yield value;
+    }
+  }
+}
+
+const markdownFragments = (content) => {
+  const anchors = new Set();
+  const headingSlugs = new Set();
+  const nextSuffix = new Map();
+  const links = [];
+  const html = [];
+  const nodes = [markdownParsers.markdown.parse(content)];
+  while (nodes.length) {
+    const node = nodes.pop();
+    if (node.type === "heading") {
+      const base = headingText(node)
+        .trim()
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\p{M} _-]/gu, "")
+        .replaceAll(" ", "-");
+      let slug = base;
+      let suffix = nextSuffix.get(base) ?? 1;
+      while (headingSlugs.has(slug)) slug = base + "-" + suffix++;
+      nextSuffix.set(base, suffix);
+      headingSlugs.add(slug);
+      anchors.add(slug);
+    }
+    if (node.type === "html") html.push(node.value);
+    if (["link", "definition"].includes(node.type)) links.push(node.url);
+    nodes.push(...(node.children ?? []).toReversed());
+  }
+  for (const anchor of explicitMarkdownAnchors(html.join("\n")))
+    anchors.add(anchor);
+  return { anchors, links };
+};
+
+const validateMarkdownFragments = (filename, links, markdown) => {
+  for (const link of links) {
+    const hash = link.indexOf("#");
+    if (hash === -1 || hash === link.length - 1 || /^https?:\/\//i.test(link))
+      continue;
+    const local = decodeURIComponent(link.slice(0, hash).split("?", 1)[0]);
+    const file = local
+      ? path.posix.normalize(
+          path.posix.join(path.posix.dirname(filename), local),
+        )
+      : filename;
+    if (!/\.md$/i.test(file)) continue;
+    const fragment = decodeURIComponent(link.slice(hash + 1));
+    const document = markdown.get(file);
+    assert(
+      document && (/^top$/i.test(fragment) || document.anchors.has(fragment)),
+      `Documentation link must resolve to a published Markdown section: ${filename}: ${link}.`,
     );
   }
 };
@@ -1481,14 +1571,21 @@ export const inspectGuidance = async (root) => {
       "Disabled guidance assets must not register evaluation cases.",
     );
   }
-  const markdown = [...files].filter((file) => /\.md$/i.test(file));
-  await Promise.all(
-    markdown.map(async (file) =>
-      validateMarkdownLinks(file, await readText(root, file), files),
+  const markdown = new Map(
+    await Promise.all(
+      [...files]
+        .filter((file) => /\.md$/i.test(file))
+        .map(async (file) => {
+          const content = await readText(root, file);
+          validateMarkdownLinks(file, content, files);
+          return [file, markdownFragments(content)];
+        }),
     ),
   );
+  for (const [file, { links }] of markdown)
+    validateMarkdownFragments(file, links, markdown);
   return {
-    markdownFiles: markdown.length,
+    markdownFiles: markdown.size,
     rules: settings.rules.length,
     skills: settings.skills.length,
   };
