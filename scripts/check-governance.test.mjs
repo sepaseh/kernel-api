@@ -1524,15 +1524,33 @@ test("guidance validates same-file and cross-file Markdown heading fragments", a
       "Setup details",
       "-------------",
       "",
-      '<a title=\'id="attribute-only"\' id="manual"></a>',
+      "## Deploy",
+      "",
+      "<h2>Deploy-1</h2>",
+      "",
+      "## Deploy",
+      "",
+      "<h3>Mixed</h3>",
+      "",
+      "## Mixed",
+      "## Mixed-1",
+      "",
+      '<h3 id="ManualTitle">Release <em>caf&#233;</em></h3>',
+      "",
+      "See <h3>Inline <em>title</em></h3> below.",
+      "",
+      '<a title=\'id="attribute-only"\' id="Manual"></a>',
+      '<a name="Legacy"></a>',
       "",
       "<div title='<a id=\"nested-attribute\">'></div>",
       "",
-      '<!-- <a id="comment-only"></a> -->',
+      '<!-- <a id="comment-only"></a><h3>Hidden heading</h3> -->',
       "",
       '<script><a id="script-only"></a></script>',
       "",
-      'Inline <textarea><a id="raw-text-only"></a></textarea>.',
+      'Inline <textarea><a id="raw-text-only"></a><h3>Raw text heading</h3></textarea>.',
+      "",
+      "`<h3>Inline example</h3>`",
       "",
       "~~~md",
       "## Example only",
@@ -1546,17 +1564,23 @@ test("guidance validates same-file and cross-file Markdown heading fragments", a
     "",
     "[Valid](#local-link)",
     "[Top](#top)",
-    "[Same page query](?plain=1#local-link)",
-    `[First](${target}#api-safety)`,
+    "[Same page query](?view=readme#local-link)",
+    `[First](${target}#API-Safety)`,
     `[Repeat](${target}#api-safety-2)`,
     `[Collision](${target}#api-safety-1-1)`,
     `[Formatted](${target}#review-otp)`,
     `[Encoded](${target}#caf%C3%A9)`,
     `[Setext](<${target}#setup-details> "Setup")`,
-    `[Query](${target}?plain=1#setup-details)`,
+    `[Query](${target}?plain=0#setup-details)`,
+    `[HTML title](${target}#Release-Caf%C3%A9)`,
+    `[Inline HTML](${target}#inline-title)`,
+    `[Mixed repeats](${target}#deploy-2)`,
+    `[Mixed collision](${target}#mixed-1-1)`,
+    `[Explicit title](${target}#ManualTitle)`,
+    `[Legacy](${target}#Legacy)`,
     "[Manual][anchor]",
     "",
-    `[anchor]: ${target}#manual`,
+    `[anchor]: ${target}#Manual`,
     "",
     "[Source](scripts/check-governance.mjs#L1404)",
     "",
@@ -1566,19 +1590,57 @@ test("guidance validates same-file and cross-file Markdown heading fragments", a
 
   for (const broken of [
     "#missing",
-    "?plain=1#missing",
+    "?view=readme#missing",
     `${target}#api-safety-3`,
+    `${target}#deploy-1-1`,
+    `${target}#mixed-2`,
+    `${target}#manual`,
+    `${target}#legacy`,
     `${target}#example-only`,
+    `${target}#inline-example`,
     `${target}#attribute-only`,
     `${target}#nested-attribute`,
     `${target}#comment-only`,
+    `${target}#hidden-heading`,
     `${target}#script-only`,
     `${target}#raw-text-only`,
-    `${target}?plain=1#missing`,
+    `${target}#raw-text-heading`,
+    `${target}?plain=0#L1`,
   ]) {
     await put("README.md", readme + `[Bad](${broken})\n`);
     await assert.rejects(inspectGuidance(root), (error) => {
       assert.match(error.message, /published Markdown section/);
+      assert.ok(error.message.includes(`README.md: ${broken}`));
+      return true;
+    });
+  }
+});
+
+test("guidance validates Markdown source line fragments in the plain view", async (context) => {
+  const { root, put } = await fixture(context);
+  const target = ".agents/rules/safety.md";
+  await put(target, "# Safety\r\n\r\nRead the guide.\r\n");
+  const readme = [
+    "# Local link",
+    "",
+    "[Same file](?plain=1#L5)",
+    `[Range](${target}?view=readme&plain=1#L1-L3)`,
+    `[Last line](${target}?plain=1#L3)`,
+  ].join("\n");
+
+  await put("README.md", readme);
+  await inspectGuidance(root);
+
+  for (const broken of [
+    "?plain=1#local-link",
+    `${target}?plain=1#safety`,
+    `${target}?plain=1#L0`,
+    `${target}?plain=1#L4`,
+    `${target}?plain=1#L1-L4`,
+  ]) {
+    await put("README.md", `${readme}\n\n[Bad](${broken})\n`);
+    await assert.rejects(inspectGuidance(root), (error) => {
+      assert.match(error.message, /published Markdown source line/);
       assert.ok(error.message.includes(`README.md: ${broken}`));
       return true;
     });

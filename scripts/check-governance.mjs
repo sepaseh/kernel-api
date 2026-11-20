@@ -1430,7 +1430,7 @@ const headingText = (node) => {
   return (node.children ?? []).map(headingText).join("");
 };
 
-function* explicitMarkdownAnchors(markup) {
+const markdownHtmlAnchors = (markup) => {
   const tagAttributes = `[^"'<>]*(?:(?:"[^"]*"|'[^']*')[^"'<>]*)*`;
   const tags = new RegExp(
     [
@@ -1438,14 +1438,34 @@ function* explicitMarkdownAnchors(markup) {
       String.raw`<!\[CDATA\[[\s\S]*?(?:\]\]>|$)`,
       String.raw`<\?[^>]*(?:>|$)`,
       String.raw`<(script|style|textarea|title)(?=[\s/>])${tagAttributes}>[\s\S]*?(?:<\/\1(?=[\s>])${tagAttributes}>|$)`,
-      String.raw`<([A-Za-z][\w:-]*)(?=[\s/>])(${tagAttributes})>`,
+      String.raw`<(/?)([A-Za-z][\w:-]*)(?=[\s/>])(${tagAttributes})>`,
     ].join("|"),
     "gi",
   );
   const attributes =
     /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+)))?/g;
-  for (const [, , tag, tail] of markup.matchAll(tags)) {
-    if (!/^(?:a|h[1-6])$/i.test(tag ?? "")) continue;
+  const anchors = new Set();
+  const headings = [];
+  let heading;
+  let previousEnd = 0;
+
+  for (const match of markup.matchAll(tags)) {
+    const [token, , closing, name, tail] = match;
+    if (heading) heading.text += markup.slice(previousEnd, match.index);
+    previousEnd = match.index + token.length;
+    const tag = name?.toLowerCase();
+    const isHeading = /^h[1-6]$/.test(tag);
+    if (!isHeading && tag !== "a") continue;
+
+    if (closing) {
+      if (isHeading && heading?.tag === tag) {
+        headings.push(heading);
+        heading = undefined;
+      }
+      continue;
+    }
+    if (isHeading) heading = { tag, offset: match.index, text: "" };
+
     for (const [, name, double, single, unquoted] of tail.matchAll(
       attributes,
     )) {
@@ -1453,43 +1473,76 @@ function* explicitMarkdownAnchors(markup) {
       const value = double ?? single ?? unquoted;
       if (
         value &&
-        (attribute === "id" ||
-          (tag.toLowerCase() === "a" && attribute === "name"))
+        (attribute === "id" || (tag === "a" && attribute === "name"))
       )
-        yield value;
+        anchors.add(value);
     }
   }
-}
+  return { anchors, headings };
+};
+
+const decodeHeadingEntities = (text) =>
+  text.replace(/&(?:#[0-9]+|#x[\da-f]+|[a-z][\da-z]*);/gi, (entity) => {
+    const paragraph = markdownParsers.markdown.parse(`x${entity}`).children[0];
+    return paragraph.children[0].value.slice(1);
+  });
 
 const markdownFragments = (content) => {
-  const anchors = new Set();
-  const headingSlugs = new Set();
-  const nextSuffix = new Map();
   const links = [];
+  const headings = [];
   const html = [];
+  let offset = 0;
   const nodes = [markdownParsers.markdown.parse(content)];
   while (nodes.length) {
     const node = nodes.pop();
-    if (node.type === "heading") {
-      const base = headingText(node)
-        .trim()
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}\p{M} _-]/gu, "")
-        .replaceAll(" ", "-");
-      let slug = base;
-      let suffix = nextSuffix.get(base) ?? 1;
-      while (headingSlugs.has(slug)) slug = base + "-" + suffix++;
-      nextSuffix.set(base, suffix);
-      headingSlugs.add(slug);
-      anchors.add(slug);
+    if (node.type === "heading")
+      headings.push({ offset, text: headingText(node) });
+    if (["html", "text", "inlineCode"].includes(node.type)) {
+      // Inline HTML tags and their text can be separate Markdown nodes.
+      const chunk =
+        node.type === "html"
+          ? node.value
+          : node.value.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
+      html.push(chunk);
+      offset += chunk.length;
     }
-    if (node.type === "html") html.push(node.value);
     if (["link", "definition"].includes(node.type)) links.push(node.url);
     nodes.push(...(node.children ?? []).toReversed());
   }
-  for (const anchor of explicitMarkdownAnchors(html.join("\n")))
-    anchors.add(anchor);
-  return { anchors, links };
+
+  const parsedHtml = markdownHtmlAnchors(html.join(""));
+  for (const { offset, text } of parsedHtml.headings)
+    headings.push({ offset, text: decodeHeadingEntities(text) });
+  headings.sort((left, right) => left.offset - right.offset);
+
+  const headingSlugs = new Set();
+  const nextSuffix = new Map();
+  for (const { text } of headings) {
+    const base = text
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\p{M} _-]/gu, "")
+      .replaceAll(" ", "-");
+    let slug = base;
+    let suffix = nextSuffix.get(base) ?? 1;
+    while (headingSlugs.has(slug)) slug = base + "-" + suffix++;
+    nextSuffix.set(base, suffix);
+    headingSlugs.add(slug);
+  }
+  const lineCount =
+    content.split(/\r\n|[\r\n]/).length -
+    Number(content === "" || /[\r\n]$/.test(content));
+  return { anchors: parsedHtml.anchors, headingSlugs, lineCount, links };
+};
+
+const validMarkdownLineFragment = (fragment, lineCount) => {
+  const match = /^L(\d+)(?:-L(\d+))?$/u.exec(fragment);
+  if (!match) return false;
+
+  const [, start, end = start] = match;
+  return [Number(start), Number(end)].every(
+    (line) => line >= 1 && line <= lineCount,
+  );
 };
 
 const validateMarkdownFragments = (filename, links, markdown) => {
@@ -1497,7 +1550,11 @@ const validateMarkdownFragments = (filename, links, markdown) => {
     const hash = link.indexOf("#");
     if (hash === -1 || hash === link.length - 1 || /^https?:\/\//i.test(link))
       continue;
-    const local = decodeURIComponent(link.slice(0, hash).split("?", 1)[0]);
+    const target = link.slice(0, hash);
+    const query = target.indexOf("?");
+    const local = decodeURIComponent(
+      query === -1 ? target : target.slice(0, query),
+    );
     const file = local
       ? path.posix.normalize(
           path.posix.join(path.posix.dirname(filename), local),
@@ -1506,9 +1563,19 @@ const validateMarkdownFragments = (filename, links, markdown) => {
     if (!/\.md$/i.test(file)) continue;
     const fragment = decodeURIComponent(link.slice(hash + 1));
     const document = markdown.get(file);
+    const sourceView =
+      query !== -1 &&
+      new URLSearchParams(target.slice(query + 1)).getAll("plain").at(-1) ===
+        "1";
+    const destination = sourceView ? "source line" : "section";
     assert(
-      document && (/^top$/i.test(fragment) || document.anchors.has(fragment)),
-      `Documentation link must resolve to a published Markdown section: ${filename}: ${link}.`,
+      document &&
+        (/^top$/i.test(fragment) ||
+          (sourceView
+            ? validMarkdownLineFragment(fragment, document.lineCount)
+            : document.anchors.has(fragment) ||
+              document.headingSlugs.has(fragment.toLowerCase()))),
+      `Documentation link must resolve to a published Markdown ${destination}: ${filename}: ${link}.`,
     );
   }
 };
