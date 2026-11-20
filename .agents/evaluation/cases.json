@@ -173,9 +173,9 @@
         "src/test/support/recovery-drill-cases.ts"
       ],
       "mustExplain": [
-        "Public uploads require settings.update or system-admin access; private uploads require an active authenticated account.",
+        "Private uploads require an active authenticated account. Public uploads require system-admin access or the context-specific permission: contents.create or contents.update for content covers, and settings.update for logo and legacy public uploads.",
         "Private metadata does not expose a public URL and no private-download endpoint is currently implemented.",
-        "A metadata failure triggers compensating object deletion while preserving the original error; cleanup failure has separate operational evidence.",
+        "A verified uncommitted metadata insert triggers compensating object deletion. An ambiguous insert failure preserves the object. The original error remains visible and cleanup failure has separate operational evidence.",
         "After authentication, the HTTP route bounds the multipart stream before parsing; application file-size validation runs after parsing and gateway limits are separate.",
         "SQLite metadata and matching public/private objects must be recovered together; ignored owner state is not evaluation input.",
         "The executable synthetic recovery/incident cases validate local matched state, sessions and request/release/log correlation; they do not provision real backups, a collector or an external bucket restore."

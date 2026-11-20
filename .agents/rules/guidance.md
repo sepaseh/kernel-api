@@ -1,63 +1,75 @@
 # Guidance and documentation
 
-Use [AGENTS](../../AGENTS.md), the [settings index](../settings.json) and
-[source navigation](../../docs/source-navigation.md) for progressive reading.
-Read the owner source and tests; index entries and static links do not prove
-behavior or successful execution.
+Use the [guidance index](../README.md) to find the owning rule and published
+source for each change.
 
-Keep assistant instructions and maintained documentation English, current and
-organized by reader task. Use [source navigation](../../docs/source-navigation.md)
-to select the existing owner. Update that owner alongside behavior, configuration,
-test or workflow changes. Procedures state prerequisites, actions, expected
-results and relevant recovery; references define contracts; explanations describe
-ownership and reasoning. Verify changed claims against source and nearby tests.
+## Write and maintain guides
+
+Keep assistant instructions and maintained documentation in English, current and
+organized by reader task. Update the owning guide alongside behavior,
+configuration, test or workflow changes. Verify changed claims against the
+owning source and nearby tests.
+
+Procedures state prerequisites, actions, expected results and relevant recovery.
+References define contracts. Explanations describe ownership and reasoning.
+
 Do not add routine dated QA reports, archives, ADRs, translated companion guides
 or bilingual navigation. Application localization remains a separate concern.
 
-Use repository-relative machine paths and document-relative Markdown links.
-Link maintained current files, not future or deleted paths. Register only
-published owners, tests, rules, skills and actual check IDs. The publication
-inventory owns admitted paths; generated output and private runtime state are
-never documentation fixtures. Keep human guides flat and task-oriented.
+Use descriptive headings and label code fences with their language.
 
-The [manifest](../validation.json) owns commands and profiles; settings project
-that inventory. Do not duplicate an independent complete gate or fixed count.
-Optional host adapters and hooks need actual integration; they do not grant
-authorization, install themselves automatically or replace the full gate.
+Keep shared requirements in the owning rule. Link to its relevant section from
+indexes, related rules and skills. Keep workflow-specific steps with the skill
+that executes them. Keep human guides flat and task-oriented.
 
-Report execution outcomes and evidence limits in the current task or terminal.
-Do not commit execution reports. Create a local report only when explicitly
-requested, under ignored `test-results/`; required coverage stays in its configured
-location. Keep repository-specific scratch exports, validation evidence and
-recovery files inside ignored repository-local directories.
+## Maintain indexes and optional integrations
 
-Static checks establish paths, indexes and command consistency. They do not prove
-that a host loaded instructions, that an assistant understood them, that a
-provider completed analysis or review, or that an application ran. Record actual
-host-reported loading where available and otherwise mark discovery unknown.
-Keep evaluation prompts separate from oracle answers. Use only synthetic
-fixtures; never inspect secrets or owner data to answer evaluation questions.
-Do not claim portability or improved performance without measured evidence.
+Use repository-relative machine paths and document-relative Markdown links to
+current files. Register only published owners, tests, rules, skills and actual
+check IDs. Use admitted public source and synthetic fixtures for examples.
+Follow the [fixture safety rules](safety.md#secrets-and-local-state).
 
-The API owns observable HTTP behavior through its Bruno collection, local wire
-DTOs, owning-service routes and consumer/provider tests. Frontend repositories
-own their HTTP integration evidence. Source, manual composition and executable
-boundary checks establish runtime ownership. HTTP changes need compatibility
-review with independently released consumers.
+The [validation manifest](../validation.json) owns commands and profiles.
+Settings project that inventory. Refer to the manifest for the full gate and
+keep prose free of a separate gate inventory or check count.
 
+Use descriptive links for maintained files in the [publication inventory](../../.github/bootstrap-policy.json).
 Maintain one canonical document per topic with alphanumeric words joined by
 hyphens or underscores and one `.md` extension. Do not add locale-specific
 discovery, compatibility paths, validators, fixtures or restoration instructions
-for documentation variants. The guide check reads admitted inventory paths,
-including deployment and collection guides. Generated output and private runtime
-state remain outside that inventory and must not be traversed for guidance validation.
+for documentation variants. The guidance check reads admitted paths, including
+deployment and collection guides. Exclude generated output and private runtime
+state from documentation fixtures and guidance validation.
+
+For changes to HTTP behavior, follow the
+[contract update rule](api-collection.md#change-a-contract). Use the
+[backend ownership rule](backend.md#ownership-and-dependency-direction) to
+trace the runtime and boundaries.
+
+## Verify evidence and results
+
+Report execution outcomes and evidence limits in the current task or terminal.
+Do not commit execution reports. Create a local report only when explicitly
+requested, under ignored `test-results/`. Required coverage stays in its
+configured location. Use the [working-checkout rule](branches.md#working-checkout)
+for scratch exports and recovery files.
+
+Static guidance checks verify published paths, local Markdown links and section
+anchors, indexes and command consistency. Support claims about instruction loading, application behavior, provider results,
+portability or performance with evidence from the relevant execution.
+
+Follow the [validation workflow](../skills/validate-change/SKILL.md) to run and
+report the relevant checks.
+
+Use the [feature-development checklist](../../docs/feature-development.md) for
+change acceptance and [test reliability](../../docs/test-reliability.md) for
+ownership, first failures, reproduction and bounded exceptions.
+
+## Host adapters and hooks
 
 The optional [CLAUDE.md](../../CLAUDE.md) adapter references AGENTS.md; canonical
 rules remain the owners. Do not install plugins or remote services for discovery.
-The read-only evaluation [guide](../evaluation/README.md),
-[cases](../evaluation/cases.json) and [run template](../evaluation/run-template.json)
-are published. Their static validation does not execute the prompts; the blank
-template remains not-run with instruction discovery unknown.
-Use the [feature-development checklist](../../docs/feature-development.md) for
-change acceptance and [test reliability](../../docs/test-reliability.md) for
-ownership, first failures, reproduction and bounded exceptions without weakening the gate.
+Register optional hooks in [settings](../settings.json) and configure them
+explicitly on the host. Their portable tests use synthetic fixtures. Follow
+[safety](safety.md) for the limits of optional hooks and the
+[evaluation guide](../evaluation/README.md) to measure instruction discovery.

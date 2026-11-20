@@ -1,34 +1,22 @@
-# API guidance
+# Assistant guidance
 
-Start with [AGENTS.md](../AGENTS.md) and
-[source navigation](../docs/source-navigation.md). Read only matching canonical
-rules. [Settings](settings.json) indexes the published rules and skills;
-[validation.json](validation.json) owns the current full profile.
+Start with [AGENTS.md](../AGENTS.md) and [Contributing](../CONTRIBUTING.md).
+Read the [publication policy](../.github/bootstrap-policy.json) for the active
+phase, readiness and admitted files. The [settings index](settings.json) lists
+the registered rules and skills.
+The [task map](../docs/source-navigation.md) maps work to source owners, tests and checks.
 
-The current inventory declares the published source owners and their tests. Application rules apply to each owner when
-it is published; their presence is not evidence of additional source or a
-deployed API. Preserve unpublished local work and private runtime state.
+| Task                                                    | Where to start                                                                                                                               |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Work on application source                              | [Backend rules](rules/backend.md) and [development guide](../docs/development.md)                                                            |
+| Update instructions or documentation                    | [Guidance and documentation](rules/guidance.md) and [documentation index](../docs/README.md)                                                 |
+| Verify a change                                         | [Validation guide](../docs/validation.md), [validation manifest](validation.json) and [validation workflow](skills/validate-change/SKILL.md) |
+| Work with Git or GitHub                                 | [Git workflow](rules/git.md) and [safety rules](rules/safety.md)                                                                             |
+| Prepare a CodeRabbit request                            | [CodeRabbit preflight](rules/pull-requests.md#coderabbit-request-preflight)                                                                  |
+| Set up optional hooks or evaluate instruction discovery | [Host adapters and hooks](rules/guidance.md#host-adapters-and-hooks) and the [read-only evaluation guide](evaluation/README.md)              |
 
-Read [Git workflow](rules/git.md) for branch, commit, PR and review work.
-Commit and push require authorization. Run the full current profile on the exact
-proposed inventory before each authorized commit or PR. The full profile runs
-every required check in the current manifest, including source boundaries,
-types, lint and source/tooling coverage. Before opening a PR, aim for 80 or fewer files
-and split independent changes when useful. File count is advisory: explain a
-cohesive larger change in the PR; exceeding 100 alone does not fail CI or require
-deleting or recreating the PR.
+## Published scope
 
-Dependent PRs may be published ready for review when explicitly requested while
-provider results remain pending. Full CI and CodeQL apply to all PR targets;
-main-branch protection applies to PRs targeting `main`. Read [protection](../docs/branch-protection.md)
-and [provider preflight](../docs/sonarqube.md) before claiming enforcement or
-requesting review. Pending results never authorize merging.
-
-Assistant instructions and maintained human documentation are English-only.
-This index does not install hooks or prove automatic discovery by any assistant.
-
-The [read-only evaluation guide](evaluation/README.md) and its registered cases
-trace current owners and contracts. The blank template retains not-run and
-unknown observations; validation checks references without executing prompts.
-Optional hooks are registered in settings for explicit host setup only. Their
-portable tests do not install hooks or establish automatic instruction loading.
+Confirm claims against admitted source and its actual tests. Follow the
+[repository instructions](../AGENTS.md#published-scope) when changing which
+files are published.

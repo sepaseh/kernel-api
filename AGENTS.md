@@ -1,89 +1,95 @@
-# Kernel API assistant instructions
+# Assistant entry point
 
-Read [.agents/README.md](.agents/README.md), [settings](.agents/settings.json),
-[task navigation](docs/source-navigation.md) and the matching canonical rules
-before changes. Work in the existing checkout and preserve unrelated local work,
-private configuration, databases, uploads and credentials. Additional worktrees,
-clones or implementation copies require prior explicit user authorization.
+Read the [assistant guidance index](.agents/README.md) and
+[Contributing](CONTRIBUTING.md) before making changes. Use the
+[publication policy](.github/bootstrap-policy.json) to confirm the current phase
+and admitted files. Read the applicable rules, source owners and tests. Verify
+behavior against the current source and actual checks.
+
+## Scope and safety
+
+Use the existing checkout and preserve unrelated tracked, staged and untracked
+work. Get explicit user authorization for any additional worktree, clone or
+copied implementation checkout, including when delegating.
+[Working-checkout rules](.agents/rules/branches.md#working-checkout)
+
+Use disposable synthetic fixtures. Keep real environments, credentials, keys,
+databases, uploads and browser state out of fixtures. Follow the
+[safety rules](.agents/rules/safety.md#secrets-and-local-state) for public examples,
+private state and authorized access.
+
+Keep real environments, credentials, databases, buckets and uploads in their
+own checkout. Do not read or copy them from another checkout. Use [settings](.agents/settings.json) and
+[source navigation](docs/source-navigation.md) to find the matching rules,
+source and tests.
 
 ## Published scope
 
-The publication inventory and validation manifest declare the current reviewed
-source phase. Publish only the owned contracts, services, adapters, tests and
-guides admitted there; preserve all other local source and private runtime state.
-Each newly published owner requires its complete dependencies and actual tests.
-`applicationReady` remains false; local source tests establish no production OTP
-delivery, deployed integration or production readiness.
+Publish only the intended, authorized scope within the publication inventory.
+Include the complete dependencies and
+[tests at the owning boundary](.agents/rules/testing.md#choose-checks)
+for each new owner. The current phase is `local-runtime` and `applicationReady`
+is `false`. Production OTP delivery, deployed integrations and production
+readiness require their own evidence.
 
-Before opening a PR, aim for **80 or fewer changed files** and split independent
-changes when useful. Count additions, deletions, renames and binaries. This is
-review guidance, not a CI or merge limit: a cohesive change may exceed 100 files
-with its rationale explained in the PR. File count alone never requires deleting
-or recreating a PR. Publish only the intended source scope.
+## Git and review
 
-## Authorization and verification
+When reviewing a PR or addressing review feedback, read
+[Address review feedback](.agents/rules/code-review.md#address-review-feedback)
+at the start of the task, before switching branches or editing files. Record the
+outcome and verification for each finding. Reply in the original review thread
+when authorized.
 
-Do not stage, commit, push, publish remote comments or reviews, merge, or change
-remote metadata without authorization for that action. A request to prepare a
-commit is not authorization to create it. Preserve authorization already given.
-Read [Git workflow](.agents/rules/git.md), [branches](.agents/rules/branches.md)
-and [safety](.agents/rules/safety.md). Never force-push or bypass required checks.
+Use a verified feature branch and PR for changes to protected `main`.
+Honor existing authorization for the same action and scope. Follow the
+[Git workflow](.agents/rules/git.md) and
+[remote action boundaries](.agents/rules/safety.md#external-systems).
+Review the complete diff against the intended base before publication. Follow
+the [PR scope rules](.agents/rules/pull-requests.md#before-creation) and the
+[review workflow](.agents/skills/review-pr/SKILL.md).
 
-[.agents/validation.json](.agents/validation.json) owns commands and profiles.
-Run its complete `full` profile on an isolated export of the exact proposed
-inventory before an authorized commit or PR. Report actual outcomes in chat.
-Create QA reports only on explicit request under ignored `test-results/`.
-Never claim that checking an ambient working tree validates a partial PR.
+Staging, committing, pushing, remote comments and reviews, merging and remote
+metadata changes require explicit authorization for the applicable action.
+Keep force pushes and required-check bypasses prohibited.
+Apply [branch protection](docs/branch-protection.md#required-controls) to PRs
+targeting `main`. Verify
+[current-head provider evidence](.agents/rules/pull-requests.md#provider-evidence-and-required-checks)
+for every PR, including after retargeting. Follow the
+[publication rules](.agents/rules/pull-requests.md#publish-a-pull-request) for
+draft and ready-for-review status. Merging requires separate authorization and
+verified review prerequisites.
 
-The full profile runs every required check from the current manifest, including
-real source boundaries, typechecking, lint, measured published-source tests and
-audit-helper tests. Run the full profile for drafts and documentation changes
-too. Add the relevant real HTTP, database, authentication and storage tests as
-their owners are published; pure foundation or governance tests cannot establish
-those behaviors. Do not hide failed or missing checks.
+Apply the [CodeRabbit preflight](.agents/rules/pull-requests.md#coderabbit-request-preflight)
+to the exact current head before every authorized request or re-review. Keep
+automatic reviews disabled.
 
-## Review and main-branch protection
+## Verification and documentation
 
-Use ordinary GitHub, CodeQL, CodeRabbit and SonarQube Cloud integrations. Require CI,
-CodeQL,
-scanner execution, the actual Sonar provider quality gate, an approving review
-and resolved conversations. Enforce rules for administrators, dismiss stale
-approvals, require the latest push to be approved, and prevent force pushes and
-deletion. Use the native approval count; no separate publisher or custom approval
-check is required. Read [branch protection](docs/branch-protection.md) and inspect
-the actual current-head provider evidence.
+Start with a focused check from the [validation manifest](.agents/validation.json).
+Preserve required checks, assertions, type safety, lint and security controls.
+Report actual results, failures and unavailable evidence. Follow the
+[validation workflow](.agents/skills/validate-change/SKILL.md).
 
-Before every authorized CodeRabbit request or re-review, enforce the
-[preflight](.agents/rules/pull-requests.md#coderabbit-request-preflight): all
-non-CodeRabbit required checks, scanner and actual gate must pass for the exact
-head, with zero open or unresolved Sonar issues at every severity. A new commit
-invalidates that evidence. Exclude only CodeRabbit's own native and approval
-results to avoid a cycle. Respect provider quotas, one in-flight request per head,
-and at least one hour since both the latest manual request and substantive review.
-Never enable automatic reviews to bypass the order.
+Keep maintained documentation and assistant instructions in English, current
+and organized by reader task. Use the [documentation index](docs/README.md)
+and the [documentation rules](.agents/rules/guidance.md).
 
-Successive PRs may target their prerequisite branches. Full CI and CodeQL run
-for every PR base. Main-branch protection applies when a PR targets `main`;
-after prerequisites merge, retarget and obtain fresh checks for the current
-head and base. Honor an explicit instruction
-to publish ready for review while disclosing pending provider results; that
-status does not authorize merging or waive any review prerequisite.
+Run the complete `full` profile on an isolated export of the exact proposed
+inventory before an authorized commit or PR, including drafts and documentation
+changes. Keep rules, skills and evaluation prompts in English. Report actual
+outcomes in chat using the
+[evidence and QA reporting rules](.agents/rules/guidance.md#verify-evidence-and-results).
 
 ## Source boundaries
 
-The API exclusively owns DB access, migrations, authentication and storage.
-Preserve framework-free services and feature ports, concrete adapters, thin Hono
-HTTP routes, manual composition and atomic transactions. Read the relevant
-[backend](.agents/rules/backend.md), [data lifecycle](.agents/rules/data-lifecycle.md)
-and [localization](.agents/rules/localization.md) rules for the published owners.
-Wire definitions stay in pure feature-owned `src/contracts` modules without a
-catch-all barrel. Application imports of `src/application/localization.ts` are
-erased types; runtime catalogs and translation engines belong to infrastructure.
-Business references must block hard deletion with a localized 409 conflict,
-without partial effects. Soft deletion is prohibited.
+The API owns database access, migrations, authentication and storage. Keep
+services framework-free, routes thin and adapter transactions atomic. Use
+feature ports, concrete adapters and manual composition. Keep wire definitions
+in pure feature-owned `src/contracts` modules. Follow the
+[backend](.agents/rules/backend.md#ownership-and-dependency-direction),
+[import](.agents/rules/imports.md) and
+[localization](.agents/rules/localization.md#message-ownership) rules.
 
-Use disposable synthetic fixtures. Never read or copy real environments,
-credentials, databases, buckets or uploads from another checkout. Keep
-instructions, rules, skills, evaluation prompts and human documentation in
-English. Configuration files do not prove that an assistant loaded instructions
-or that any provider analysis actually ran.
+Business references block hard deletion with a localized HTTP 409 and no partial
+effects. Soft deletion is prohibited. Follow the
+[data lifecycle rules](.agents/rules/data-lifecycle.md).

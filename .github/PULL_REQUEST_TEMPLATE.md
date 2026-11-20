@@ -1,26 +1,29 @@
 ## Problem and resulting behavior
 
-Explain the concrete policy change and any prerequisite PR.
+<!-- Explain who is affected, what changes for them and any prerequisite PR. -->
 
 ## Published scope
 
-- Phase:
-- Exact publication inventory:
-- Pre-PR scope review (advisory target at most 80 files; explain larger cohesive changes and any useful split):
-- Application readiness and limitations:
+- Publication phase, application readiness and any limitations
+- Exact proposed tree and intended base
+- Complete changed-file count and scope rationale
+- Exact publication inventory
+
+<!-- Target at most 80 entries. Explain larger cohesive changes and any useful split. -->
 
 ## Verification
 
-- Exact proposed tree and base/head:
-- Full profile commands actually run and results:
-- Native CodeQL result for the current head, or blocker:
-- CodeRabbit current-head review and approval evidence, or blocker:
-- Sonar scanner, actual quality gate and complete issue report, or blocker:
-- Native required checks and approval evidence, or blocker:
+- Full profile commands actually run against the proposed tree and their results
+- Hosted required checks and native CodeQL result for the current head
+- Sonar scanner result and actual quality gate for the analyzed revision
+- Substantive CodeRabbit findings, their disposition and current-head approval evidence
+- Sonar complete issue report
+- Native approving-review evidence for the current head
+
+<!-- Record failed, pending, skipped, stale or unavailable evidence. Match each result to the checked revision. -->
 
 ## Rollout and review
 
-Describe which settings require authorized application in GitHub. Do not claim
-configuration alone proves enforcement, skips prove review, governance tests prove
-API behavior, or an ambient working-tree pass validates a different inventory.
-Keep incomplete work in draft. Merge requires separate authorization.
+<!-- Describe compatibility, operator steps, authorized repository settings and remaining review decisions. Keep incomplete work in draft. Merge requires separate authorization. -->
+
+<!-- Governance checks establish repository controls. Record API behavior and hosted enforcement from their own checks. -->
