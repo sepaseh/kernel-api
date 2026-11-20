@@ -1,19 +1,27 @@
-# API testing
+# Testing
 
-The current publication inventory declares which source owners are published.
-This rule applies when its corresponding owner is published. Unpublished local
-source and rule text do not establish validated behavior.
+Follow the [published scope](../README.md#published-scope).
 
-Use the canonical [validation manifest](../validation.json) and
-[validation policy](../../docs/validation.md). Start with focused checks during
-development; every required full-profile check runs before a requested commit/PR.
+## Choose checks
 
-Choose pure application tests with fake feature ports for business policy; use real
-TEMP SQLite/auth/storage for adapter, transaction, HTTP and lifecycle behavior.
-Keep application and presentation import-architecture tests intact. Local contract/catalog
-purity and key/placeholder integrity are separate source boundaries. API HTTP tests
-and Bruno/DTOs define wire behavior; independently released clients own their own
-component/browser/Pact consumer checks.
+Start with the smallest declared check that covers the changed behavior. Select
+commands from the [validation manifest](../validation.json).
+
+Check affected [package scripts](../../package.json) and owning tests. For source
+or dependency changes, run the relevant typecheck, lint and
+[boundary checks](imports.md#verify-boundaries) alongside affected behavior tests. For wire changes, follow the
+[HTTP contract workflow](api-collection.md#change-a-contract).
+
+Use application tests with fake feature ports for business policy. Use real
+database, authentication, storage and HTTP integration tests with disposable
+SQLite databases and owned synthetic resources for claims about those
+boundaries. Cover transactions and lifecycle behavior in the owning suite.
+Preserve the import-boundary checks, contract and catalog purity checks, and
+catalog key and placeholder checks. Independently released clients own their
+component, browser and Pact checks.
+
+Follow the [full validation policy](../../docs/validation.md) for an authorized
+commit or PR, including drafts and documentation changes.
 
 ## Test placement
 
@@ -27,21 +35,28 @@ use descriptive integration suites. Share setup in `deployment.test-support.mjs`
 and `package-release.test-support.mjs`; these are helpers, not runnable suites or
 production dependencies. Move existing cases without duplicating assertions.
 
-Test observable success/failure and atomic invariants, not implementation copies.
-Use small synthetic factories, deterministic clocks/data where needed, and actual
-concurrent transaction/rollback cases when stale reads matter. Preserve provider
-outage versus client-validation failures. Tests must never load operator env,
-existing DB/bucket/uploads or an already running developer API.
+## Test behavior and fixtures
 
-Synchronize asynchronous tests and smoke tools with observable events, completed
-operations or explicit cancellation. Do not add fixed sleeps, polling budgets,
-custom test/process/request deadlines or delayed cleanup retries. Exercise time
-policy with a controlled clock; domain durations and timestamps remain test inputs.
+Use [synthetic fixtures](safety.md#secrets-and-local-state) and disposable
+resources owned by the test. Exercise observable success and failure.
+
+Test atomic invariants directly. Use small synthetic factories, deterministic
+data and real concurrent transaction and rollback cases when stale reads matter.
+Distinguish provider outages from client-validation failures. Start a dedicated
+test API for the fixture when needed.
+
+## Synchronize and clean up
+
+Synchronize with observable readiness, completion, errors and close events. Use
+controlled clocks for timing behavior and explicit cancellation for interrupted
+work. Preserve the first operation failure and any cleanup failures.
+
+Keep fixed sleeps, polling budgets, custom test, process or request deadlines,
+and delayed cleanup retries out of asynchronous tests and smoke tools. Use domain
+durations and timestamps as test inputs.
 Close streams, listeners and child processes before removing their fixtures. When
 a native database driver has no asynchronous handle-release notification, own the
 file-backed scenario in a child process and remove its directory after child close.
-Preserve operation and cleanup failures together rather than suppressing either.
-
 Deployment tests validate immutable packaging, placeholder/origin/persistence
 preflight, Nginx rendering, readiness and protected workflow targets with disposable
 fixtures. Optional native/Docker smoke tools verify owned synthetic resources only;

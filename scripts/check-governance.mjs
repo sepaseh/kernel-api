@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 
+import { parsers as markdownParsers } from "prettier/plugins/markdown";
 import { parseDocument } from "yaml";
 
 import { coverageSourceFiles } from "./merge-coverage.mjs";
@@ -1403,10 +1404,10 @@ function* markdownTargets(content) {
 
 export const validateMarkdownLinks = (filename, content, files) => {
   for (const target of markdownTargets(content)) {
-    if (target.startsWith("#") || /^https?:\/\//i.test(target)) continue;
+    if (/^(?:[?#]|https?:\/\/)/i.test(target)) continue;
     let local;
     try {
-      local = decodeURIComponent(target.split("#")[0]);
+      local = decodeURIComponent(target.split(/[?#]/, 1)[0]);
     } catch {
       throw new Error("Documentation links must use valid URL encoding.");
     }
@@ -1419,6 +1420,192 @@ export const validateMarkdownLinks = (filename, content, files) => {
         !local.includes("\\") &&
         referencesPublishedPath(files, relative),
       `Documentation links must resolve within the published inventory: ${filename}.`,
+    );
+  }
+};
+
+const headingText = (node) => {
+  if (["text", "inlineCode"].includes(node.type)) return node.value;
+  if (node.type === "image" || node.type === "imageReference") return node.alt;
+  return (node.children ?? []).map(headingText).join("");
+};
+
+const decodeHtmlReferences = (text) =>
+  text.replace(/&(?:#\d+|#x[\da-f]+|[a-z][\da-z]*);/gi, (entity) => {
+    const paragraph = markdownParsers.markdown.parse(`x${entity}`).children[0];
+    return paragraph.children[0].value.slice(1);
+  });
+
+function* explicitHtmlAnchors(tag, tail) {
+  const attributes =
+    /(?:^|\s)([^\s"'<>/=]+)\s*=\s*("[^"]*"|'[^']*'|[^\s"'=<>]+)/g;
+  for (const [, name, value] of tail.matchAll(attributes)) {
+    const attribute = name.toLowerCase();
+    if (attribute !== "id" && (tag !== "a" || attribute !== "name")) continue;
+
+    const unquoted = /^["']/.test(value) ? value.slice(1, -1) : value;
+    if (unquoted) yield decodeHtmlReferences(unquoted);
+  }
+}
+
+// GitHub's Markdown renderer preserves explicit IDs on these elements.
+const markdownHtmlAnchorTags = new Set(
+  `a b blockquote br code dd del details div dl dt em
+  h1 h2 h3 h4 h5 h6 hr i img ins kbd li mark ol p picture pre q rp rt ruby
+  s samp section source span strike strong sub summary sup table tbody td
+  tfoot th thead tr tt ul var`.split(/\s+/),
+);
+
+const markdownHtmlAnchors = (markup) => {
+  const tagAttributes = `[^"'<>]*(?:(?:"[^"]*"|'[^']*')[^"'<>]*)*`;
+  const tags = new RegExp(
+    [
+      String.raw`<!--[\s\S]*?(?:-->|$)`,
+      String.raw`<!\[CDATA\[[\s\S]*?(?:\]\]>|$)`,
+      String.raw`<\?[^>]*(?:>|$)`,
+      String.raw`<(script|style|textarea|title)(?=[\s/>])${tagAttributes}>[\s\S]*?(?:<\/\1(?=[\s>])${tagAttributes}>|$)`,
+      String.raw`<(/?)([A-Za-z][\w:-]*)(?=[\s/>])(${tagAttributes})>`,
+    ].join("|"),
+    "gi",
+  );
+  const anchors = new Set();
+  const headings = [];
+  let heading;
+  let previousEnd = 0;
+
+  for (const match of markup.matchAll(tags)) {
+    const [token, , closing, name, tail] = match;
+    if (heading) heading.text += markup.slice(previousEnd, match.index);
+    previousEnd = match.index + token.length;
+    const tag = name?.toLowerCase();
+    if (!markdownHtmlAnchorTags.has(tag)) continue;
+
+    if (closing) {
+      if (heading?.tag === tag) {
+        headings.push(heading);
+        heading = undefined;
+      }
+      continue;
+    }
+    if (/^h[1-6]$/.test(tag)) heading = { tag, offset: match.index, text: "" };
+
+    for (const anchor of explicitHtmlAnchors(tag, tail)) anchors.add(anchor);
+  }
+  return { anchors, headings };
+};
+
+function* markdownNodes(root) {
+  const nodes = [root];
+  while (nodes.length) {
+    const node = nodes.pop();
+    yield node;
+    nodes.push(...(node.children ?? []).toReversed());
+  }
+}
+
+const markdownFragmentLinks = (nodes) => {
+  const definitions = new Map();
+  const links = [];
+  for (const node of nodes) {
+    if (node.type === "definition" && !definitions.has(node.identifier))
+      definitions.set(node.identifier, node.url);
+    if (node.type === "link" || node.type === "linkReference") links.push(node);
+  }
+  return links
+    .map((node) => node.url ?? definitions.get(node.identifier))
+    .filter((url) => url !== undefined);
+};
+
+const markdownFragments = (content) => {
+  const nodes = [...markdownNodes(markdownParsers.markdown.parse(content))];
+  const headings = [];
+  const html = [];
+  let offset = 0;
+  for (const node of nodes) {
+    if (node.type === "heading")
+      headings.push({ offset, text: headingText(node) });
+    if (["html", "text", "inlineCode"].includes(node.type)) {
+      // Inline HTML tags and their text can be separate Markdown nodes.
+      const chunk =
+        node.type === "html"
+          ? node.value
+          : node.value.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
+      html.push(chunk);
+      offset += chunk.length;
+    }
+  }
+
+  const parsedHtml = markdownHtmlAnchors(html.join(""));
+  for (const { offset, text } of parsedHtml.headings)
+    headings.push({ offset, text: decodeHtmlReferences(text) });
+  headings.sort((left, right) => left.offset - right.offset);
+
+  const headingSlugs = new Set();
+  const nextSuffix = new Map();
+  for (const { text } of headings) {
+    const base = text
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\p{M} _-]/gu, "")
+      .replaceAll(" ", "-");
+    let slug = base;
+    let suffix = nextSuffix.get(base) ?? 1;
+    while (headingSlugs.has(slug)) slug = base + "-" + suffix++;
+    nextSuffix.set(base, suffix);
+    headingSlugs.add(slug);
+  }
+  const lineCount =
+    content.split(/\r\n|[\r\n]/).length -
+    Number(content === "" || /[\r\n]$/.test(content));
+  return {
+    anchors: parsedHtml.anchors,
+    headingSlugs,
+    lineCount,
+    links: markdownFragmentLinks(nodes),
+  };
+};
+
+const validMarkdownLineFragment = (fragment, lineCount) => {
+  const match = /^L(\d+)(?:-L(\d+))?$/u.exec(fragment);
+  if (!match) return false;
+
+  const [, start, end = start] = match;
+  return [Number(start), Number(end)].every(
+    (line) => line >= 1 && line <= lineCount,
+  );
+};
+
+const validateMarkdownFragments = (filename, links, markdown) => {
+  for (const link of links) {
+    const hash = link.indexOf("#");
+    if (hash === -1 || hash === link.length - 1 || /^https?:\/\//i.test(link))
+      continue;
+    const target = link.slice(0, hash);
+    const query = target.indexOf("?");
+    const local = decodeURIComponent(
+      query === -1 ? target : target.slice(0, query),
+    );
+    const file = local
+      ? path.posix.normalize(
+          path.posix.join(path.posix.dirname(filename), local),
+        )
+      : filename;
+    if (!/\.md$/i.test(file)) continue;
+    const fragment = decodeURIComponent(link.slice(hash + 1));
+    const document = markdown.get(file);
+    const sourceView =
+      query !== -1 &&
+      new URLSearchParams(target.slice(query + 1)).getAll("plain").at(-1) ===
+        "1";
+    const destination = sourceView ? "source line" : "section";
+    assert(
+      document &&
+        (/^top$/i.test(fragment) ||
+          (sourceView
+            ? validMarkdownLineFragment(fragment, document.lineCount)
+            : document.anchors.has(fragment) ||
+              document.headingSlugs.has(fragment.toLowerCase()))),
+      `Documentation link must resolve to a published Markdown ${destination}: ${filename}: ${link}.`,
     );
   }
 };
@@ -1481,14 +1668,21 @@ export const inspectGuidance = async (root) => {
       "Disabled guidance assets must not register evaluation cases.",
     );
   }
-  const markdown = [...files].filter((file) => /\.md$/i.test(file));
-  await Promise.all(
-    markdown.map(async (file) =>
-      validateMarkdownLinks(file, await readText(root, file), files),
+  const markdown = new Map(
+    await Promise.all(
+      [...files]
+        .filter((file) => /\.md$/i.test(file))
+        .map(async (file) => {
+          const content = await readText(root, file);
+          validateMarkdownLinks(file, content, files);
+          return [file, markdownFragments(content)];
+        }),
     ),
   );
+  for (const [file, { links }] of markdown)
+    validateMarkdownFragments(file, links, markdown);
   return {
-    markdownFiles: markdown.length,
+    markdownFiles: markdown.size,
     rules: settings.rules.length,
     skills: settings.skills.length,
   };
